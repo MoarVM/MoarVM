@@ -428,19 +428,12 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     else {
         /* Check if the two codepoints would be joined during normalization.
          * Returns 1 if they would break and thus is safe under concat, or 0 if
-         * they would be joined. */
-        MVMNormalizer norm;
-        int rtrn;
-        MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-        /* Since we are only looking at two codepoints, we don't know what came
-         * before. Because of special rules with Regional Indicators, pretend
-         * the previous codepoint was a regional indicator. This will return the
-         * special value of 2 from MVM_unicode_normalize_should_break and trigger
-         * re_nfg if last_a and first_b are both regional indicators and we will
-         * never break NFG regardless of what the codepoint before last_a is. */
-        norm.regional_indicator = 1;
-        rtrn = MVM_unicode_normalize_should_break(tc, last_a, first_b, &norm);
-        MVM_unicode_normalizer_cleanup(tc, &norm);
+         * they would be joined. Two graphemes are all we need since
+         * non-adjacent graphemes can't influence these join-point graphemes
+         * (presuming well-formed NFG inputs). Graphemes after first_b may be
+         * affected by a renormalization, but not without these two changing. */
+        int rtrn = MVM_unicode_normalize_nfg_breaks(tc, last_a, first_b);
+
         /* If both CCC are non-zero then it may need to be reordered. For now return 0.
          * This can be optimized. */
         if (MVM_unicode_relative_ccc(tc, last_a) != 0 && MVM_unicode_relative_ccc(tc, first_b) != 0)

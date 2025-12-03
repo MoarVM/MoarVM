@@ -213,7 +213,7 @@ void MVM_unicode_normalizer_init(MVMThreadContext *tc, MVMNormalizer *n, MVMNorm
     n->buffer_norm_end    = 0;
     n->translate_newlines = 0;
     n->prepend_buffer     = 0;
-    n->regional_indicator = 0;
+
     switch (n->form) {
         case MVM_NORMALIZE_NFD:
             n->first_significant    = MVM_NORMALIZE_FIRST_SIG_NFD;
@@ -511,137 +511,429 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     }
 }
 
-/* Performs grapheme composition (to get Normal Form Grapheme) on the range of
- * codepoints provided. This follows the algorithm in the Unicode Standard
- * Annex #29 on grapheme cluster boundaries. Note that we have already done
- * the handling of breaking around controls much earlier, so don't have to
- * consider that case. */
-static MVMint32 maybe_hangul(MVMCodepoint cp) {
-    return (0x1100 <= cp  && cp < 0x1200) || (0xA960 <= cp && cp < 0xD7FC);
-}
-static MVMint32 is_grapheme_extend(MVMThreadContext *tc, MVMCodepoint cp) {
-    return MVM_unicode_codepoint_get_property_int(tc, cp,
-        MVM_UNICODE_PROPERTY_GRAPHEME_EXTEND);
-}
-static MVMint32 is_grapheme_prepend(MVMThreadContext *tc, MVMCodepoint cp) {
-    return MVM_unicode_codepoint_get_property_int(tc, cp,
-        MVM_UNICODE_PROPERTY_PREPENDED_CONCATENATION_MARK);
-}
-/* Returns 0 if the two graphemes should be combined and returns 1 or 2 if
- * the graphemes should break. 2 is returned if more than the currenly seen
- * graphemes may be needed to determine the breaking (this is only needed if
- * we are checking two arbitrary codepoints. If we are normalizing linearly from
- * the start of the string this has no more significance than returning 1) */
-MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm) {
-    int GCB_a, GCB_b;
-    /* Only do more checks if needed to reset norm->regional_indicator */
-    if (norm->regional_indicator) {
-        /* If `a` is *not* a Regional Indicator, set norm->regional_indicator to 0
-         * so we only break every two RI's that are continuous. */
-        if (!(UNI_CP_REGIONAL_INDICATOR_A <= a && a <= UNI_CP_REGIONAL_INDICATOR_Z))
-            norm->regional_indicator = 0;
-    }
-    /* Don't break between \r and \n, but otherwise break around \r. */
-    if (a == 0x0D && b == 0x0A)
-        return 0;
-    if (a == 0x0D || b == 0x0D)
-        return 1;
-    /* For utf8-c8 graphemes. We treat these as control's (always break). Return
-     * early because we can't request property values for these as well. */
-    if (a < 0 || b < 0) {
-        if ((a < 0 && MVM_nfg_get_synthetic_info(tc, a)->is_utf8_c8) || (b < 0 && MVM_nfg_get_synthetic_info(tc, b)->is_utf8_c8))
-            return 1;
+/* Retrieves the Grapheme_Cluster_Break property value for a codepoint. Intended
+ * for use in the grapheme boundary search function next_grapheme() and related
+ * functions, so it handles synthetics specially: UTF8-C8 graphemes are treated
+ * as if they have GCB=Control, while all other synthetics cause an error.
+ *
+ */
+MVM_STATIC_INLINE int ng_get_gcb_for(MVMThreadContext * tc, MVMNormalizer * norm) {
+    if (norm->next_grapheme_code < 0) {
+        if (MVM_nfg_get_synthetic_info(tc, norm->next_grapheme_code)->is_utf8_c8) {
+            return MVM_UNICODE_PVALUE_GCB_CONTROL;
+        }
 
         MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
     }
-    GCB_a = MVM_unicode_codepoint_get_property_int(tc, a, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
-    GCB_b = MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
-    switch (GCB_a) {
-        case MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR:
-            /* If the previous run made a sequence */
-            if (norm->regional_indicator) {
-                norm->regional_indicator = 0;
-                if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR)
-                /* If we have formed a sequence, break. Return 2 to differentiate
-                 * RI break's from other breaks. */
-                    return 2;
-            }
-            /* Don't break in a RI sequence. Set norm->regional_indicator = 1
-             * so we make sure to break for the next RI we see. */
-            if (GCB_b == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR) {
-                norm->regional_indicator = 1;
-                return 0;
-            }
-            break;
-        /* Don't break after Prepend Grapheme_Cluster_Break=Prepend */
-        case MVM_UNICODE_PVALUE_GCB_PREPEND:
-            /* If it's a control character remember to break */
-            if (MVM_string_is_control_full(tc, b )) {
-                return 1;
-            }
-            /* Otherwise don't break */
-            return 0;
-        /* Do not break within emoji modifier sequences or emoji zwj sequences. */
-        /* \p{Extended_Pictographic} Extend* ZWJ × \p{Extended_Pictographic} */
-        case MVM_UNICODE_PVALUE_GCB_ZWJ:
-            if (MVM_unicode_codepoint_get_property_int(tc, b, MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC))
-                return 0;
-                /* Don't break after ZWJ for E_Base_GAZ or Glue_After_ZWJ */
-            /* May be able to be removed */
-            if ( b == UNI_CP_FEMALE_SIGN || b == UNI_CP_MALE_SIGN )
-                return 0;
-            break;
-        case MVM_UNICODE_PVALUE_GCB_L:
-            if (GCB_b == MVM_UNICODE_PVALUE_GCB_L  || GCB_b == MVM_UNICODE_PVALUE_GCB_V ||
-                     GCB_b == MVM_UNICODE_PVALUE_GCB_LV || GCB_b == MVM_UNICODE_PVALUE_GCB_LVT)
-                return 0;
-            break;
-        case MVM_UNICODE_PVALUE_GCB_LV:
-        case MVM_UNICODE_PVALUE_GCB_V:
-            if (GCB_b == MVM_UNICODE_PVALUE_GCB_V || GCB_b == MVM_UNICODE_PVALUE_GCB_T)
-                return 0;
-            break;
-        case MVM_UNICODE_PVALUE_GCB_LVT:
-        case MVM_UNICODE_PVALUE_GCB_T:
-            if (GCB_b == MVM_UNICODE_PVALUE_GCB_T)
-                return 0;
-            break;
-    }
-    switch (GCB_b) {
-        /* Don't break before extending chars */
-        case MVM_UNICODE_PVALUE_GCB_EXTEND:
-            return 0;
-        /* Don't break before ZWJ */
-        case MVM_UNICODE_PVALUE_GCB_ZWJ:
-            return 0;
-        /* Don't break before spacing marks. */
-        case MVM_UNICODE_PVALUE_GCB_SPACINGMARK:
-            return 0;
-    }
 
-    /* Otherwise break. */
+    return MVM_unicode_codepoint_get_property_int(tc, norm->next_grapheme_code, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+}
+
+/* Grabs the next codepoint for the next_grapheme() search function and related
+ * functions. All the relevant input is stored inside 'norm'. Return value is a
+ * boolean indicating if a boundary search can continue, or if the end of the
+ * search area has been hit: zero means it's hit the end of the search area,
+ * non-zero means there's more codepoints available.
+ *
+ * This function is intended to be used after successfully matching a codepoint
+ * against some criterion. It moves you on to the next codepoint if you have
+ * more tests to run, or points just past the end of the grapheme if you've
+ * found the whole thing.
+ *
+ */
+MVM_STATIC_INLINE int ng_next_code(MVMThreadContext * tc, MVMNormalizer * norm) {
+    if (++norm->next_grapheme_cur == norm->next_grapheme_last) { return 0; }
+    norm->next_grapheme_code = norm->buffer[norm->next_grapheme_cur];
+    norm->next_grapheme_gcb = ng_get_gcb_for(tc, norm);
     return 1;
 }
+
+/* This function handles the <core> rule as defined in UAX#29, section 3 (Table
+ * 1b). This rule handles all the "normal" grapheme clusters, i.e. not control
+ * codes. The return value is a boolean indicating if the boundary search can
+ * continue, for ease of use. zero indicates that it's hit the end of the search
+ * area, non-zero means you can continue looking.
+ *
+ */
+static int ng_rule_core(MVMThreadContext * tc, MVMNormalizer * norm) {
+    // these macros are defined to make this huge function a bit less cumbersome
+    // to read and maintain. NG_NEXT handles grabbing the next codepoint, and
+    // returning if we hit the end of the search area. NG_TAKE_WHILE handles
+    // grabbing codepoints so long as they meet some condition; if it doesn't
+    // hit the end of the search area, it will end with 'norm' set up for the
+    // codepoint the loop failed to match.
+#define NG_NEXT do {                            \
+        if (!ng_next_code(tc, norm)) {          \
+            return 0;                           \
+        }                                       \
+    } while (0)
+
+#define NG_TAKE_WHILE(_test) do {                                       \
+        if (norm->next_grapheme_cur == norm->next_grapheme_last) {      \
+            return 0;                                                   \
+        }                                                               \
+        while ((_test)) {                                               \
+            NG_NEXT;                                                    \
+        }                                                               \
+    } while (0)
+
+    // The first <core> alternation is hangul syllables, in rough pseudoregex
+    // terms: / L* [V+ || LV V* || LVT] T* || L+ || T+ /
+
+    // Check for Hangul syllables which start with an L-type codepoint.
+    if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_L) {
+        // Hangul L found, may have V-likes (V/LV/LVT) and Ts afterwards, or may
+        // be just Ls. (This loop lets us take the initial L without having to
+        // specify NG_NEXT.)
+        NG_TAKE_WHILE(norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_L);
+
+        // This if block we're in could've matched either /L+/ or /L* [V/LV/LVT]
+        // T*/ so far. If we're in an /L+/ situation, then we're done with
+        // <core>. Otherwise, we'll let the next if block handle matching the
+        // rest of /L* [V/LV/LVT] T*/.
+        if (!(norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_V
+              || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LV
+              || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LVT)) {
+            return 1;
+        }
+    }
+
+    // Check for Hangul syllables starting with a V-like codepoint (V/LV/LVT).
+    // Also used by syllables that start with L-types and are followed by
+    // V-likes.
+    if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_V) {
+        // A V-type can be followed by any number of extra Vs. (This loop lets
+        // us take the initial V without having to specify NG_NEXT.)
+        NG_TAKE_WHILE((norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_V));
+
+        // A string of Vs can be followed by Ts; if not, then it's the end of
+        // <core> for this branch.
+        if (norm->next_grapheme_gcb != MVM_UNICODE_PVALUE_GCB_T) {
+            return 1;
+        }
+    } else if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LV) {
+        // An LV-type can be followed by any number of Vs, including none.
+        NG_NEXT;
+        NG_TAKE_WHILE((norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_V));
+
+        // Can be followed by Ts, or else <core> ends here.
+        if (norm->next_grapheme_gcb != MVM_UNICODE_PVALUE_GCB_T) {
+            return 1;
+        }
+    } else if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LVT) {
+        // An LVT-type can only be followed by the usual optional Ts
+        NG_NEXT;
+
+        if (norm->next_grapheme_gcb != MVM_UNICODE_PVALUE_GCB_T) {
+            return 1;
+        }
+    }
+
+    // this branch is taken for Hangul syllables that just contain T-type
+    // codepoints, and is co-opted by Hangul syllables that happen to have
+    // trailing T-type codes. After matching those Ts, it's the end of <core>
+    // for all Hangul syllables.
+    if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_T) {
+        NG_TAKE_WHILE((norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_T));
+
+        return 1;
+    }
+
+    // So it wasn't a hangul symbol after all. Next alternation: an RI pair.
+    if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR) {
+        NG_NEXT;
+
+        // if the next character is also RI, take it and move on. Regardless,
+        // it's the end of <core>. (RI can't be part of any other <core>; either
+        // it forms a pair or its a complete <core> by itself.)
+        if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_REGIONAL_INDICATOR) {
+            NG_NEXT;
+        }
+
+        return 1;
+    }
+
+    // Not an RI pair, an emoji sequence perhaps?
+    if (MVM_unicode_codepoint_get_property_int(
+            tc,
+            norm->next_grapheme_code,
+            MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC)) {
+        NG_NEXT;
+
+        // we have to pick up / [<Extend>* <ZWJ> <Extended_Pictographic>]* /
+        // here. Note that if we fail at any point mid-way through this process,
+        // any Extends and ZWJs we picked up would've been picked up by
+        // <postcore>, so we don't need to backtrack like a regex would.
+        while (norm->next_grapheme_cur < norm->next_grapheme_last) {
+            NG_TAKE_WHILE((norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND));
+
+            // After all the Extends we could find, we have to find a ZWJ to
+            // possibly keep the emoji sequence going.
+            if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_ZWJ) {
+                // picked up a ZWJ, can pick up another EP.
+                NG_NEXT;
+
+                // if this is an EP, take it, and allow the while loop to go
+                // round again. Otherwise, the emoji sequence has ended and
+                // we'll break the loop.
+                if (MVM_unicode_codepoint_get_property_int(
+                        tc,
+                        norm->next_grapheme_code,
+                        MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC)) {
+                    NG_NEXT;
+                } else {
+                    // it wasn't another EP, so this loop stops here
+                    break;
+                }
+            } else {
+                // not a ZWJ, so the EP loop stops here.
+                break;
+            }
+        }
+
+        // just in case the loop actually exited on its normal test condition,
+        // make sure our return value reflects the ability to continue searching
+        // as expected.
+        return norm->next_grapheme_cur < norm->next_grapheme_last;
+    }
+
+    // alright, not an emoji sequence either. Could it be a conjunct cluster?
+    int incb = MVM_unicode_codepoint_get_property_int(
+        tc,
+        norm->next_grapheme_code,
+        MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+
+    if (incb == MVM_UNICODE_PVALUE_INCB_CONSONANT) {
+        NG_NEXT;
+        incb = MVM_unicode_codepoint_get_property_int(
+            tc,
+            norm->next_grapheme_code,
+            MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+
+        // This loop matches the rest of the conjuct cluster. After the initial
+        // InCB=Consonant, it can be followed by any number of InCB=Extend and
+        // InCB=Linker codepoints. If an InCB=Linker shows up anywhere in that
+        // sequence, another InCB=Consonant may join the grapheme and repeat
+        // this loop once more (each Consonant must have a Linker in its
+        // following sequence to pick up another Consonant).
+        //
+        // As of Unicode 17.0.0, every InCB=Extend/Linker codepoint is also
+        // GCB=Extend, so we don't have to backtrack like a regex when the
+        // conjunct cluster stops.
+        while (norm->next_grapheme_cur < norm->next_grapheme_last) {
+            int got_linker = 0;
+
+            while ((incb == MVM_UNICODE_PVALUE_INCB_EXTEND
+                    || incb == MVM_UNICODE_PVALUE_INCB_LINKER)) {
+                if (incb == MVM_UNICODE_PVALUE_INCB_LINKER) { got_linker = 1; }
+
+                NG_NEXT;
+                incb = MVM_unicode_codepoint_get_property_int(
+                    tc,
+                    norm->next_grapheme_code,
+                    MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+            }
+
+            // we're not at an InCB=Extend/Linker, but if we got a Linker at
+            // some point and we're now at a Consonant, we can take that and
+            // loop around. Otherwise, whatever stopped us stops the whole
+            // conjuct cluster.
+            if (got_linker && incb == MVM_UNICODE_PVALUE_INCB_CONSONANT) {
+                NG_NEXT;
+                incb = MVM_unicode_codepoint_get_property_int(
+                    tc,
+                    norm->next_grapheme_code,
+                    MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+            } else {
+                break;
+            }
+        }
+
+        // as with the emoji sequence case, just in case we happened to exit the
+        // while loop on its normal test condition, make sure the return value
+        // reflects if more searching can be done.
+        return norm->next_grapheme_cur < norm->next_grapheme_last;
+    }
+
+    // Alright, nothing's worked, so as long as we're not in front of a Control,
+    // CR, or LF codepoint, we can take it as the sole <core> codepoint. (This
+    // needs to be checked, in the case of a <precore> immediately followed by
+    // one of these codepoints.)
+    if (!(norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CR
+          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LF
+          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CONTROL)) {
+        NG_NEXT;
+        return 1;
+    }
+
+
+    // If we reached here, that means we hit a CR, LF, or Control. We can't take
+    // it as part of this grapheme cluster, but we can safely move on. The
+    // caller ought to be designed to not take this codepoint as a <postcore>
+    // either, so no special signaling of this hard break is required.
+    return 1;
+
+#undef NG_NEXT
+#undef NG_TAKE_WHILE
+}
+
+/* Determines where the next grapheme ends. 'norm' holds the normalizer, which
+ * contains the text to search in. 'first' points to the start of a grapheme
+ * cluster, while 'last' points to just past the last codepoint this function
+ * may examine. The return value points to just past the end of the grapheme
+ * cluster; it will be no higher than 'last'.
+ *
+ * This function cannot operate on synthetic codepoints, except for UTF-C8
+ * graphemes (which are always treated as GCB=Control codepoints). This function
+ * is based on the regex-y rules in Section 3 of UAX#29, which should be exactly
+ * equivalent to the rule list in Section 3.1.1 (the rules labeled GBx).
+ *
+ */
+static MVMint32 next_grapheme(MVMThreadContext * tc, MVMNormalizer * norm, MVMint32 first, MVMint32 last) {
+    // trivial case: if we're given zero codes to work with, nothing to do (XXX
+    // signal an error here instead?)
+    if (first == last) { return last; }
+
+    // grab the first codepoint to get started. At every point in the function's
+    // run, the normalizer's next_grapheme_{cur,code,gcb} members reflect the
+    // codepoint currently being tested. Once a codepoint has been determined to
+    // be part of this grapheme cluster, it gets "consumed" and ng_next_code()
+    // is used to update the members for the next codepoint to test, if any are
+    // left.
+    norm->next_grapheme_cur = first;
+    norm->next_grapheme_last = last;
+    norm->next_grapheme_code = norm->buffer[norm->next_grapheme_cur];
+    norm->next_grapheme_gcb = ng_get_gcb_for(tc, norm); // handles synthetics for us
+
+    // This if-else tree handles the first three alternations of the "extended
+    // grapheme cluster" rule, which are all special cases, and simple to boot.
+    if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CR) {
+        if (!ng_next_code(tc, norm)) {
+            return last;
+        }
+
+        // see if the next codepoint is an LF, if so that's the whole grapheme.
+        if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LF) {
+            // +1 to include the LF we just checked, since we know this has to
+            // end the entire grapheme cluster and we're thus not going to waste
+            // time calling ng_next_code().
+            return norm->next_grapheme_cur + 1;
+        }
+
+        // just a CR, so it's a single-code grapheme
+        return norm->next_grapheme_cur;
+    } else if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LF
+               || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CONTROL) {
+        // LF or Control, a grapheme on its own. +1 because we know the entire
+        // grapheme cluster ends here, so calling ng_next_code() would be a
+        // waste.
+        return norm->next_grapheme_cur + 1;
+    }
+
+    // now for the complicated alternation: /<precore>* <core> <postcore>*/.
+    // This alternation is guaranteed to match at least the first codepoint we
+    // grabbed.
+
+    // first is <precore>*, which is currently just a sequence of zero-or-more
+    // GCB=Prepend codepoints.
+    while (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_PREPEND) {
+        if (!ng_next_code(tc, norm)) {
+            return last;
+        }
+    }
+
+    // next up is <core>, which is complicated enough that it's worth factoring
+    // out into its own function.
+    if (!ng_rule_core(tc, norm)) {
+        return last;
+    }
+
+    // The <postcore> step is mercifully simple, just look for Extend, ZWJ, or
+    // SpacingMark codepoints until we don't get them anymore.
+    while ((norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND
+            || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_ZWJ
+            || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_SPACINGMARK)) {
+        if (!ng_next_code(tc, norm)) {
+            return last;
+        }
+    }
+
+    // At last we're done, we know where the grapheme ends. Just a quick
+    // assertion to guard against matching nothing, and we return where the next
+    // grapheme begins.
+    assert(first < norm->next_grapheme_cur);
+    return norm->next_grapheme_cur;
+}
+
+/* This function checks to see if an NFG string would break between the two
+ * given graphemes. The intention is for scenarios where you're thinking of
+ * joining two strings together, and you want to know if the graphemes around
+ * the join point require renormalization.
+ *
+ * 'a' holds the last grapheme of the prefix string, and 'b' holds the first
+ * grapheme of the postfix string. Return value is 1 if a proper NFG string
+ * exactly breaks between these graphemes, 0 if not. Note that graphemes after
+ * 'b' may also be renormalized in the false scenario. This function does not
+ * imply anything about how much text has to be renormalized.
+ *
+ */
+MVMint32 MVM_unicode_normalize_nfg_breaks(MVMThreadContext * tc,
+                                          MVMGrapheme32 a, MVMGrapheme32 b) {
+    MVMNormalizer norm;
+    MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
+    MVMint32 a_size = 1;
+
+    // add the two graphemes to the internal buffer, in their unsynthetic forms
+    // if need be.
+    if (a < 0) {
+        MVMNFGSynthetic * synfo = MVM_nfg_get_synthetic_info(tc, a);
+        a_size = synfo->num_codes;
+        for (MVMint32 i = 0; i < a_size; i++) {
+            add_codepoint_to_buffer(tc, &norm, synfo->codes[i]);
+        }
+    } else {
+        add_codepoint_to_buffer(tc, &norm, a);
+    }
+
+    if (b < 0) {
+        MVMNFGSynthetic * synfo = MVM_nfg_get_synthetic_info(tc, b);
+        for (MVMint32 i = 0; i < synfo->num_codes; i++) {
+            add_codepoint_to_buffer(tc, &norm, synfo->codes[i]);
+        }
+    } else {
+        add_codepoint_to_buffer(tc, &norm, b);
+    }
+
+    // now we can check to see if the NFG breaks between 'a' and 'b'. We expect
+    // the return value to point exactly between them, or within 'b'. A return
+    // value within 'a' would suggest a malformed NFG string from elsewhere.
+    MVMint32 break_at = next_grapheme(tc, &norm, 0, norm.buffer_end);
+
+    // XXX an exception instead?
+    assert(break_at >= a_size);
+
+    // return value depends on if the break is still exactly between 'a' and
+    // 'b'.
+    MVMint32 res = break_at == a_size;
+
+    MVM_unicode_normalizer_cleanup(tc, &norm);
+    return res;
+}
+
 static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint32 from, MVMint32 to) {
     if (to - from >= 2) {
-        MVMint32 starterish = from;
         MVMint32 insert_pos = from;
         MVMint32 pos        = from;
         while (pos < to) {
-            MVMint32 next_pos = pos + 1;
-            if (next_pos == to || MVM_unicode_normalize_should_break(tc, n->buffer[pos], n->buffer[next_pos], n)) {
-                /* Last in buffer or next code point is a non-starter; turn
-                 * sequence into a synthetic. */
-                MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + starterish, next_pos - starterish);
-                if (n->translate_newlines && g == MVM_nfg_crlf_grapheme(tc))
-                    g = '\n';
-                n->buffer[insert_pos++] = g;
+            MVMint32 next_pos = next_grapheme(tc, n, pos, to);
+            assert(pos < next_pos); // should never have zero-width
+            MVMGrapheme32 g = MVM_nfg_codes_to_grapheme(tc, n->buffer + pos, next_pos - pos);
+            if (n->translate_newlines && g == MVM_nfg_crlf_grapheme(tc))
+                g = '\n';
+            n->buffer[insert_pos++] = g;
 
-                /* The next code point is our new starterish (harmless if we
-                 * are already at the end of the buffer). */
-                starterish = next_pos;
-            }
-            pos++;
+            /* harmless if we are already at the end of the buffer. */
+            pos = next_pos;
         }
         memmove(n->buffer + insert_pos, n->buffer + to, (n->buffer_end - to) * sizeof(MVMCodepoint));
         n->buffer_end -= to - insert_pos;
@@ -655,7 +947,8 @@ static void grapheme_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint3
  * compute the normalization. */
 MVMint32 MVM_unicode_normalizer_process_codepoint_full(MVMThreadContext *tc, MVMNormalizer *norm, MVMCodepoint in, MVMCodepoint *out) {
     MVMint64 qc_in, ccc_in;
-    int is_prepend = is_grapheme_prepend(tc, in);
+    int is_prepend = MVM_unicode_codepoint_get_property_int(
+        tc, in, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK) == MVM_UNICODE_PVALUE_GCB_PREPEND;
 
     if (MVM_UNLIKELY(0 < norm->prepend_buffer))
         norm->prepend_buffer--;
@@ -789,9 +1082,9 @@ void MVM_unicode_normalizer_eof(MVMThreadContext *tc, MVMNormalizer *n) {
         if (MVM_NORMALIZE_GRAPHEME(n->form))
             grapheme_composition(tc, n, n->buffer_norm_end, n->buffer_end);
     }
-    /* Reset these two to ensure their value doesn't stick around */
+    /* Reset this to ensure its value doesn't stick around */
     n->prepend_buffer     = 0;
-    n->regional_indicator = 0;
+
     /* We've now normalized all that remains. */
     n->buffer_norm_end = n->buffer_end;
 }
