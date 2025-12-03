@@ -1630,30 +1630,118 @@ sub grapheme_cluster_break {
                         $pname, { Other => 0 }, 1);
 }
 
-# Tweak NFG_QC values that differ from NFC_QC (as set in DerivedNormalizationProps)
+# We make up an NFG_QC property that's analogous to the standard NFx_QC
+# properties, and gives you *some* information about how a codepoint behaves in
+# NFG normalization. Much like how NFC_QC is a less complete view of a
+# codepoint's behavior than NFD_QC (it doesn't say anything about the
+# codepoint's ability to compose with subsequent codepoints), NFG_QC is less
+# complete a look than NFC_QC. In addition to the extra tests needed for
+# determining NFC text, you need to test for the presence of GCB=Prepend
+# codepoints immediately before the codepoint.
+#
+# As NFG builds on top of NFC, the NFG_QC property starts of initially set to
+# the same value as NFC_QC for all codepoints (handled earlier). This function
+# makes the necessary changes for NFG quickchecking. Specifically:
+#
+#  * Never give NFG_QC a "better" value than its corresponding NFC_QC. If it
+#    can't survive the NFC process, then by definition it won't survive the NFG
+#    process. This means this tweak function never sets NFG_QC=Y, and it only
+#    sets NFG_QC=M if NFC_QC!=N.
+#
+#  * This function never sets NFG_QC=N, because any codepoint is capable of
+#    being its own grapheme (the trivial case being the only codepoint in the
+#    string, though other survivable conditions exist for all codepoints).
+#    Recall that NFC_QC=N only happens for codepoints which decompose and can't
+#    be recompose. NFG doesn't make any codepoints unconditionally disappear
+#    after the NFC step, so NFG_QC doesn't get any additional =N assignments
+#    after the initial "copy NFC_QC" step.
+#
+#  * This function sets NFG_QC=M (or leaves it at =N) for any codepoint which
+#    may form a grapheme with a preceding character, EXCEPT for the
+#    "unconditional prefix" rules. This means a codepoint which could be on the
+#    RHS of a joining (× operator) rule, as well as codepoints that can be the
+#    non-initial codepoints of the LHS of a joining rule.
+#
+#     * For example: CR-type characters are NOT marked "maybe", because they
+#       only ever appear as the initial character of the LHS side of a joining
+#       rule, i.e. rule GB3.
+#
+#     * Rules such as GB9c and GB12 put multiple codepoints on the left-hand
+#       side of a joining rule, which is where the extra bit about non-initial
+#       LHS codepoints comes from. For example, rule GB9c makes it so that
+#       InCB=Extend and InCB=Linker codes are NFG_QC=M, even though they never
+#       appear on the RHS of any joining rule.
+#
+#     * As of Unicode 17.0.0, the only "unconditional prefix" rule is GB9b,
+#       which states that GCB=Prepend can attach to just about every possible
+#       following codepoint. If we factored these rules into the NFG_QC
+#       property, the property would be worthless. Your normalizer code needs to
+#       account for the presence of codepoints in any "uncondtional prefix" rule
+#       immediately preceding the codepoint being tested.
+#
+#        * Note that "unconditional prefix", is a slight misnomer, since they
+#          can't attach to Control, CR, or LF codepoints. However, the set of
+#          excepted codepoints is so small relative to all of Unicode that it
+#          still causes the problems outlined above.
+#
+#     * Much like how NFC_QC=Y codepoints can still combine with following
+#       codepoints, NFG_QC=Y codepoints may still combine with following
+#       codepoints into a larger grapheme cluster.
+#
+# This function was last updated for Unicode 17.0.0, consulting
+# <https://www.unicode.org/reports/tr29/tr29-47.html#Grapheme_Cluster_Boundary_Rules>.
+# Note that not every Unicode update requires an update to this property.
+#
 sub tweak_nfg_qc {
-    # See http://www.unicode.org/reports/tr29/tr29-27.html#Grapheme_Cluster_Boundary_Rules
+    my $gcb_set = $ENUMERATED_PROPERTIES->{Grapheme_Cluster_Break}->{enum};
+    my $incb_set = $ENUMERATED_PROPERTIES->{Indic_Conjunct_Break}->{enum};
+    my $nfgqc_set = $ENUMERATED_PROPERTIES->{NFG_QC}->{enum};
+
     for my $point (values %$POINTS_BY_CODE) {
         my $code    =  $point->{'code'};
-        my $special =  $code >= 0x1F1E6 && $code <= 0x1F1FF # Regional indicators
-                    || $code == 0x0D    # CARRIAGE RETURN (CR, \r)
-                    || $code == 0x200D  # ZERO WIDTH JOINER
-                    || $code == 0x0E33  # THAI CHARACTER SARA AM (<compat>)
-                    || $code == 0x0EB3; # LAO VOWEL SIGN AM (<compat>)
+        my $mark_it = 0; # factor out the actual code-marking process from the tests
 
-        if ($special
-        || $point->{'Hangul_Syllable_Type'}         # Hangul
-        || $point->{'Grapheme_Extend'}              # Grapheme_Extend
-        || $point->{'Grapheme_Cluster_Break'}       # Grapheme_Cluster_Break
-        || $point->{'Prepended_Concatenation_Mark'} # Prepended_Concatenation_Mark
-        || $point->{'gencat_name'} && $point->{'gencat_name'} eq 'Mc' # Spacing_Mark
-        ) {
-            $point->{'NFG_QC'} = 0;
+        my $gcb = $point->{Grapheme_Cluster_Break} // $gcb_set->{Other};
+        my $incb = $point->{Indic_Conjunct_Break} // $incb_set->{None};
+
+        # even though these branches all do the same thing, they've been broken
+        # up to make it easier to tell the different rules apart, in case they
+        # need to be modified or added to in the future.
+        if ($gcb == $gcb_set->{LF}) {
+            # LF characters can combine with preceding CR characters
+            $mark_it = 1;
+        } elsif ($gcb == $gcb_set->{L} || $gcb == $gcb_set->{V} || $gcb == $gcb_set->{T}
+                 || $gcb == $gcb_set->{LV} || $gcb == $gcb_set->{LVT}) {
+            # all hangul syllable types may appear after another hangul syllable
+            # type
+            $mark_it = 1;
+        } elsif ($gcb == $gcb_set->{Extend} || $gcb == $gcb_set->{ZWJ}) {
+            # Extend and ZWJ join with any preceding codepoints.
+            $mark_it = 1;
+        } elsif ($gcb == $gcb_set->{SpacingMark}) {
+            # SpacingMarks also join with any preceding codepoints.
+            $mark_it = 1;
+        } elsif ($incb == $incb_set->{Consonant}
+                 || $incb == $incb_set->{Extend}
+                 || $incb == $incb_set->{Linker}) {
+            # conjunct clusters. Consonants are on the RHS of rule GB9c, the
+            # others are non-initial LHS parts of the same rule.
+            $mark_it = 1;
+        } elsif ($point->{Extended_Pictographic}) {
+            # EPs are on the RHS of rule GB11. The Extends and ZWJ on the LHS of
+            # the same rule are already handled by an earlier branch.
+            $mark_it = 1;
+        } elsif ($gcb == $gcb_set->{Regional_Indicator}) {
+            # RI codepoints, used for specifying flags by country code
+            $mark_it = 1;
         }
-        # XXXX: For now set all Emoji to NFG_QC = 0; eventually we will only
-        #       want to set the ones that are NOT specified as ZWJ sequences
-        elsif ($point->{'Emoji'}) {
-            $point->{'NFG_QC'} = 0;
+
+        # mark it as a Maybe, or leave it as a No, if we figured it's time to do
+        # so.
+        if ($mark_it) {
+            if ($point->{NFG_QC} != $nfgqc_set->{N}) {
+                $point->{NFG_QC} = $nfgqc_set->{M};
+            }
         }
     }
 }
@@ -2515,6 +2603,8 @@ END
                                   'General_Category', 'GC')
         . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK',
                                   'Grapheme_Cluster_Break', 'GCB')
+        . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK',
+                                  'Indic_Conjunct_Break', 'INCB')
         . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE',
                                   'Decomposition_Type', 'DT')
         . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS',
