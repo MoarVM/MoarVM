@@ -1652,7 +1652,7 @@ sub grapheme_cluster_break {
 #    being its own grapheme (the trivial case being the only codepoint in the
 #    string, though other survivable conditions exist for all codepoints).
 #    Recall that NFC_QC=N only happens for codepoints which decompose and can't
-#    be recompose. NFG doesn't make any codepoints unconditionally disappear
+#    be recomposed. NFG doesn't make any codepoints unconditionally disappear
 #    after the NFC step, so NFG_QC doesn't get any additional =N assignments
 #    after the initial "copy NFC_QC" step.
 #
@@ -1706,33 +1706,36 @@ sub tweak_nfg_qc {
 
         # even though these branches all do the same thing, they've been broken
         # up to make it easier to tell the different rules apart, in case they
-        # need to be modified or added to in the future.
+        # need to be modified or added to in the future. References to rules are
+        # added to make this even easier.
         if ($gcb == $gcb_set->{LF}) {
-            # LF characters can combine with preceding CR characters
+            # LF characters can combine with preceding CR characters (Rule: GB3)
             $mark_it = 1;
         } elsif ($gcb == $gcb_set->{L} || $gcb == $gcb_set->{V} || $gcb == $gcb_set->{T}
                  || $gcb == $gcb_set->{LV} || $gcb == $gcb_set->{LVT}) {
             # all hangul syllable types may appear after another hangul syllable
-            # type
+            # type (Rules: GB6, GB7, GB8)
             $mark_it = 1;
         } elsif ($gcb == $gcb_set->{Extend} || $gcb == $gcb_set->{ZWJ}) {
-            # Extend and ZWJ join with any preceding codepoints.
+            # Extend and ZWJ join with any preceding codepoints. (Rule: GB9)
             $mark_it = 1;
         } elsif ($gcb == $gcb_set->{SpacingMark}) {
-            # SpacingMarks also join with any preceding codepoints.
+            # SpacingMarks also join with any preceding codepoints. (Rule: GB9a)
             $mark_it = 1;
         } elsif ($incb == $incb_set->{Consonant}
                  || $incb == $incb_set->{Extend}
                  || $incb == $incb_set->{Linker}) {
-            # conjunct clusters. Consonants are on the RHS of rule GB9c, the
-            # others are non-initial LHS parts of the same rule.
+            # Conjunct clusters. Consonants are on the RHS of rule GB9c, the
+            # others are non-initial LHS parts of the same rule. (Rule: GB9c)
             $mark_it = 1;
         } elsif ($point->{Extended_Pictographic}) {
             # EPs are on the RHS of rule GB11. The Extends and ZWJ on the LHS of
-            # the same rule are already handled by an earlier branch.
+            # the same rule are already handled by an earlier branch. (Rule:
+            # GB11)
             $mark_it = 1;
         } elsif ($gcb == $gcb_set->{Regional_Indicator}) {
-            # RI codepoints, used for specifying flags by country code
+            # RI codepoints, used for specifying flags by country code (Rules:
+            # GB12, GB13)
             $mark_it = 1;
         }
 
