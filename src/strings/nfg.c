@@ -412,7 +412,7 @@ MVMint32 MVM_nfg_is_concat_stable(MVMThreadContext *tc, MVMString *a, MVMString 
     /* As a control code we are always going to break if we see one of these.
      * Check first_b for speeding up line endings */
     if (first_b == crlf || last_a == crlf)
-        return 0;
+        return 1;
     /* If either is synthetic other than "\r\n", assume we'll have to re-normalize
      * (this is an over-estimate, most likely). Note if you optimize this that it
      * serves as a guard for what follows.
