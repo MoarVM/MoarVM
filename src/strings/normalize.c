@@ -887,9 +887,19 @@ MVMint32 MVM_unicode_normalize_nfg_breaks(MVMThreadContext * tc,
     // if need be.
     if (a < 0) {
         MVMNFGSynthetic * synfo = MVM_nfg_get_synthetic_info(tc, a);
-        a_size = synfo->num_codes;
-        for (MVMint32 i = 0; i < a_size; i++) {
-            add_codepoint_to_buffer(tc, &norm, synfo->codes[i]);
+
+        if (synfo->is_utf8_c8) {
+            // If this is a UTF8-C8 codepoint, then it shouldn't be unwrapped at
+            // all. Additionally, since we always want them to stay separate
+            // from other graphemes, they're treated as if they had GCB=Control,
+            // which means we already know the answer to this function's
+            // question.
+            return 1;
+        } else {
+            a_size = synfo->num_codes;
+            for (MVMint32 i = 0; i < a_size; i++) {
+                add_codepoint_to_buffer(tc, &norm, synfo->codes[i]);
+            }
         }
     } else {
         add_codepoint_to_buffer(tc, &norm, a);
@@ -897,8 +907,14 @@ MVMint32 MVM_unicode_normalize_nfg_breaks(MVMThreadContext * tc,
 
     if (b < 0) {
         MVMNFGSynthetic * synfo = MVM_nfg_get_synthetic_info(tc, b);
-        for (MVMint32 i = 0; i < synfo->num_codes; i++) {
-            add_codepoint_to_buffer(tc, &norm, synfo->codes[i]);
+
+        if (synfo->is_utf8_c8) {
+            // same reason for doing this for the 'a' grapheme.
+            return 1;
+        } else {
+            for (MVMint32 i = 0; i < synfo->num_codes; i++) {
+                add_codepoint_to_buffer(tc, &norm, synfo->codes[i]);
+            }
         }
     } else {
         add_codepoint_to_buffer(tc, &norm, b);
