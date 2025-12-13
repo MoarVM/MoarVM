@@ -778,7 +778,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Process info setup. */
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
-    uv_process_options_t process_options = {0};
+    uv_process_options2_t process_options = {0};
+    process_options.version = UV_PROCESS_OPTIONS_VERSION;
     uv_stdio_container_t process_stdio[3];
 
 #ifdef MVM_DO_PTY_OURSELF
@@ -994,7 +995,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Attach data, spawn, report any error. */
     process->data = si;
-    spawn_result  = uv_spawn(loop, process, &process_options);
+    spawn_result  = uv_spawn2(loop, process, &process_options);
 
 #ifdef MVM_DO_PTY_OURSELF
     if (pty_mode)
