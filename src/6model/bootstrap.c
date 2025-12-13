@@ -612,6 +612,9 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(boolify_iter, "boolify-iter");
     string_creator(boolify_using_elems, "boolify-using-elems");
     string_creator(variadic, "variadic");
+    string_creator(pty, "pty");
+    string_creator(pty_cols, "pty-cols");
+    string_creator(pty_rows, "pty-rows");
 }
 
 /* Drives the overall bootstrap process. */

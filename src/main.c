@@ -36,8 +36,6 @@
 #define strtoll _strtoi64
 #endif
 
-/* flags need to be sorted alphabetically */
-
 enum {
     NOT_A_FLAG = -2,
     UNKNOWN_FLAG = -1,
@@ -52,9 +50,13 @@ enum {
 
     OPT_EXECNAME,
     OPT_LIBPATH,
-    OPT_DEBUGPORT
+    OPT_DEBUGPORT,
+#ifdef MVM_DO_PTY_OURSELF
+    OPT_PTY_SPAWN_HELPER,
+#endif
 };
 
+/* FLAGS needs to be sorted alphabetically. */
 static const char *const FLAGS[] = {
     "--crash",
     "--debug-suspend",
@@ -133,6 +135,10 @@ static int parse_flag(const char *arg)
         return OPT_EXECNAME;
     else if (starts_with(arg, "--debug-port="))
         return OPT_DEBUGPORT;
+#ifdef MVM_DO_PTY_OURSELF
+    else if (starts_with(arg, "--pty-spawn-helper="))
+        return OPT_PTY_SPAWN_HELPER;
+#endif
     else
         return UNKNOWN_FLAG;
 }
@@ -243,7 +249,19 @@ int wmain(int argc, wchar_t *wargv[])
                 debugserverport = (MVMuint32)port;
                 break;
             }
-
+#ifdef MVM_DO_PTY_OURSELF
+            case OPT_PTY_SPAWN_HELPER: {
+                char *prog = argv[argi] + strlen("--pty-spawn-helper=");
+                char **args = calloc(argc - argi + 1, sizeof(char *));
+                args[0] = prog;
+                args[argc - argi] = 0;
+                for (int argj = 1; argi + argj < argc; argj++)
+                    args[argj] = argv[argi + argj];
+                // Will not return if all goes well.
+                MVM_proc_pty_spawn(prog, args);
+                return EXIT_FAILURE;
+            }
+#endif
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);
             return EXIT_FAILURE;

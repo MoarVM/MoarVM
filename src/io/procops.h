@@ -27,6 +27,11 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc);
 MVMString * MVM_executable_name(MVMThreadContext *tc);
 void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result);
 MVMint64 MVM_proc_fork(MVMThreadContext *tc);
+char * MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h,
+                           unsigned short cols, unsigned short rows);
+#ifdef MVM_DO_PTY_OURSELF
+void MVM_proc_pty_spawn(char *prog, char *argv[]);
+#endif
 
 #ifdef _WIN32
 #include <wchar.h>
