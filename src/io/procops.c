@@ -988,7 +988,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_options.flags   = process_options.flags | UV_PROCESS_PTY;
     else
 #endif
-        process_options.flags   = UV_PROCESS_WINDOWS_HIDE;
+        process_options.flags   = process_options.flags | UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = si->env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = async_spawn_on_exit;
