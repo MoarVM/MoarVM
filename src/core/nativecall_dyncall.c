@@ -480,6 +480,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
     void     *ptr         = NULL;
+    MVMObject **arg_info  = body->arg_info;
 
     unsigned int interval_id;
     DCCallVM *vm;
@@ -576,7 +577,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CALLBACK: {
                 if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                     MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
-                dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]));
+                dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, arg_info[i]));
                 break;
             }
             case MVM_NATIVECALL_ARG_UCHAR:
@@ -899,6 +900,8 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
     void     *ptr         = NULL;
+    MVMObject **arg_info  = body->arg_info;
+    MVMuint8 is_variadic  = body->variadic;
 
     unsigned int interval_id;
     DCCallVM *vm;
@@ -910,7 +913,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     MVM_telemetry_interval_annotate((intptr_t)entry_point, interval_id, "nc entrypoint");
 
     MVMint16 *arg_types;
-    if (body->variadic) {
+    if (is_variadic) {
         variadic_rw_bitfield = MVM_repr_get_uint(tc, args.source[args.map[num_args]].o);
         num_args--;
 
@@ -925,6 +928,10 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         arg_types = body->arg_types;
         dcMode(vm, body->convention);
     }
+
+    /* We don't bother rooting the correct pointer and restoring the body
+     * after a GC happens. Null it out here so we don't accidentally use it */
+    body = NULL;
 
     dcReset(vm);
 
@@ -1016,7 +1023,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_CALLBACK: {
                     if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                         MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
-                    dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]));
+                    dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, arg_info[i]));
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UCHAR:
@@ -1316,7 +1323,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
 
     /* Free any memory that we need to. */
-    if (body->variadic)
+    if (is_variadic)
         MVM_free(arg_types);
 
     if (free_strs)
