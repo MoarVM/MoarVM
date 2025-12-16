@@ -542,7 +542,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                         MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                         /* Allocate a full byte aligned area where the C++ structure fits into. */
                         ptr    = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                        result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        MVMROOT2(tc, args, res_type) {
+                            result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        }
 
                         dcArgPointer(vm, ptr);
                     }
@@ -988,7 +990,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                             MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                             /* Allocate a full byte aligned area where the C++ structure fits into. */
                             ptr    = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                            result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                            MVMROOT2(tc, args, res_type) {
+                                result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                            }
 
                             dcArgPointer(vm, ptr);
                         }

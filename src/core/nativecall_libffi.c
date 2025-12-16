@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <time.h>
 
 //~ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id, void **values, MVMuint64 offset) {
 ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) {
@@ -564,7 +565,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                     /* Allocate a full byte aligned area where the C++ structure fits into. */
                     void *ptr           = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                    result              = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                    MVMROOT2(tc, args, res_type) {
+                        result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                    }
                     values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = ptr;
                 }
@@ -975,7 +978,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                         /* Allocate a full byte aligned area where the C++ structure fits into. */
                         void *ptr           = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                        result              = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        MVMROOT2(tc, args, res_type) {
+                            result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        }
                         values[i]           = alloca(sizeof(void *));
                         *(void **)values[i] = ptr;
                     }
