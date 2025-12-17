@@ -1013,8 +1013,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         goto spawn_setup_error;
     }
 
-    if (error_str) {
 spawn_setup_error:
+    if (error_str) {
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
 
