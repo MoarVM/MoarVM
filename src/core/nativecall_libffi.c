@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <time.h>
 
 //~ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id, void **values, MVMuint64 offset) {
 ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) {
@@ -498,6 +499,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
     void    **values      = alloca(sizeof(void *) * (num_args ? num_args : 1));
+    MVMObject **arg_info  = body->arg_info;
 
     unsigned int interval_id;
 
@@ -508,6 +510,10 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
     MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
+
+    /* We don't bother rooting the correct pointer and restoring the body
+     * after a GC happens. Null it out here so we don't accidentally use it */
+    body = NULL;
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
@@ -559,7 +565,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                     /* Allocate a full byte aligned area where the C++ structure fits into. */
                     void *ptr           = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                    result              = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                    MVMROOT2(tc, args, res_type) {
+                        result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                    }
                     values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = ptr;
                 }
@@ -596,7 +604,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                     MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
                 values[i]           = alloca(sizeof(void *));
-                *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]);
+                *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, arg_info[i]);
                 break;
             case MVM_NATIVECALL_ARG_UCHAR:
                 handle_arg("integer", cont_u, unsigned char, u64, MVM_nativecall_unmarshal_uchar);
@@ -872,6 +880,8 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
+    MVMObject **arg_info  = body->arg_info;
+    MVMuint8 is_variadic  = body->variadic;
 
     unsigned int interval_id;
 
@@ -882,8 +892,8 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
     MVMuint16 num_args;
     MVMint16 *arg_types;
-    ffi_type **ffi_arg_types;
-    if (body->variadic) {
+    ffi_type **ffi_arg_types = NULL;
+    if (is_variadic) {
         MVMint16 num_fixed_args = body->num_args;
         num_args = args.callsite->num_pos - 2;
         // First element is the return type, last element is the bitfield.
@@ -912,6 +922,10 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     }
 
     void    **values      = alloca(sizeof(void *) * (num_args ? num_args : 1));
+
+    /* We don't bother rooting the correct pointer and restoring the body
+     * after a GC happens. Null it out here so we don't accidentally use it */
+    body = NULL;
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
@@ -964,7 +978,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                         /* Allocate a full byte aligned area where the C++ structure fits into. */
                         void *ptr           = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                        result              = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        MVMROOT2(tc, args, res_type) {
+                            result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        }
                         values[i]           = alloca(sizeof(void *));
                         *(void **)values[i] = ptr;
                     }
@@ -1001,7 +1017,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                         MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
                     values[i]           = alloca(sizeof(void *));
-                    *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]);
+                    *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, arg_info[i]);
                     break;
                 case MVM_NATIVECALL_ARG_UCHAR:
                     handle_arg("integer", cont_u, unsigned char, u64, MVM_nativecall_unmarshal_uchar);
@@ -1280,7 +1296,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     }
 
     /* Free any memory that we need to. */
-    if (body->variadic) {
+    if (is_variadic) {
         MVM_free(arg_types);
         MVM_free(ffi_arg_types);
     }
