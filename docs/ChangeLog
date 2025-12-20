@@ -1,3 +1,22 @@
+New in 2025.12
+Unicode:
++ Update to Unicode 17, including:
+   + Fix synthetic codepoint breaks
+   + Speed up concats using CRLF
+   + Fix grapheme boundary searching
+   + Update unicode import scripts to work with new Unicode 17 rules
+   + Add more enumeration properties to ucd2c.pl
+   + Support new CJK Ideograph Extension
+   + Support all versions of emoji dirs
+NativeCall:
+   + Add vararg support (not supported in JIT yet)
+   + Don't read from outdated pointers
+Core:
+   + Add PTY support
+   + Switch to temp fork of libuv
+   + Update azure pipeline OS versions
+
+
 New in 2025.11
 Core:
 + Bump rapidhash to v3
