@@ -350,6 +350,14 @@ MVMInstance * MVM_vm_create_instance(void) {
                      "/tmp/perf-%"PRIi64".map", MVM_proc_getpid(NULL));
             instance->jit_perf_map = MVM_platform_fopen(perf_map_filename, "w");
         }
+
+        char *jit_perf_jitdump = getenv("MVM_JIT_PERF_DUMP");
+        if (jit_perf_jitdump && *jit_perf_jitdump) {
+            char perf_dump_filename[32];
+            snprintf(perf_dump_filename, sizeof(perf_dump_filename),
+                     "jit-%"PRIi64".dump", MVM_proc_getpid(NULL));
+            instance->jit_perf_jitdump = MVM_platform_fopen(perf_dump_filename, "w+");
+        }
     }
 #endif
 

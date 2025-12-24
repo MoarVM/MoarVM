@@ -97,6 +97,7 @@ The following environment variables are respected:\n\
     MVM_JIT_EXPR_ENABLE         Enable advanced 'expression' JIT\n\
     MVM_JIT_DEBUG               Add JIT debugging information to spesh log\n\
     MVM_JIT_PERF_MAP            Create a map file for the 'perf' profiler (linux only)\n\
+    MVM_JIT_PERF_DUMP           Create a jitdump file for the 'perf' profiler (linux only)\n\
     MVM_JIT_DUMP_BYTECODE       Dump bytecode in temporary directory\n\
     MVM_SPESH_INLINE_LOG        Dump details of inlining attempts to stderr\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
