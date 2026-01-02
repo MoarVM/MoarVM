@@ -472,15 +472,24 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
                 ret = u;
             }
             else {
+#ifdef _WIN32
+                uz = _tzcnt_u32(u);
+                vz = _tzcnt_u32(v);
+#else
                 uz = __builtin_ctz(u);
                 vz = __builtin_ctz(v);
+#endif
                 shift = uz > vz ? vz : uz;
                 u >>= uz;
                 do {
                     v >>= vz;
                     MVMint32 diff = v;
                     diff -= u;
+#ifdef _WIN32
+                    vz = _tzcnt_u32(diff);
+#else
                     vz = __builtin_ctz(diff);
+#endif
                     if (diff == 0) break;
                     if (v < u) u = v;
                     v = abs(diff);
