@@ -784,15 +784,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ret = u;
                 }
                 else {
+#ifdef _WIN32
+                    uz = _tzcnt_u64(u);
+                    vz = _tzcnt_u64(v);
+#else
                     uz = __builtin_ctzll(u);
                     vz = __builtin_ctzll(v);
+#endif
                     shift = uz > vz ? vz : uz;
                     u >>= uz;
                     do {
                         v >>= vz;
                         MVMint64 diff = v;
                         diff -= u;
+#ifdef _WIN32
+                        vz = _tzcnt_u64(diff);
+#else
                         vz = __builtin_ctzll(diff);
+#endif
                         if (diff == 0) break;
                         if (v < u) u = v;
                         v = labs(diff);
