@@ -364,11 +364,12 @@ void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
     MVMint16 acceptable_length = name_length > 15 ? 15 : name_length;
     MVMuint8 success = 0;
     MVMROOT(tc, name) {
-    while (acceptable_length > 0 && !success) {
+        while (acceptable_length > 0 && !success) {
             MVMString *substring = MVM_string_substring(tc, name, 0, acceptable_length);
             char *c_name = MVM_string_utf8_c8_encode_C_string(tc, substring);
             /* pthread man page says names are allowed to be 15 bytes long... */
             if (strlen(c_name) > 0 && pthread_setname_np(pthread_self(), c_name) == 0) {
+                MVM_telemetry_interval_annotate_dynamic((uintptr_t)tc, 0, c_name);
                 success = 1;
             }
             if (strlen(c_name) == 0) {
