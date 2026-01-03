@@ -224,6 +224,11 @@ static void calibrateTSC(FILE *outfile)
 
         unsigned long long wallClockTime = endTime - startTime;
 
+        if (wallClockTime == 0) {
+            MVM_telemetry_timestamp((void *)0, "could not get high-res wallclock time for calibration, time stamps will be wrong.");
+            wallClockTime = 1;
+        }
+
         ticksPerSecond = (double)ticks / (double)wallClockTime;
         ticksPerSecond *= 1000000000.0;
     }
