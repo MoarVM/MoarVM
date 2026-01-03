@@ -1404,15 +1404,21 @@ static MVMuint64 release_handles(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_
     MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
 
     MVMuint32 handle_index = 0;
-    MVMuint16 id_index = 0;
-    MVMuint16 handles_cleared = 0;
-    for (handle_index = 0; handle_index < dht->used; handle_index++) {
+    MVMuint32 next_handle_index = 1;
+    MVMuint32 id_index = 0;
+    MVMuint32 handles_cleared = 0;
+    for (handle_index = 0; handle_index < dht->used; handle_index = next_handle_index) {
+        /* Use a var and next_var instead of var++ and var--
+         * so it's no problem to use unsigned math. */
+        next_handle_index = handle_index + 1;
         for (id_index = 0; id_index < argument->handle_count; id_index++) {
             if (argument->handles[id_index] == dht->entries[handle_index].id) {
                 dht->used--;
                 dht->entries[handle_index].id = dht->entries[dht->used].id;
                 dht->entries[handle_index].target = dht->entries[dht->used].target;
-                handle_index--;
+                /* Since we changed what lives at the handle_index'th entry,
+                 * check the same slot again. */
+                next_handle_index = handle_index;
                 handles_cleared++;
                 break;
             }
