@@ -904,6 +904,8 @@ MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
             memcpy(buf, s->body.storage.blob_8, sizeof(MVMGrapheme8) * s->body.num_graphs);
             break;
         case MVM_STRING_IN_SITU_8:
+            if (s->body.num_graphs > 8)
+                MVM_exception_throw_adhoc(tc, "String corruption found in MVM_coerce_sI");
             memcpy(buf, s->body.storage.in_situ_8, sizeof(MVMGrapheme8) * s->body.num_graphs);
             break;
         case MVM_STRING_GRAPHEME_32:
@@ -914,6 +916,8 @@ MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
             }
             break;
         case MVM_STRING_IN_SITU_32:
+            if (s->body.num_graphs > 2)
+                MVM_exception_throw_adhoc(tc, "String corruption found in MVM_coerce_sI");
             for (i = 0; i < s->body.num_graphs; i++) {
                 buf[i] = can_fit_into_8bit(s->body.storage.in_situ_32[i])
                     ? s->body.storage.in_situ_32[i]
