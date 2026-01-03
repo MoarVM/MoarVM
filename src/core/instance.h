@@ -376,7 +376,10 @@ struct MVMInstance {
      * marked. */
     MVMObject        *event_loop_thread;
     uv_loop_t        *event_loop;
-    uv_mutex_t        mutex_event_loop;
+    /* Instead of a mutex to avoid start races, we use an atomic integer to
+     * store 0 for unstarted, 1 + the address of the TC that is working on
+     * initializing the event loop thread, or 1 for "already initialised". */
+    AO_t              event_loop_starting_status;
     MVMObject        *event_loop_todo_queue;
     MVMObject        *event_loop_permit_queue;
     MVMObject        *event_loop_cancel_queue;

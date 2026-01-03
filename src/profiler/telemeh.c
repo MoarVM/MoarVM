@@ -347,6 +347,14 @@ MVM_PUBLIC void MVM_telemetry_finish()
     continueBackgroundSerialization = 0;
     if (backgroundSerializationThread)
         uv_thread_join(&backgroundSerializationThread);
+    backgroundSerializationThread = 0;
+}
+
+/* When forking, threads don't resurrect by themselves, so in order to not
+ * hang infinitely in MVM_telemetry_finish on shutdown, reset the background
+ * thread ID to 0 in the forked process. */
+MVM_PUBLIC void MVM_telemetry_forked() {
+    backgroundSerializationThread = 0;
 }
 
 #else
@@ -359,6 +367,7 @@ MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalI
 MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) { }
 
 MVM_PUBLIC void MVM_telemetry_init(FILE *outfile) { }
+MVM_PUBLIC void MVM_telemetry_forked() { }
 MVM_PUBLIC void MVM_telemetry_finish() { }
 
 #endif

@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "uv.h"
 
 /* Asynchronous I/O, timers, file system notifications and signal handlers
  * have their callbacks processed by this event loop. Its job is mostly to
@@ -94,6 +95,21 @@ static void enter_loop(MVMThreadContext *tc, MVMArgs arg_info) {
     uv_run(loop, UV_RUN_DEFAULT);
 }
 
+void eventloop_wait_initialised(MVMThreadContext *tc) {
+    MVMInstance *instance = tc->instance;
+
+    // Another thread is working on the event loop, so just wait a bit.
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "waiting for event loop thread to finish initialising.");
+    MVMuint64 wakeups = 0;
+    while (MVM_load(&instance->event_loop_starting_status) != 1) {
+        MVM_thread_yield(tc);
+        GC_SYNC_POINT(tc);
+        wakeups++;
+    }
+    MVM_telemetry_interval_annotate((uintptr_t)wakeups, interval_id, "woke up from sleep this many times");
+    MVM_telemetry_interval_stop(tc, interval_id, "event loop thread is ready now. ");
+}
+
 /* Sees if we have an event loop processing thread set up already, and
  * sets it up if not. */
 void MVM_io_eventloop_start(MVMThreadContext *tc) {
@@ -101,56 +117,67 @@ void MVM_io_eventloop_start(MVMThreadContext *tc) {
     MVMObject *loop_runner;
     unsigned int interval_id;
 
-    if (instance->event_loop_thread)
-        return;
+    AO_t current_starting_status = MVM_cas(&instance->event_loop_starting_status, 0, (uintptr_t)tc + 1);
 
-    /* Grab starting mutex and ensure we didn't lose the race. */
-    MVM_telemetry_timestamp(tc, "hoping to start an event loop thread");
-    MVM_gc_mark_thread_blocked(tc);
-    uv_mutex_lock(&instance->mutex_event_loop);
-    MVM_gc_mark_thread_unblocked(tc);
+    // Stored value was 0, we put our TC in, so initialise event loop.
+    if (current_starting_status == 0) {
+        interval_id = MVM_telemetry_interval_start(tc, "creating the event loop & thread");
 
-    interval_id = MVM_telemetry_interval_start(tc, "creating the event loop thread");
+        /* This may also be present if this is a thread restart
+         * after the dance in MVM_proc_fork() */
+        if (!instance->event_loop) {
+            int uv_error = 0;
+            /* The underlying loop structure that will handle all IO events. */
+            instance->event_loop              = MVM_malloc(sizeof(uv_loop_t));
+            if ((uv_error = uv_loop_init(instance->event_loop)) < 0)
+                MVM_panic(1, "Unable to initialize event loop: %s", uv_strerror(uv_error));
 
-    /* We may have lost the race, so we need to setup state carefully */
-    /* This may also be present if this is a thread restart */
-    if (!instance->event_loop) {
-        /* The underlying loop structure that will handle all IO events. */
-        instance->event_loop              = MVM_malloc(sizeof(uv_loop_t));
-        if (uv_loop_init(instance->event_loop) < 0)
-            MVM_panic(1, "Unable to initialize event loop");
+            MVM_telemetry_interval_annotate((uintptr_t)instance->event_loop, interval_id, "instance->event_loop created");
 
-        /* The async signal handler for waking up the thread */
-        instance->event_loop_wakeup       = MVM_malloc(sizeof(uv_async_t));
-        if (uv_async_init(instance->event_loop, instance->event_loop_wakeup, async_handler) != 0)
-            MVM_panic(1, "Unable to initialize async wake-up handle for event loop");
+            /* The async signal handler for waking up the thread */
+            instance->event_loop_wakeup       = MVM_malloc(sizeof(uv_async_t));
+            if ((uv_error = uv_async_init(instance->event_loop, instance->event_loop_wakeup, async_handler)) != 0)
+                MVM_panic(1, "Unable to initialize async wake-up handle for event loop: %s", uv_strerror(uv_error));
 
-        /* Create various bits of state the async event loop thread needs. */
-        instance->event_loop_todo_queue   = MVM_repr_alloc_init(tc,
-            instance->boot_types.BOOTQueue);
-        instance->event_loop_permit_queue = MVM_repr_alloc_init(tc,
-            instance->boot_types.BOOTQueue);
-        instance->event_loop_cancel_queue = MVM_repr_alloc_init(tc,
-            instance->boot_types.BOOTQueue);
-        instance->event_loop_active       = MVM_repr_alloc_init(tc,
-            instance->boot_types.BOOTArray);
-        instance->event_loop_free_indices = MVM_repr_alloc_init(tc,
-            instance->boot_types.BOOTIntArray);
+            /* Create various bits of state the async event loop thread needs. */
+            instance->event_loop_todo_queue   = MVM_repr_alloc_init(tc,
+                instance->boot_types.BOOTQueue);
+            instance->event_loop_permit_queue = MVM_repr_alloc_init(tc,
+                instance->boot_types.BOOTQueue);
+            instance->event_loop_cancel_queue = MVM_repr_alloc_init(tc,
+                instance->boot_types.BOOTQueue);
+            instance->event_loop_active       = MVM_repr_alloc_init(tc,
+                instance->boot_types.BOOTArray);
+            instance->event_loop_free_indices = MVM_repr_alloc_init(tc,
+                instance->boot_types.BOOTIntArray);
+        }
+        else {
+            MVM_telemetry_interval_annotate((uintptr_t)instance->event_loop, interval_id, "instance->event_loop already existed");
+        }
+
+        if (!instance->event_loop_thread) {
+            /* Start the event loop thread, which will call a C function that
+            * sits in the uv loop, never leaving until it is stopped from the
+            * outside */
+            loop_runner = MVM_repr_alloc_init(tc, instance->boot_types.BOOTCCode);
+            ((MVMCFunction *)loop_runner)->body.func = enter_loop;
+
+            instance->event_loop_thread = MVM_thread_new(tc, loop_runner, 1);
+            MVM_telemetry_interval_annotate((uintptr_t)instance->event_loop_thread, interval_id, "instance->event_loop_thread created");
+            MVM_thread_run(tc, instance->event_loop_thread);
+        }
+        else {
+            MVM_telemetry_interval_annotate((uintptr_t)instance->event_loop_thread, interval_id, "instance->event_loop_thread already existed");
+        }
+        MVM_store(&instance->event_loop_starting_status, 1);
+        MVM_telemetry_interval_stop(tc, interval_id, "created the event loop thread");
     }
-
-    if (!instance->event_loop_thread) {
-        /* Start the event loop thread, which will call a C function that
-         * sits in the uv loop, never leaving until it is stopped from the
-         * outside */
-        loop_runner = MVM_repr_alloc_init(tc, instance->boot_types.BOOTCCode);
-        ((MVMCFunction *)loop_runner)->body.func = enter_loop;
-
-        instance->event_loop_thread = MVM_thread_new(tc, loop_runner, 1);
-        MVM_thread_run(tc, instance->event_loop_thread);
+    else if (current_starting_status == 1) {
+        // Event loop already initialised, we're finished.
     }
-
-    MVM_telemetry_interval_stop(tc, interval_id, "created the event loop thread");
-    uv_mutex_unlock(&instance->mutex_event_loop);
+    else {
+        eventloop_wait_initialised(tc);
+    }
 }
 
 
@@ -284,25 +311,49 @@ void MVM_io_eventloop_join(MVMThreadContext *tc) {
 /* Clean up used resources. Synchronization required - other threads might modify them as well */
 void MVM_io_eventloop_destroy(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
-    MVM_gc_mark_thread_blocked(tc);
-    uv_mutex_lock(&instance->mutex_event_loop);
-    MVM_gc_mark_thread_unblocked(tc);
 
-    if (instance->event_loop_thread) {
-        MVM_io_eventloop_stop(tc);
-        MVM_io_eventloop_join(tc);
-        instance->event_loop_thread = NULL;
+    unsigned int interval_id;
+
+    AO_t current_starting_status = MVM_cas(&instance->event_loop_starting_status, 1, (uintptr_t)tc + 1);
+
+    // Stored value was 0, we put our TC in, so initialise event loop.
+    // Alternatively, MVM_proc_fork already put our TC + 1 in so that nothing interferes in the mean time.
+    if (current_starting_status == 1 || current_starting_status == (uintptr_t)tc + 1) {
+        interval_id = MVM_telemetry_interval_start(tc, "tearing down event loop & thread");
+
+        if (instance->event_loop_thread) {
+            MVM_io_eventloop_stop(tc);
+            MVM_io_eventloop_join(tc);
+            instance->event_loop_thread = NULL;
+        }
+
+        if (instance->event_loop) {
+            uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
+
+            /* Not sure we can always do this */
+            uv_loop_close(instance->event_loop);
+
+            MVM_free_null(instance->event_loop_wakeup);
+            MVM_free_null(instance->event_loop);
+        }
+
+        MVM_store(&instance->event_loop_starting_status, 0);
+
+        MVM_telemetry_interval_stop(tc, interval_id, "event loop and thread gone");
     }
-
-    if (instance->event_loop) {
-        uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
-
-        /* Not sure we can always do this */
-        uv_loop_close(instance->event_loop);
-
-        MVM_free_null(instance->event_loop_wakeup);
-        MVM_free_null(instance->event_loop);
+    else if (current_starting_status == 0) {
+        // eventloop is already destroyed, or currently not running.
+        // (or our tracking got messed up)
     }
+    else {
+        // Some other thread is working on starting up or tearing down
+        // the event loop and thread, so wait and retry.
+        interval_id = MVM_telemetry_interval_start(tc, "some other thread is working on eventloop thread");
+        MVM_telemetry_interval_annotate((uintptr_t)current_starting_status, interval_id, "current starting status");
 
-    uv_mutex_unlock(&instance->mutex_event_loop);
+        eventloop_wait_initialised(tc);
+        MVM_io_eventloop_destroy(tc);
+
+        MVM_telemetry_interval_stop(tc, interval_id, "event loop and thread gone");
+    }
 }

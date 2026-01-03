@@ -1494,19 +1494,21 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
     if (!MVM_platform_supports_fork(tc))
         MVM_exception_throw_adhoc(tc, "This platform does not support fork()");
 
-    /* Acquire the necessary locks. The event loop mutex will protect
-     * modification of the event loop. Nothing yet protects against the
-     * modification of the spesh worker, but this is currently the only code
-     * that it could conflict with. Maybe we need an explicit fork loop */
-    MVM_gc_mark_thread_blocked(tc);
-    uv_mutex_lock(&instance->mutex_event_loop);
-    MVM_gc_mark_thread_unblocked(tc);
+    /* Acquire the necessary locks. The event loop starting status atomic will
+     * protect from other threads trying to modify it. Nothing yet protects
+     * against the modification of the spesh worker, but this is currently the
+     * only code that it could conflict with. Maybe we need an explicit
+     * fork loop */
+    AO_t eventloop_status = MVM_cas(&instance->event_loop_starting_status, 1, (uintptr_t)tc + 1);
 
     /* Stop and join the system threads */
     MVM_spesh_worker_stop(tc);
-    MVM_io_eventloop_stop(tc);
+    if (eventloop_status != 0)
+        MVM_io_eventloop_stop(tc);
     MVM_spesh_worker_join(tc);
-    MVM_io_eventloop_join(tc);
+    if (eventloop_status != 0)
+        MVM_io_eventloop_join(tc);
+
     /* Allow MVM_io_eventloop_start to restart the thread if necessary */
     instance->event_loop_thread = NULL;
 
@@ -1521,19 +1523,26 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
         error = "Program has more than one active thread";
     }
 
-    if (pid == 0 && instance->event_loop) {
-        /* Reinitialize uv_loop_t after fork in child */
-        uv_loop_fork(instance->event_loop);
+    if (pid == 0) {
+        if (instance->event_loop)
+            /* Reinitialize uv_loop_t after fork in child */
+            uv_loop_fork(instance->event_loop);
+        /* Mark telemetry background serializer thread as dead. */
+        MVM_telemetry_forked();
     }
 
     /* Release the thread lock, otherwise we can't start them */
     uv_mutex_unlock(&instance->mutex_threads);
+
     /* Without the mutex_event_loop being held, this might race */
+    /* XXX: how could this race? I can only see spesh worker start
+     * in the instance creation function ... */
     MVM_spesh_worker_start(tc);
 
     /* However, locks are nonrecursive, so unlocking is needed prior to
      * restarting the event loop */
-    uv_mutex_unlock(&instance->mutex_event_loop);
+    MVM_store(&instance->event_loop_starting_status, 0);
+
     if (instance->event_loop)
         MVM_io_eventloop_start(tc);
 
@@ -1541,7 +1550,6 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "fork() failed: %s\n", error);
 
     return pid;
-
 }
 
 #ifdef MVM_HAS_LIBUV_PTY
