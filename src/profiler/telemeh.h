@@ -6,7 +6,8 @@ MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID,
 MVM_PUBLIC void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, const char *description);
 MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description);
 MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description);
+MVM_PUBLIC void MVM_telemetry_forked(uintptr_t subject, pid_t other);
 
 MVM_PUBLIC void MVM_telemetry_init(FILE *outfile);
-MVM_PUBLIC void MVM_telemetry_forked();
+MVM_PUBLIC void MVM_telemetry_init_from_env();
 MVM_PUBLIC void MVM_telemetry_finish(void);

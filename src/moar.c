@@ -116,22 +116,8 @@ MVMInstance * MVM_vm_create_instance(void) {
 #endif
 
 #ifdef HAVE_TELEMEH
-    if (getenv("MVM_TELEMETRY_LOG")) {
-        char path[256];
-        FILE *fp;
-        snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
-#ifdef _WIN32
-             _getpid()
-#else
-             getpid()
-#endif
-             );
-        fp = MVM_platform_fopen(path, "w");
-        if (fp) {
-            MVM_telemetry_init(fp);
-            MVM_telemetry_interval_start(0, "moarvm startup");
-        }
-    }
+    MVM_telemetry_init_from_env();
+    MVM_telemetry_interval_start(0, "MVM_vm_create_instance");
 #endif
 
     /* Set up instance data structure. */

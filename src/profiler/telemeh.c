@@ -6,6 +6,8 @@
 #include <time.h>
 #include <string.h>
 
+#include "platform/io.h"
+
 #ifdef MVM_HAS_RDTSCP
 # ifdef _WIN32
 #  include <intrin.h>
@@ -58,7 +60,8 @@ enum RecordType {
     IntervalStart,
     IntervalEnd,
     IntervalAnnotation,
-    DynamicString
+    DynamicString,
+    ProcessForked,
 };
 
 struct CalibrationRecord {
@@ -90,6 +93,10 @@ struct DynamicString {
     char *description;
 };
 
+struct ProcessForked {
+    pid_t other;
+};
+
 struct TelemetryRecord {
     enum RecordType recordType;
 
@@ -102,6 +109,7 @@ struct TelemetryRecord {
         struct IntervalRecord interval;
         struct IntervalAnnotation annotation;
         struct DynamicString annotation_dynamic;
+        struct ProcessForked forked;
     } u;
 };
 
@@ -113,6 +121,10 @@ static AO_t recordBufferIndex = 0;
 static unsigned int lastSerializedIndex = 0;
 static unsigned long long beginningEpoch = 0;
 static unsigned int telemetry_active = 0;
+
+static unsigned int intervalIDCounter = 0;
+
+static pid_t pidAtInitialisation = 0;
 
 static struct TelemetryRecord *newRecord()
 {
@@ -127,8 +139,6 @@ static struct TelemetryRecord *newRecord()
     record = &recordBuffer[recordIndex];
     return record;
 }
-
-static unsigned int intervalIDCounter = 0;
 
 MVM_PUBLIC void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description)
 {
@@ -206,6 +216,18 @@ MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int i
     record->u.annotation_dynamic.description = MVM_strndup(description, 1024);
 }
 
+MVM_PUBLIC void MVM_telemetry_forked(uintptr_t subject, pid_t other) {
+    struct TelemetryRecord *record = NULL;
+
+    if (!telemetry_active) { return; }
+
+    record = newRecord();
+    record->recordType = ProcessForked;
+    record->threadID = subject;
+    record->u.forked.other = other;
+}
+
+
 static void calibrateTSC(FILE *outfile)
 {
     unsigned long long startTsc, endTsc;
@@ -275,6 +297,9 @@ static void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializat
                 fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation_dynamic.description, record->u.annotation_dynamic.intervalID);
                 MVM_free(record->u.annotation_dynamic.description);
                 break;
+            case ProcessForked:
+                fprintf(outfile,  "%15s -<   \"PID of other process after Fork: %d.\"\n", " ", record->u.forked.other);
+                break;
         }
     }
 }
@@ -328,9 +353,44 @@ static void backgroundSerialization(void *outfile)
     fclose((FILE *)outfile);
 }
 
+MVM_PUBLIC void MVM_telemetry_init_from_env() {
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        char path[1024];
+        FILE *fp;
+        snprintf(path, 1024, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
+#ifdef _WIN32
+             _getpid()
+#else
+             getpid()
+#endif
+             );
+        fp = MVM_platform_fopen(path, "a+");
+        if (fp) {
+            MVM_telemetry_init(fp);
+        }
+    }
+}
+
 MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
 {
     int threadCreateError;
+
+    MVM_store(&recordBufferIndex, 0);
+
+    pid_t currentPid =
+#ifdef _WIN32
+             _getpid();
+#else
+             getpid();
+#endif
+
+    if (pidAtInitialisation != currentPid) {
+        /* After a fork, running in the child process,
+         * or on very first initialisation. */
+        MVM_store(&intervalIDCounter, 0);
+    }
+    pidAtInitialisation = currentPid;
+    lastSerializedIndex = 0;
 
     telemetry_active = 1;
 
@@ -350,13 +410,6 @@ MVM_PUBLIC void MVM_telemetry_finish()
     backgroundSerializationThread = 0;
 }
 
-/* When forking, threads don't resurrect by themselves, so in order to not
- * hang infinitely in MVM_telemetry_finish on shutdown, reset the background
- * thread ID to 0 in the forked process. */
-MVM_PUBLIC void MVM_telemetry_forked() {
-    backgroundSerializationThread = 0;
-}
-
 #else
 
 MVM_PUBLIC void MVM_telemetry_timestamp(MVMThreadContext *threadID, const char *description) { }
@@ -365,9 +418,10 @@ MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID,
 MVM_PUBLIC void MVM_telemetry_interval_stop(MVMThreadContext *threadID, int intervalID, const char *description) { }
 MVM_PUBLIC void MVM_telemetry_interval_annotate(uintptr_t subject, int intervalID, const char *description) { }
 MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int intervalID, char *description) { }
+MVM_PUBLIC void MVM_telemetry_forked(uintptr_t subject, pid_t other);
 
 MVM_PUBLIC void MVM_telemetry_init(FILE *outfile) { }
-MVM_PUBLIC void MVM_telemetry_forked() { }
+MVM_PUBLIC void MVM_telemetry_init_from_env() { }
 MVM_PUBLIC void MVM_telemetry_finish() { }
 
 #endif

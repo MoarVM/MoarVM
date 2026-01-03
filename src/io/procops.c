@@ -1509,6 +1509,8 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
     if (eventloop_status != 0)
         MVM_io_eventloop_join(tc);
 
+    MVM_telemetry_finish();
+
     /* Allow MVM_io_eventloop_start to restart the thread if necessary */
     instance->event_loop_thread = NULL;
 
@@ -1523,13 +1525,13 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
         error = "Program has more than one active thread";
     }
 
-    if (pid == 0) {
-        if (instance->event_loop)
-            /* Reinitialize uv_loop_t after fork in child */
-            uv_loop_fork(instance->event_loop);
-        /* Mark telemetry background serializer thread as dead. */
-        MVM_telemetry_forked();
+    if (pid == 0 && instance->event_loop) {
+        /* Reinitialize uv_loop_t after fork in child */
+        uv_loop_fork(instance->event_loop);
     }
+
+    MVM_telemetry_init_from_env();
+    MVM_telemetry_forked((uintptr_t)tc, pid == 0 ? MVM_proc_getppid(tc) : pid);
 
     /* Release the thread lock, otherwise we can't start them */
     uv_mutex_unlock(&instance->mutex_threads);
