@@ -38,6 +38,7 @@ void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compi
                                      MVMint32 cond, MVMint32 label, MVMuint8 test_type);
 void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                                MVMJitBranch *branch_spec);
+void MVM_jit_emit_all_bb_jumps(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 name);
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                         MVMint32 label);
 void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,

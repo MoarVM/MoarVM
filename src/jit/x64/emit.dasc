@@ -2932,6 +2932,19 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     }
 }
 
+void MVM_jit_emit_all_bb_jumps(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 name) {
+    | jmp >1;
+    | nop;
+    for (MVMuint32 bbidx = 0; bbidx < compiler->graph->sg->num_bbs; bbidx++) {
+        if (bbidx % 16 == 0) {
+            | mov rax, bbidx;
+        }
+        | jmp =>(bbidx);
+    }
+    | nop;
+    |1:
+}
+
 void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                                MVMJitBranch * branch) {
     MVMSpeshIns *ins = branch->ins;
