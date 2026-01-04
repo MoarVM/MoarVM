@@ -142,6 +142,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_DEOPT_CHECK:
             MVM_jit_emit_deopt_check(tc, &cl);
             break;
+        case MVM_JIT_NODE_ALL_BB_LABELS:
+            MVM_jit_emit_all_bb_jumps(tc, &cl, node->u.label.name);
+            break;
         }
         node = node->next;
     }

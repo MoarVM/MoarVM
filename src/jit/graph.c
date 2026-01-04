@@ -4261,6 +4261,13 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
     /* append the end-of-graph label */
     jg_append_label(tc, graph, MVM_jit_label_after_graph(tc, graph, sg));
 
+    if (tc->instance->jit_perf_jitdump) {
+        /* Put a readable-ish header in front of a BB. */
+        MVMJitNode *node   = MVM_spesh_alloc(tc, graph->sg, sizeof(MVMJitNode));
+        node->type         = MVM_JIT_NODE_ALL_BB_LABELS;
+        jg_append_node(graph, node);
+    }
+
     /* Calculate number of basic block + graph labels */
     graph->num_labels    = graph->obj_label_ofs + graph->obj_labels_num;
 
