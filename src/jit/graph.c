@@ -3849,7 +3849,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_runcfunc_o: {
         int start = (op == MVM_OP_sp_runcfunc_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
-        MVMint16 code         = ins->operands[0 + start].reg.orig;
         MVMCallsite *callsite = (MVMCallsite*)ins->operands[1 + start].lit_ui64;
 
         /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
@@ -3870,7 +3869,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                 ? MVM_RETURN_NUM
                                 : MVM_RETURN_OBJ;
         node->u.runccode.return_register = dst;
-        node->u.runccode.code_register   = code;
+        node->u.runccode.code_operand    = ins->operands[start];
         node->u.runccode.map             = &ins->operands[2 + start];
         node->u.runccode.reentry_label   = reentry_label;
         jg_append_node(jg, node);

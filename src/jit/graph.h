@@ -206,7 +206,7 @@ struct MVMJitRunCCode {
     MVMCallsite  *callsite;
     MVMReturnType return_type;
     MVMint16      return_register;
-    MVMint16      code_register;
+    MVMSpeshOperand code_operand;
     MVMSpeshOperand *map;
     MVMint32      reentry_label;
 };

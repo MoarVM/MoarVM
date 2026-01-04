@@ -3390,9 +3390,20 @@ void MVM_jit_emit_runccode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | lea TMP6, [<5];
     | mov aword [rsp+0x10], TMP6;
     |.endif
-    | mov FUNCTION, aword WORK[runcode->code_register];
-    | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
-    | call FUNCTION
+
+    // If we know the value in the code register (because we just had it
+    // loaded from a "getspeshslot" operation) we can just put the value
+    // here literally.
+    MVMSpeshFacts *function_facts = MVM_spesh_get_facts(tc, jg->sg, runcode->code_operand);
+
+    if ((function_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && function_facts->value.o) {
+        uintptr_t call_target = (uintptr_t)(((MVMCFunction *)function_facts->value.o)->body.func);
+        | callp call_target;
+    } else {
+        | mov FUNCTION, aword WORK[runcode->code_operand.reg.orig];
+        | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
+        | call FUNCTION;
+    }
 }
 
 void MVM_jit_emit_runnativecall(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunNativeCall *runcode) {
