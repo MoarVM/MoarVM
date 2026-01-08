@@ -3,10 +3,8 @@
 void * MVM_region_alloc(MVMThreadContext *tc, MVMRegionAlloc *al, size_t bytes) {
     char *result = NULL;
 
-#if !defined(MVM_CAN_UNALIGNED_INT64) || !defined(MVM_CAN_UNALIGNED_NUM64)
     /* Round up size to next multiple of 8, to ensure alignment. */
     bytes = (bytes + 7) & ~7;
-#endif
 
     if (al->block != NULL && (al->block->alloc + bytes) < al->block->limit) {
         result = al->block->alloc;
