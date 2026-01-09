@@ -353,6 +353,8 @@ struct MVMInstance {
     MVMint32 jit_expr_last_bb;
     /* File for JIT perf map logging */
     FILE *jit_perf_map;
+    /* File for JIT perf jitdump output to be used with perf-inject */
+    FILE *jit_perf_jitdump;
 
     /* Directory name for JIT bytecode dumps */
     char *jit_bytecode_dir;
