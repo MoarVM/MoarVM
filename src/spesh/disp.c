@@ -1003,6 +1003,11 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                             temporaries[op->res_value.temp]);
                         MVM_spesh_copy_facts(tc, g, ins->operands[0],
                             temporaries[op->res_value.temp]);
+                        /* If we are profiling, we can probably kick an
+                         * allocation tracking op out. */
+                        if (bb->num_succ == 1 && bb->succ[0] && bb->succ[0]->first_ins && bb->succ[0]->first_ins->info->opcode == MVM_OP_prof_allocated) {
+                            MVM_spesh_manipulate_delete_ins(tc, g, bb->succ[0], bb->succ[0]->first_ins);
+                        }
                         break;
                     case MVM_OP_dispatch_i:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_i, ins->operands[0],

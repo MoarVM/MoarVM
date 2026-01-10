@@ -1397,6 +1397,9 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     ins->info = MVM_op_get_op(MVM_OP_set);
                     ins->operands[1] = args[idx];
                     MVM_spesh_usages_add_by_reg(tc, inliner, args[idx], ins);
+                    if (opcode == MVM_OP_sp_getarg_o && ins->next && ins->next->info->opcode == MVM_OP_prof_allocated) {
+                        MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins->next);
+                    }
                     break;
                 }
             }
