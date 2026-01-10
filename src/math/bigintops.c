@@ -453,17 +453,51 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
             store_bigint_result(bc, ic);
             adjust_nursery(tc, bc);
         } else {
-            MVMint32 sa = ba->u.smallint.value;
-            MVMint32 sb = bb->u.smallint.value;
-            MVMint32 t;
-            sa = abs(sa);
-            sb = abs(sb);
-            while (sb != 0) {
-                t  = sb;
-                sb = sa % sb;
-                sa = t;
+            /* Implementation from Daniel Lemire's blogs and code (placed in the public domain)), very slightly modified for MoarVM:
+             *   https://lemire.me/blog/2013/12/26/fastest-way-to-compute-the-greatest-common-divisor/
+             *   https://lemire.me/blog/2024/04/13/greatest-common-divisor-the-extended-euclidean-algorithm-and-speed/
+             *   https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2013/12/26/gcd.cpp
+             * While some of the other variants were faster when running his benchmark program, this was actually
+             * the fastest when added to MoarVM and tested with some Raku code. Notice that because we're assured of the values
+             * being not greater than 32-bit, we can use __builtin_ctz instead of __builtin_ctzll.
+             */
+
+            MVMuint32 u = abs(ba->u.smallint.value), v = abs(bb->u.smallint.value);
+
+            MVMint32 shift, uz, vz, ret;
+            if (u == 0) {
+                ret = v;
             }
-            store_int64_result(tc, bc, sa);
+            else if (v == 0) {
+                ret = u;
+            }
+            else {
+#ifdef _WIN32
+                uz = _tzcnt_u32(u);
+                vz = _tzcnt_u32(v);
+#else
+                uz = __builtin_ctz(u);
+                vz = __builtin_ctz(v);
+#endif
+                shift = uz > vz ? vz : uz;
+                u >>= uz;
+                do {
+                    v >>= vz;
+                    MVMint32 diff = v;
+                    diff -= u;
+#ifdef _WIN32
+                    vz = _tzcnt_u32(diff);
+#else
+                    vz = __builtin_ctz(diff);
+#endif
+                    if (diff == 0) break;
+                    if (v < u) u = v;
+                    v = abs(diff);
+                } while (1);
+                ret = u << shift;
+            }
+
+            store_int64_result(tc, bc, ret);
         }
     }
 
