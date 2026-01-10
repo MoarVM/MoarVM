@@ -41,7 +41,6 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @mimalloc_include@ \
-            @ccincsystem@3rdparty/ryu \
             @ccincsystem@3rdparty/dynasm \
             @ccincsystem@3rdparty/cmp \
             @ccincsystem@3rdparty \
@@ -252,7 +251,6 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
           3rdparty/freebsd/memmem@obj@ \
-          3rdparty/ryu/ryu/d2s@obj@ \
           @mimalloc_object@ \
           src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
