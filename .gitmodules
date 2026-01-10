@@ -16,10 +16,9 @@
 [submodule "3rdparty/libatomicops"]
 	path = 3rdparty/libatomicops
 	url = https://github.com/MoarVM/libatomic_ops
-[submodule "3rdparty/ryu"]
-	path = 3rdparty/ryu
-	url = https://github.com/MoarVM/ryu
-	ignore = untracked
+[submodule "3rdparty/zmij"]
+	path = 3rdparty/zmij
+	url = https://github.com/vitaut/zmij
 [submodule "3rdparty/mimalloc"]
 	path = 3rdparty/mimalloc
 	url = https://github.com/microsoft/mimalloc.git

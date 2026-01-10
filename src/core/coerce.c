@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "ryu/ryu.h"
+#include "zmij/zmij.c"
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -224,40 +224,34 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         }
     }
 
-    char buf[64];
-    /* What we get back is 0E0, 1E0, 3.14E0, 1E2, ... Infinity.
+    char buf[25];
+    /* What we get back is 0e+00, 1e+00, 3.14e+00, 1e+02, ... Infinity.
      * What we'd like is the classic "fixed decimal" representation for
-     * small values, and the exponent as a lower case 'e'. So we do some
+     * small values. So we do some
      * massaging, and handle infinity above. We could leave NaN to fall
      * through here, but if so it would hit our "something went wrong" code,
      * which somewhat downplays the absolute "this path means a bug". So I think
      * that it's still clearer handling it above. */
-    const int orig_len = d2s_buffered_n(n, buf);
     const char *first = buf;
+    const char *end = zmij_dtoa(n, buf);
+    const int orig_len = end - first;
 
     /* Take any leading minus away. We put it back at the end. */
-    int len = orig_len;
+    int len = end - first;
     if (*first == '-') {
         ++first;
         --len;
     }
 
-    if (len < 3 || !(first[1] == '.' || first[1] == 'E')) {
+    if (len < 4 || !(first[1] == '.' || first[1] == 'e')) {
         /* Well, this shouldn't be possible. */
     }
     else {
-        const char *end = first + len;
         const char *E = NULL;
-        if (end[-2] == 'E') {
-            E = end - 2;
-        }
-        else if (end[-3] == 'E') {
-            E = end - 3;
-        }
-        else if (len >= 4 && end[-4] == 'E') {
+        if (end[-4] == 'e') {
             E = end - 4;
         }
-        else if (len > 4 && end[-5] == 'E') {
+        else if (end[-5] == 'e') {
             E = end - 5;
         }
 
@@ -270,68 +264,53 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         if (E) {
             MVMGrapheme8 *blob;
             size_t e_len = end - (E + 1);
-            if (e_len == 2 && E[1] == '-') {
-                /* 1E-1 etc to 1E-9 etc */
-                if (E[2] > '4') {
-                    /* 1E-5 etc to 1E-9 etc. Need to add a zero. */
-                    len = orig_len + 1;
-                    blob = MVM_malloc(len);
-                    /* Using buf here, not first, means that we copy any '-'
-                     * too. */
-                    size_t new_e = E - buf;
-                    memcpy(blob, buf, new_e);
-                    blob[new_e] = 'e';
-                    blob[new_e + 1] = '-';
-                    blob[new_e + 2] = '0';
-                    blob[new_e + 3] = E[2];
+            /* 1e-01 etc to 1e-04 etc */
+            if (e_len == 3 && E[1] == '-' && E[2] == '0' && E[3] <= '4') {
+                /* Convert to fixed format, value < 1 */
+                unsigned int zeros = E[3] - '0' - 1;
+                size_t dec_len;
+                if (E == first + 1) {
+                    /* No trailing decimals */
+                    dec_len = 0;
                 }
                 else {
-                    /* Convert to fixed format, value < 1 */
-                    unsigned int zeros = E[2] - '0' - 1;
-                    size_t dec_len;
-                    if (E == first + 1) {
-                        /* No trailing decimals */
-                        dec_len = 0;
-                    }
-                    else {
-                        dec_len = E - (first + 2);
-                    }
-                    len = 2         /* "0." */
-                        + zeros     /* "", "0", "00" or "000" */
-                        + 1         /* first digit */
-                        + dec_len;  /* rest */
+                    dec_len = E - (first + 2);
+                }
+                len = 2         /* "0." */
+                    + zeros     /* "", "0", "00" or "000" */
+                    + 1         /* first digit */
+                    + dec_len;  /* rest */
 
-                    MVMGrapheme8 *pos;
-                    if (first == buf) {
-                        blob = MVM_malloc(len);
-                        pos = blob;
-                    } else {
-                        ++len;
-                        blob = MVM_malloc(len);
-                        pos = blob;
-                        *pos++ = '-';
-                    }
+                MVMGrapheme8 *pos;
+                if (first == buf) {
+                    blob = MVM_malloc(len);
+                    pos = blob;
+                } else {
+                    ++len;
+                    blob = MVM_malloc(len);
+                    pos = blob;
+                    *pos++ = '-';
+                }
 
+                *pos++ = '0';
+                *pos++ = '.';
+
+                while (zeros) {
                     *pos++ = '0';
-                    *pos++ = '.';
+                    --zeros;
+                }
 
-                    while (zeros) {
-                        *pos++ = '0';
-                        --zeros;
-                    }
+                *pos++ = *first;
 
-                    *pos++ = *first;
-
-                    if (dec_len) {
-                        memcpy(pos, first + 2, dec_len);
-                    }
+                if (dec_len) {
+                    memcpy(pos, first + 2, dec_len);
                 }
             }
-            else if (e_len == 1 || (e_len == 2 && E[1] == '1' && E[2] < '5')) {
-                /* 1E0 etc to 1E14 etc.
-                 * Convert to fixed format, possibly needing padding,
+            /* 1e+00 etc to 1e+14 etc. */
+            else if (e_len == 3 && E[1] == '+' && (E[2] == '0' || (E[2] == '1' && E[3] < '5'))) {
+                /* Convert to fixed format, possibly needing padding,
                  * possibly with trailing decimals, possibly neither. */
-                unsigned int exp = e_len == 1 ? E[1] - '0' : 10 + E[2] - '0';
+                unsigned int exp = (10 * (E[2] - '0')) + (E[3] - '0');
                 size_t dec_len;
                 if (E == first + 1) {
                     /* No trailing decimals */
@@ -376,25 +355,11 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
                         --padding;
                     }
                 }
-            }
-            else if (E[1] == '-') {
-                /* Stays in scientific notation, but need to change to 'e'. */
+            } else {
+                /* Stays in scientific notation. */
                 len = orig_len;
                 blob = MVM_malloc(len);
-                size_t new_e = E - buf;
-                memcpy(blob, buf, new_e);
-                blob[new_e] = 'e';
-                memcpy(blob + new_e + 1, E + 1, e_len);
-            } else {
-                /* Stays in scientific notation, but need to change to 'e'
-                 * and add a + */
-                len = orig_len + 1;
-                blob = MVM_malloc(len);
-                size_t new_e = E - buf;
-                memcpy(blob, buf, new_e);
-                blob[new_e] = 'e';
-                blob[new_e + 1] = '+';
-                memcpy(blob + new_e + 2, E + 1, e_len);
+                memcpy(blob, buf, len);
             }
             return MVM_string_ascii_from_buf_nocheck(tc, blob, len);
         }
