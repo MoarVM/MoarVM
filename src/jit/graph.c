@@ -167,9 +167,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_unbox_u: return MVM_repr_get_uint;
     case MVM_OP_unbox_s: return MVM_repr_get_str;
     case MVM_OP_unbox_n: return MVM_repr_get_num;
-    case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: /* continued */
-    case MVM_OP_islist: case MVM_OP_ishash: return MVM_repr_compare_repr_id;
-    case MVM_OP_iscoderef: return MVM_code_iscode;
     case MVM_OP_wval: case MVM_OP_wval_wide: return MVM_sc_get_sc_object;
     case MVM_OP_scgetobjidx: return MVM_sc_find_object_idx_jit;
     case MVM_OP_getdynlex: return MVM_frame_getdynlex;
@@ -1815,6 +1812,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_isstr:
     case MVM_OP_islist:
     case MVM_OP_ishash:
+    case MVM_OP_iscoderef:
     case MVM_OP_sp_boolify_iter_arr:
     case MVM_OP_lexprimspec:
     case MVM_OP_objprimspec:
@@ -2285,14 +2283,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args,
                 op == MVM_OP_istrue_s ? MVM_JIT_RV_INT : MVM_JIT_RV_INT_NEGATED,
                 dst);
-        break;
-    }
-    case MVM_OP_iscoderef: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { obj } } };
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_clone: {
@@ -3859,7 +3849,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_runcfunc_o: {
         int start = (op == MVM_OP_sp_runcfunc_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
-        MVMint16 code         = ins->operands[0 + start].reg.orig;
         MVMCallsite *callsite = (MVMCallsite*)ins->operands[1 + start].lit_ui64;
 
         /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
@@ -3880,7 +3869,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                 ? MVM_RETURN_NUM
                                 : MVM_RETURN_OBJ;
         node->u.runccode.return_register = dst;
-        node->u.runccode.code_register   = code;
+        node->u.runccode.code_operand    = ins->operands[start];
         node->u.runccode.map             = &ins->operands[2 + start];
         node->u.runccode.reentry_label   = reentry_label;
         jg_append_node(jg, node);
@@ -4260,6 +4249,13 @@ MVMJitGraph * MVM_jit_try_make_graph(MVMThreadContext *tc, MVMSpeshGraph *sg) {
 
     /* append the end-of-graph label */
     jg_append_label(tc, graph, MVM_jit_label_after_graph(tc, graph, sg));
+
+    if (tc->instance->jit_perf_jitdump) {
+        /* Put a readable-ish header in front of a BB. */
+        MVMJitNode *node   = MVM_spesh_alloc(tc, graph->sg, sizeof(MVMJitNode));
+        node->type         = MVM_JIT_NODE_ALL_BB_LABELS;
+        jg_append_node(graph, node);
+    }
 
     /* Calculate number of basic block + graph labels */
     graph->num_labels    = graph->obj_label_ofs + graph->obj_labels_num;
