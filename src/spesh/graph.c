@@ -933,10 +933,10 @@ static void dfs(MVMSpeshBB **rpo, MVMint32 *insert_pos, MVMuint8 *seen, MVMSpesh
 }
 MVMSpeshBB ** MVM_spesh_graph_reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB **rpo  = MVM_calloc(g->num_bbs, sizeof(MVMSpeshBB *));
-    MVMuint8    *seen = MVM_calloc(g->num_bbs, 1);
+    MVMuint8    *seen = alloca(g->num_bbs);
+    memset(seen, 0, g->num_bbs);
     MVMint32     ins  = g->num_bbs - 1;
     dfs(rpo, &ins, seen, g->entry);
-    MVM_free(seen);
     if (ins != -1) {
         char *dump_msg = MVM_spesh_dump(tc, g);
         printf("%s", dump_msg);
