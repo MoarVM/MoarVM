@@ -1,3 +1,22 @@
+New in 2026.01
+
+Core:
++ Fix building MoarVM with a system provided libuv [52a918c8]
++ Always align region allocator allocations to multiples of 8 [1aa273fd]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
++ Fewer unneeded prof allocated calls [5eb2ccf3]
+
+Strings:
+
+CI:
+
 New in 2025.12
 Unicode:
 + Update to Unicode 17, including:
