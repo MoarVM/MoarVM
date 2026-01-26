@@ -233,7 +233,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
      * which somewhat downplays the absolute "this path means a bug". So I think
      * that it's still clearer handling it above. */
     const char *first = buf;
-    const char *end = zmij_dtoa(n, buf);
+    const char *end = zmij_write_double(n, buf);
     const int orig_len = end - first;
 
     /* Take any leading minus away. We put it back at the end. */
