@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "zmij/zmij.c"
+#include "zmij-c.h"
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -233,8 +233,8 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
      * which somewhat downplays the absolute "this path means a bug". So I think
      * that it's still clearer handling it above. */
     const char *first = buf;
-    const char *end = zmij_write_double(n, buf);
-    const int orig_len = end - first;
+    const size_t orig_len = zmij_write_double(buf, sizeof(buf), n);
+    const char *end = buf + orig_len;
 
     /* Take any leading minus away. We put it back at the end. */
     int len = end - first;

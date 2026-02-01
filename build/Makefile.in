@@ -41,6 +41,7 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @mimalloc_include@ \
+            @zmij_include@ \
             @ccincsystem@3rdparty/dynasm \
             @ccincsystem@3rdparty/cmp \
             @ccincsystem@3rdparty \
@@ -251,6 +252,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
           3rdparty/freebsd/memmem@obj@ \
+          @zmij_object@ \
           @mimalloc_object@ \
           src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
@@ -620,6 +622,10 @@ moar@exe@: $(MAIN_OBJECTS) @moar@
 libuv: @uvlib@
 
 $(MAIN_OBJECTS) $(OBJECTS): $(HEADERS)
+
+@zmij_object@:
+	$(MSG) compiling $@
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) -std=gnu11 @objflags@ $(CINCLUDES) @ccout@$@ $*.c
 
 tracing:
 	$(MSG) enable tracing dispatch
