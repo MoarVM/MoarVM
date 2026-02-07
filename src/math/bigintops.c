@@ -504,10 +504,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
         MVMP6bigintBody *bc;
         bc = get_bigint_body(tc, result);
 
-        /* XXX the behavior of C's mod operator is not correct
-         * for our purposes. So we rely on mp_mod for all our modulus
-         * calculations for now. */
-        if (1 || MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
             mp_int *ia = force_bigint(tc, ba, 0);
             mp_int *ib = force_bigint(tc, bb, 1);
             mp_int *ic = MVM_malloc(sizeof(mp_int));
@@ -527,7 +524,8 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
             store_bigint_result(bc, ic);
             adjust_nursery(tc, bc);
         } else {
-            store_int64_result(tc, bc, ba->u.smallint.value % bb->u.smallint.value);
+            /* % in C technically gives the remainder, but we want the modulus. */
+            store_int64_result(tc, bc, ((ba->u.smallint.value % bb->u.smallint.value) + bb->u.smallint.value) % bb->u.smallint.value);
         }
     }
 
