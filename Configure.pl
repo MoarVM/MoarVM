@@ -454,6 +454,15 @@ else {
     $config{mimalloc_object} = "";
 }
 
+# zmij
+$config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/zmij/'
+                         . ' ' . $defaults{ccinc} . '3rdparty/zmij/';
+$config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/zmij\"\n"
+                   . "\t\$(CP) 3rdparty/zmij/zmij-c.h \"\$(DESTDIR)\$(PREFIX)/include/zmij\"\n";
+push @hllincludes, 'zmij';
+$config{zmij_include} = '@ccincsystem@3rdparty/zmij';
+$config{zmij_object} = '3rdparty/zmij/zmij@obj@';
+
 # mangle library names
 $config{ldlibs} = join ' ',
     $config{lincludes},
