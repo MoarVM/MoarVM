@@ -1243,7 +1243,7 @@ static MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "Setting up step failed: thread has wrong status\n");
+            fprintf(stderr, "Setting up step failed: thread has wrong status: %lu\n", to_do->body.tc->gc_status);
         return 1;
     }
 
