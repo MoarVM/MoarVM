@@ -709,7 +709,7 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
                     }
                     /* Store the suspend request flag. */
                     if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                            == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+                            == MVMGCStatus_INTERRUPT) {
                         break;
                     }
                 }
