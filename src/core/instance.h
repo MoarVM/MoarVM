@@ -574,4 +574,8 @@ struct MVMInstance {
      ************************************************************************/
 
     MVMEventSubscriptions subscriptions;
+
+    /* For improving unwinding of stack frames, stash away the labels of all
+     * ops inside of MVM_interp_run. */
+    const uintptr_t *interp_labels;
 };

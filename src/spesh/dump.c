@@ -647,6 +647,7 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
     ds.pos    = 0;
 
     MVM_spesh_dump_to_ds(tc, g, &ds);
+    MVM_ds_append_null(&ds);
 
     return ds.buffer;
 }

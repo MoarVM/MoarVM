@@ -1,6 +1,7 @@
 #include "moar.h"
 #include "platform/time.h"
 #include "platform/sys.h"
+#include <stdint.h>
 
 /* Macros for getting things from the bytecode stream. */
 #if MVM_GC_DEBUG >= 2
@@ -146,6 +147,7 @@ MVMDispInlineCacheEntry ** MVM_disp_inline_cache_get_spesh(MVMStaticFrame *sf, M
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop) {
 #if MVM_CGOTO
 #include "oplabels.h"
+    tc->instance->interp_labels = (uintptr_t*)LABELS;
 #endif
 
     /* Points to the place in the bytecode right after the current opcode. */

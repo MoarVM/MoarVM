@@ -399,6 +399,15 @@ else {
     $config{has_zstd} = 0;
 }
 
+if ($config{pkgconfig_works} && has_native_library('libunwind', '1.0.0')) {
+    print "found libunwind; will output C-level stack traces on oops and panic\n";
+    setup_native_library('libunwind');
+    $config{has_libunwind} = 1;
+}
+else {
+    print "could not find libunwind; no C-level stack traces on oops and panic\n";
+}
+
 $config{use_mimalloc} = $args{mimalloc};
 if (!defined $config{use_mimalloc}) {
     if ($config{has_stdatomic}) {
@@ -456,6 +465,7 @@ $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin'
 $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
 $config{ldlibs} = ' -ltsan ' . $config{ldlibs} if $args{tsan} and $^O ne 'darwin';
 $config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{has_zstd};
+$config{ldlibs} = $config{ldlibs} . ' -lunwind ' if $config{has_libunwind};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -505,6 +515,7 @@ push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
 push @cflags, '-DMVM_USE_ZSTD=' . $config{has_zstd};
+push @cflags, '-DMVM_USE_LIBUNWIND=' . $config{has_libunwind};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 

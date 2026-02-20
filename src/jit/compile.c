@@ -2,6 +2,12 @@
 #include "internal.h"
 #include "platform/mmap.h"
 
+#if MVM_USE_LIBUNWIND
+#define UNW_LOCAL_ONLY
+#define UNW_DEBUG
+#include <libunwind.h>
+#endif
+
 
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler);
@@ -155,6 +161,68 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         MVM_free(frame_name);
     }
 #endif
+
+#if MVM_USE_LIBUNWIND
+    if (jg->sg->sf && code) {
+        unw_dyn_info_t *uwin = MVM_calloc(1, sizeof(unw_dyn_info_t));
+
+        char *file_location = MVM_staticframe_file_location(tc, jg->sg->sf);
+        char *frame_name = MVM_string_utf8_encode_C_string(tc, jg->sg->sf->body.name);
+        size_t namesize = strlen(frame_name) + strlen(file_location) + 3;
+        char *symbol_name = MVM_malloc(namesize);
+        snprintf(symbol_name, namesize,
+                    "%s(%s)", frame_name, file_location);
+        MVM_free(file_location);
+        MVM_free(frame_name);
+
+        const MVMuint8 prologue_ops = 7;
+        /* Put two ops in the dynamic array at the end of the first
+         * region info struct. */
+        unw_dyn_region_info_t *regions = MVM_calloc(1,
+            3 * sizeof(unw_dyn_region_info_t)
+            + prologue_ops * sizeof(unw_dyn_op_t)
+        );
+        regions[0].next = (unw_dyn_region_info_t*)((uintptr_t)(&regions[1]) + prologue_ops * sizeof(unw_dyn_op_t));
+        regions[0].next[0].next = regions[0].next + 1;
+
+        regions[0].insn_count = (uintptr_t)code->labels[0] - (uintptr_t)code->func_ptr;
+        regions[1].insn_count = (uintptr_t)code->exit_label - (uintptr_t)code->func_ptr;
+        regions[2].insn_count = (uintptr_t)code->func_ptr + code->size - (uintptr_t)code->exit_label;
+
+        /* Things the Prologue does:
+         * - Stores rbp from the caller on the stack with "push".
+         * - Initializes the rbp from the rsp.
+         * - Decreases the stack pointer by 0x100.
+         * - Spills TC, CU, WORK (aka. r14, r13, rbx) to
+         *   -0x8, -0x10, and -0x18 relative to the frame pointer.
+         *
+         * We never try to unwind while a frame is inside the prologue,
+         * so we don't have to put "when" arguments in the ops.
+         */
+
+        regions[0].op_count = prologue_ops;
+        unw_dyn_op_t *op = regions[0].op;
+        _U_dyn_op_spill_sp_rel( op++, _U_QP_TRUE, 0, 6,   0);  // push rbp
+        _U_dyn_op_add(          op++, _U_QP_TRUE, 0, 7,  -8);  // push changes the rsp
+        _U_dyn_op_save_reg(     op++, _U_QP_TRUE, 0, 7,   6);  // mov rbp, rsp
+        _U_dyn_op_add(          op++, _U_QP_TRUE, 0, 6,  -0x100); // sub rsp, 0x100
+        _U_dyn_op_spill_sp_rel( op++, _U_QP_TRUE, 0, 14,  -0x08);  // mov [rbp-0x08], r14
+        _U_dyn_op_spill_sp_rel( op++, _U_QP_TRUE, 0, 13,  -0x10);  // mov [rbp-0x10], r13
+        _U_dyn_op_spill_sp_rel( op++, _U_QP_TRUE, 0, 1,   -0x18);  // mov [rbp-0x18], rbx
+
+        uwin->start_ip = (unw_word_t)code->func_ptr;
+        uwin->end_ip = uwin->start_ip + code->size;
+        uwin->format = UNW_INFO_FORMAT_DYNAMIC;
+        uwin->u.pi.name_ptr = (unw_word_t)symbol_name;
+        uwin->u.pi.regions = regions;
+
+        /*fprintf(stderr, "udi: %p: %s, size 0x%zx: region instruction counts: [0x%x, 0x%x, 0x%x]\n",
+            code->func_ptr, symbol_name, code->size, regions[0].insn_count, regions[1].insn_count, regions[2].insn_count);*/
+
+        _U_dyn_register(uwin);
+    }
+#endif
+
 
     /* Logging for insight */
     if (MVM_jit_bytecode_dump_enabled(tc) && code)

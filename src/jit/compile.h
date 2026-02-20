@@ -27,6 +27,10 @@ struct MVMJitCode {
     MVMuint32      seq_nr;
 
     AO_t ref_cnt;
+
+    /* Extra information that belongs to this MVMJitCode, which some libraries
+     * and tools can use to understand jitted code: libunwind, gdb, etc. */
+    void *debugger_info;
 };
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);

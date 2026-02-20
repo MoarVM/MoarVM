@@ -245,16 +245,16 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
      * allowing us to stick GC sync points at various places and so not let
      * the optimization work block GC for too long. */
     tc->spesh_active_graph = sg;
-    spesh_gc_point(tc);
+    // spesh_gc_point(tc);
 
     /* Perform the optimization and, if we're logging, dump out the result. */
     if (p->cs_stats->cs)
         MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
-    spesh_gc_point(tc);
+    // spesh_gc_point(tc);
     MVM_spesh_facts_discover(tc, sg, p, 0);
-    spesh_gc_point(tc);
+    // spesh_gc_point(tc);
     MVM_spesh_optimize(tc, sg, p);
-    spesh_gc_point(tc);
+    // spesh_gc_point(tc);
 
     if (MVM_spesh_debug_enabled(tc))
         spesh_time = uv_hrtime();

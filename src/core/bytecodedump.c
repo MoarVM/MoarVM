@@ -67,11 +67,14 @@ static MVMStaticFrame * get_frame(MVMThreadContext *tc, MVMCompUnit *cu, int idx
     return ((MVMCode *)cu->body.coderefs[idx])->body.sf;
 }
 
-static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *frame, MVMSpeshCandidate *maybe_candidate, MVMuint8 *frame_cur_op, char ***frame_lexicals, char **oo, MVMuint32 *os, MVMuint32 *ol) {
+static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *frame, MVMSpeshCandidate *maybe_candidate, MVMuint8 *frame_cur_op, char ***frame_lexicals, char **oo, MVMuint32 *os, MVMuint32 *ol, MVMuint32 output_start_at, MVMint32 output_lines) {
     /* since "references" are not a thing in C, keep a local copy of these
      * and update the passed-in pointers at the end of the function */
+    /* Output buffer */
     char *o = *oo;
+    /* Current allocation size of o. */
     MVMuint32 s = *os;
+    /* Current position inside of o. */
     MVMuint32 l = *ol;
 
     MVMuint32 i, j;
@@ -367,6 +370,11 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         }
 
         for (j = 0; j < lineno; j++) {
+            if (linelocs[j] < output_start_at && (output_lines != 0)) {
+                MVM_free(lines[j]);
+                continue;
+            }
+
             if (annotations[j]) {
                 MVMuint16 shi = GET_UI16(frame->body.annotations_data + 4, (annotations[j] - 1)*12);
                 tmpstr = MVM_string_utf8_encode_C_string(
@@ -388,6 +396,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                     a("label (invalid: %05u)", jumps[j]);
             }
             a("\n");
+            output_lines--;
         }
         MVM_free(lines);
         MVM_free(jumps);
@@ -513,7 +522,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
         }
         a("    Instructions :\n");
         {
-            bytecode_dump_frame_internal(tc, frame, NULL, NULL, frame_lexicals, &o, &s, &l);
+            bytecode_dump_frame_internal(tc, frame, NULL, NULL, frame_lexicals, &o, &s, &l, 0, -1);
         }
     }
 
@@ -530,7 +539,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 }
 
 #ifdef DEBUG_HELPERS
-void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandidate *maybe_candidate) {
+void MVM_dump_bytecode_of_starting_at(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandidate *maybe_candidate, MVMuint32 starting_offset, MVMint32 show_lines) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
     char *o = MVM_malloc(s * sizeof(char));
@@ -546,11 +555,16 @@ void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandida
         }
     }
 
-    bytecode_dump_frame_internal(tc, frame->static_info, maybe_candidate, addr, NULL, &o, &s, &l);
+    bytecode_dump_frame_internal(tc, frame->static_info, maybe_candidate, addr,
+                                 NULL, &o, &s, &l, starting_offset, show_lines);
 
     o[l] = 0;
 
     fprintf(stderr, "%s", o);
+}
+
+void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandidate *maybe_candidate) {
+    MVM_dump_bytecode_of_starting_at(tc, frame, maybe_candidate, 0, -1);
 }
 
 void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) {
@@ -558,38 +572,42 @@ void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) 
     MVMuint32 l = 0;
     char *o = MVM_malloc(s * sizeof(char));
 
-    bytecode_dump_frame_internal(tc, frame, NULL, NULL, NULL, &o, &s, &l);
+    bytecode_dump_frame_internal(tc, frame, NULL, NULL, NULL, &o, &s, &l, 0, -1);
 
     o[l] = 0;
 
     fprintf(stderr, "%s", o);
 }
 
-void MVM_dump_bytecode(MVMThreadContext *tc) {
+void MVM_dump_bytecode_starting_at(MVMThreadContext *tc, MVMint32 start_offset, MVMint32 show_lines) {
     if (tc->cur_frame != NULL) {
         MVMStaticFrame *sf = tc->cur_frame->static_info;
         MVMuint8 *effective_bytecode = MVM_frame_effective_bytecode(tc->cur_frame);
+        if (start_offset < 0) {
+            start_offset += (uintptr_t)*tc->interp_cur_op - (uintptr_t)effective_bytecode;
+        }
         if (effective_bytecode == sf->body.bytecode) {
-            MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
+            MVM_dump_bytecode_of_starting_at(tc, tc->cur_frame, NULL, start_offset, show_lines);
         } else {
-            MVM_dump_bytecode_of(tc, tc->cur_frame, tc->cur_frame->spesh_cand);
-            /*MVMint32 spesh_cand_idx;*/
-            /*MVMuint8 found = 0;*/
-            /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
-            /*MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];*/
-            /*if (cand->body.bytecode == effective_bytecode) {*/
-                /*MVM_dump_bytecode_of(tc, tc->cur_frame, cand);*/
-                /*found = 1;*/
-            /*}*/
-            /*if (!found) {*/
-            /* It's likely the MAGIC_BYTECODE from the jit?
-             * in that case we just grab tc->cur_frame->spesh_cand apparently */
-            /*}*/
+            MVM_dump_bytecode_of_starting_at(tc, tc->cur_frame, tc->cur_frame->spesh_cand, start_offset, show_lines);
         }
     }
     else {
         fprintf(stderr, "threadcontext has no frame (spesh worker or debug server thread?)\n");
     }
+}
+
+void MVM_dump_bytecode_near_ip(MVMThreadContext *tc) {
+    if (tc->cur_frame != NULL) {
+        MVM_dump_bytecode_starting_at(tc, -50, 10);
+    }
+    else {
+        fprintf(stderr, "threadcontext has no frame (spesh worker or debug server thread?)\n");
+    }
+}
+
+void MVM_dump_bytecode(MVMThreadContext *tc) {
+    MVM_dump_bytecode_starting_at(tc, 0, -1);
 }
 
 void MVM_dump_bytecode_stackframe(MVMThreadContext *tc, MVMint32 depth) {

@@ -871,6 +871,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         }
     }
 
+    /*if (offset > 15000 && (rand() & 0xffff) == 0x00) {
+        MVM_panic(9, "oh no, a random failure at offset %ld!", offset);
+    }*/
+
     *total_fates_out = total_fates;
     return fates;
 }

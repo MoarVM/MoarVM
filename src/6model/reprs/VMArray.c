@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "limits.h"
+#include <stdlib.h>
 
 /* This representation's function pointer table. */
 static const MVMREPROps VMArray_this_repr;

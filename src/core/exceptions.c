@@ -5,6 +5,11 @@
 #define vsnprintf _vsnprintf
 #endif
 
+#if MVM_USE_LIBUNWIND
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+#endif
+
 static int crash_on_error = 0;
 
 /* Function for getting effective (specialized or not) frame handlers. */
@@ -844,6 +849,76 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label);
 }
 
+#if MVM_USE_LIBUNWIND
+static void one_backtrace_step(MVMThreadContext *tc, unw_cursor_t *cursor) {
+    unw_word_t ip, sp, offp;
+
+    char proc_name_buf[1024];
+
+    unw_get_reg(cursor, UNW_REG_IP, &ip);
+    unw_get_reg(cursor, UNW_REG_SP, &sp);
+    if (unw_get_proc_name(cursor, proc_name_buf, 1023, &offp) != 0) {
+        proc_name_buf[0] = '\0';
+        offp = 0;
+    }
+
+    fprintf(stderr, "ip = %12lx, sp = %12lx - %s +%lx\n", (long)ip,
+            (long)sp, proc_name_buf, offp);
+
+    if (ip - offp == (uintptr_t)MVM_interp_run) {
+        if (tc) {
+            const uintptr_t *labels = tc->instance->interp_labels;
+            MVMuint32 opidx;
+            MVMint64 nearest_below_off = -0xffffffff;
+            MVMuint32 nearest_below_opi = 0;
+            MVMint64 nearest_above_off = 0xffffffff;
+            MVMuint32 nearest_above_opi = 0;
+            for (opidx = 0; opidx < 1030; opidx++) {
+                if (ip <= labels[opidx] && (MVMint64)ip - (MVMint64)labels[opidx] > nearest_below_off) {
+                    nearest_below_off = ip - labels[opidx];
+                    nearest_below_opi = opidx;
+                }
+                else if (ip >= labels[opidx] && (MVMint64)ip - (MVMint64)labels[opidx] < nearest_above_off) {
+                    nearest_above_off = ip - labels[opidx];
+                    nearest_above_opi = opidx;
+                }
+            }
+            MVMuint8 is_regular_bytecode = 1;
+            if (nearest_below_off > -0xffff && nearest_above_off < 0xffff) {
+                const MVMOpInfo *info;
+                info = MVM_op_get_op(nearest_above_opi);
+                fprintf (stderr, "     - case OP(%s): +%lx\n", info->name, labs((MVMint64)ip - (MVMint64)labels[nearest_above_opi]));
+
+                if (info->opcode == MVM_OP_sp_jit_enter) {
+                    is_regular_bytecode = 0;
+                }
+
+                info = MVM_op_get_op(nearest_below_opi);
+                fprintf (stderr, "     - case OP(%s): -%lx\n", info->name, labs((MVMint64)ip - (MVMint64)labels[nearest_below_opi]));
+            }
+            if (is_regular_bytecode) {
+#ifdef DEBUG_HELPERS
+                fprintf(stderr, "\nBytecode near current position:\n");
+                MVM_dump_bytecode_near_ip(tc);
+                fprintf(stderr, "\n");
+#endif
+            }
+        }
+    }
+}
+
+static void show_backtrace_with_libunwind (MVMThreadContext *tc) {
+    unw_cursor_t cursor;
+    unw_context_t uc;
+
+    unw_getcontext(&uc);
+    unw_init_local(&cursor, &uc);
+    while (unw_step(&cursor) > 0) {
+        one_backtrace_step(tc, &cursor);
+    }
+}
+#endif
+
 /* Panics and shuts down the VM. Don't do this unless it's something quite
  * unrecoverable, and a thread context is either not available or stands a
  * good chance of being too corrupt to print (or is not relevant information).
@@ -857,6 +932,19 @@ MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) 
     vfprintf(stderr, messageFormat, args);
     va_end(args);
     fputc('\n', stderr);
+
+#if MVM_USE_LIBUNWIND
+    MVMThreadContext *this_thread_tc = MVM_get_running_threads_context();
+    fprintf(stderr, "\nC-level stack trace:\n");
+    show_backtrace_with_libunwind(this_thread_tc);
+
+    if (this_thread_tc) {
+        fprintf(stderr, "\nLanguage-level stack trace:\n");
+        MVM_dump_backtrace(this_thread_tc);
+        fputc('\n', stderr);
+    }
+#endif
+
     if (crash_on_error)
         abort();
     else
@@ -881,6 +969,11 @@ MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...
     vfprintf(stderr, messageFormat, args);
     va_end(args);
     fputc('\n', stderr);
+
+#if MVM_USE_LIBUNWIND
+    show_backtrace_with_libunwind(tc);
+    //show_backtrace_with_libunwind(NULL);
+#endif
 
     /* Our caller is seriously buggy if tc is NULL */
     if (!tc)
@@ -929,6 +1022,10 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
         fputc('\n', stderr);
         if (!tc)
             abort();
+
+#if MVM_USE_LIBUNWIND
+        show_backtrace_with_libunwind(tc);
+#endif
 
         MVM_dump_backtrace(tc);
         fputc('\n', stderr);
