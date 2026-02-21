@@ -92,7 +92,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_exception_throw_adhoc(tc,
             "HashAttrStore representation does not support native attribute storage");
 
-    if (!MVM_str_hash_entry_size(tc, hashtable)) {
+    if (!MVM_str_hash_entry_size_blame(tc, hashtable, root)) {
         MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), 0);
     }
 
