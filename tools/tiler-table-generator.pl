@@ -144,8 +144,8 @@ sub combine_rules {
             my ($head, $sym1, $sym2) = @{$rule->{pat}};
             if (defined $sym2) {
                 # iterate over all symbols in the symsets
-                for my $s_k1 (keys %{$lookup{$sym1}}) {
-                    for my $s_k2 (keys %{$lookup{$sym2}}) {
+                for my $s_k1 (sort keys %{$lookup{$sym1}}) {
+                    for my $s_k2 (sort keys %{$lookup{$sym2}}) {
                         # This rule could match all combinations of $s_k1 and $s_k2 that appear
                         # here because their matching symbols are contained in these symsets.
                         # Here we are interested in all the other rules that also match these
@@ -156,7 +156,7 @@ sub combine_rules {
                 }
             } elsif (defined $sym1) {
                 # Handle the one-item case
-                for my $s_k1 (keys %{$lookup{$sym1}}) {
+                for my $s_k1 (sort keys %{$lookup{$sym1}}) {
                     $trie{$head, $s_k1, -1}{$rule_nr} = $rule->{sym};
                 }
             } else {
@@ -237,13 +237,13 @@ sub generate_table {
         my $rule = $rules->[$rule_nr];
         my ($head, $sym1, $sym2) = @{$rule->{pat}};
         if (defined $sym2) {
-            for my $rs1 (keys %{$candidates{$sym1}}) {
-                for my $rs2 (keys %{$candidates{$sym2}}) {
+            for my $rs1 (sort keys %{$candidates{$sym1}}) {
+                for my $rs2 (sort keys %{$candidates{$sym2}}) {
                     $flat{$head,$rs1,$rs2}{$rule_nr} = 1;
                 }
             }
         } elsif (defined $sym1) {
-            for my $rs1 (keys %{$candidates{$sym1}}) {
+            for my $rs1 (sort keys %{$candidates{$sym1}}) {
                 $flat{$head,$rs1,-1}{$rule_nr} = 1;
             }
         } else {
@@ -255,7 +255,7 @@ sub generate_table {
     my %table;
     while (my ($idx, $match) = each %flat) {
         my ($head, $rs1, $rs2) = split $;, $idx;
-        my $key = set_key(keys %$match);
+        my $key = set_key(sort keys %$match);
         die "Cannot find key $key" unless defined $trans{$key};
         $table{$head}{$rs1}{$rs2} = $trans{$key};
     }
@@ -266,9 +266,9 @@ sub compute_costs {
     my ($rules, $rulesets, $table) = @_;
 
     my %reversed;
-    for my $head (keys %$table) {
-        for my $rs1 (keys %{$table->{$head}}) {
-            for my $rs2 (keys %{$table->{$head}->{$rs1}}) {
+    for my $head (sort keys %$table) {
+        for my $rs1 (sort keys %{$table->{$head}}) {
+            for my $rs2 (sort keys %{$table->{$head}->{$rs1}}) {
                 my $rsy = $table->{$head}{$rs1}{$rs2};
                 push @{$reversed{$rsy}}, [$rs1, $rs2];
             }
@@ -324,7 +324,7 @@ sub compute_costs {
         # nb, i assume we've converged after the *relative* cost of rules doesn't change,
         # but i only compute whether the *top* rule hasn't changed, and that's actually
         # not sufficient in some cases
-        for my $key (keys %min_cost) {
+        for my $key (sort keys %min_cost) {
             die "huh $key" if !defined $new_min{$key};
             $changed++ if $min_cost{$key} != $new_min{$key};
         }
