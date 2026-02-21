@@ -14,7 +14,24 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Set up GC nursery. We only allocate tospace initially, and allocate
      * fromspace the first time this thread GCs, provided it ever does. */
     tc->nursery_tospace_size = MVM_gc_new_thread_nursery_size(instance);
+    #if MVM_USE_NURSERY_ARENA
+    if (parent && parent->nursery_heap) {
+        tc->nursery_tospace     = mi_heap_calloc(parent->nursery_heap, 1, tc->nursery_tospace_size);
+        // fprintf(stderr, "created nursery for new tc with parent's nursery_heap\n");
+    }
+    else if (instance->nursery_heap) {
+        tc->nursery_tospace     = mi_heap_calloc(instance->nursery_heap, 1, tc->nursery_tospace_size);
+        // fprintf(stderr, "created nursery for new tc with instance's nursery_heap\n");
+    } else {
+        // fprintf(stderr, "created nursery for new tc with normal calloc\n");
+        tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
+    }
+    /*if (!((uintptr_t)(tc->nursery_tospace) >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)(tc->nursery_tospace) < (uintptr_t)MVM_NURSERY_ARENA_LIMIT)) {
+        MVM_oops(parent, "nursery tospace in tc_create was out of bounds??");
+    }*/
+    #else
     tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
+    #endif
     tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + tc->nursery_tospace_size;
 
