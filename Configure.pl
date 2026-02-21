@@ -173,7 +173,7 @@ if ($^O eq 'darwin') {
     unless ($gnu_toolchain) {
         # When XCode toolchain is used then force use of XCode's make if
         # available.
-        $config{make} = '/usr/bin/make' if -x '/usr/bin/make'; 
+        $config{make} = '/usr/bin/make' if -x '/usr/bin/make';
     }
 
     # Here are the tools that seem to cause trouble.
@@ -205,7 +205,7 @@ if ($^O eq 'darwin') {
 # MSVC requires the /experimental:c11atomics flag to work with c11 atomics.
 # We conditionally add this flag since it would cause an unrecognized option
 # error on older MSVCs.
-if ( $config{cc} eq 'cl' && $config{use_c11_atomics} ) {
+if ( $config{cc} eq 'cl' ) {
     $config{ccmiscflags} .= ' /experimental:c11atomics';
 }
 
@@ -291,43 +291,6 @@ $config{ldlibs} = join ' ',
 # probe for working stdatomic.h, also used by mimalloc
 build::probe::stdatomic(\%config, \%defaults);
 
-$config{use_c11_atomics} = defined $args{'c11-atomics'}
-    ? $args{'c11-atomics'}   ? 1 : 0
-    : $config{has_stdatomic} ? 1 : 0; # default to on if available
-
-if ($config{use_c11_atomics}) {
-    $defaults{-thirdparty}->{lao} = undef;
-}
-elsif ($args{'has-libatomic_ops'}) {
-    $defaults{-thirdparty}->{lao} = undef;
-    unshift @{$config{usrlibs}}, 'atomic_ops';
-    setup_native_library('atomic_ops') if $config{pkgconfig_works};
-}
-else {
-    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
-    my $lao             = '$(DESTDIR)$(PREFIX)/include/libatomic_ops';
-    $config{install}   .= "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/armcc\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/gcc\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/hpc\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/ibmc\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/icc\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/loadstore\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/msftc\"\n"
-                        . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/sunc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/*.h \"$lao\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/*.h \"$lao/atomic_ops\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/*.h \"$lao/atomic_ops/sysdeps\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/armcc/*.h \"$lao/atomic_ops/sysdeps/armcc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/gcc/*.h \"$lao/atomic_ops/sysdeps/gcc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/hpc/*.h \"$lao/atomic_ops/sysdeps/hpc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/ibmc/*.h \"$lao/atomic_ops/sysdeps/ibmc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/icc/*.h \"$lao/atomic_ops/sysdeps/icc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/loadstore/*.h \"$lao/atomic_ops/sysdeps/loadstore\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/msftc/*.h \"$lao/atomic_ops/sysdeps/msftc\"\n"
-                        . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/sunc/*.h \"$lao/atomic_ops/sysdeps/sunc\"\n";
-    push @hllincludes, 'libatomic_ops';
-}
-
 if ($args{'has-libtommath'}) {
     $defaults{-thirdparty}->{tom} = undef;
     unshift @{$config{usrlibs}}, 'tommath';
@@ -406,21 +369,7 @@ else {
     $config{heapsnapformat} = 2;
 }
 
-$config{use_mimalloc} = $args{mimalloc};
-if (!defined $config{use_mimalloc}) {
-    if ($config{has_stdatomic}) {
-        print "Defaulting to mimalloc because you have <stdatomic.h>\n";
-        $config{use_mimalloc} = 1;
-    }
-    elsif ($config{cc} eq 'cl') {
-        print "Defaulting to mimalloc because you are using MSVC\n";
-        $config{use_mimalloc} = 1;
-    }
-    else {
-        print "Defaulting to libc malloc because <stdatomic.h> was not found.\n";
-        $config{use_mimalloc} = 0;
-    }
-}
+$config{use_mimalloc} = $args{mimalloc} // 1;
 
 if ($config{use_mimalloc}) {
     $config{cflags} .= ' -DMI_SKIP_COLLECT_ON_EXIT';
