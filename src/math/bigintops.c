@@ -716,10 +716,10 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
                 MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
             }
             MVM_gc_mark_thread_blocked(tc);
-            if ((err = mp_expt_u32(base, exponent_d, ic)) != MP_OKAY) {
+            if ((err = mp_expt_n(base, exponent_d, ic)) != MP_OKAY) {
                 mp_clear(ic);
                 MVM_free(ic);
-                MVM_exception_throw_adhoc(tc, "Error in mp_expt_u32: %s", mp_error_to_string(err));
+                MVM_exception_throw_adhoc(tc, "Error in mp_expt_n: %s", mp_error_to_string(err));
             }
             MVM_gc_mark_thread_unblocked(tc);
             r = MVM_repr_alloc_init(tc, int_type);
