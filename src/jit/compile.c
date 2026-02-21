@@ -8,6 +8,24 @@ void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler);
 MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *graph, MVMJitExprTree *tree);
 
+#if linux
+#include <unistd.h>
+#include <time.h>
+
+struct jitdump_jit_load_record {
+    uint32_t id;         // a value identifying the record type (see below)
+    uint32_t total_size; // the size in bytes of the record including the header.
+    uint64_t timestamp;  // a timestamp of when the record was created.
+    uint32_t pid; // OS process id of the runtime generating the jitted code
+    uint32_t tid; // OS thread identification of the runtime thread generating the jitted code
+    uint64_t vma; // virtual address of jitted code start
+    uint64_t code_addr; // code start address for the jitted code. By default vma = code_addr
+    uint64_t code_size; // size in bytes of the generated jitted code
+    uint64_t code_index; // unique identifier for the jitted code
+    // char[n]; //  function name in ASCII including the null termination
+    // native code; // : raw byte encoding of the jitted code
+};
+#endif
 
 #define COPY_ARRAY(a, n) ((n) > 0) ? memcpy(MVM_malloc((n) * sizeof(a[0])), a, (n) * sizeof(a[0])) : NULL;
 
@@ -124,6 +142,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_DEOPT_CHECK:
             MVM_jit_emit_deopt_check(tc, &cl);
             break;
+        case MVM_JIT_NODE_ALL_BB_LABELS:
+            MVM_jit_emit_all_bb_jumps(tc, &cl, node->u.label.name);
+            break;
         }
         node = node->next;
     }
@@ -153,6 +174,38 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         fflush(tc->instance->jit_perf_map);
         MVM_free(file_location);
         MVM_free(frame_name);
+    }
+
+    if (tc->instance->jit_perf_jitdump && code) {
+        char symbol_name[2048] = {0};
+        MVMStaticFrame *sf = jg->sg->sf;
+        if (sf) {
+            char *file_location = MVM_staticframe_file_location(tc, sf);
+            char *frame_name = MVM_string_utf8_encode_C_string(tc, sf->body.name);
+            snprintf(symbol_name, sizeof(symbol_name) - 1,
+                    "%s(%s)",  frame_name, file_location);
+            MVM_free(file_location);
+            MVM_free(frame_name);
+        }
+        else {
+            snprintf(symbol_name, sizeof(symbol_name) - 1, "jitted_frame_%d", code->seq_nr);
+        }
+        struct timespec creation_timestamp;
+        clock_gettime(CLOCK_MONOTONIC, &creation_timestamp);
+
+        struct jitdump_jit_load_record load_record = {
+            0, // JIT_CODE_LOAD
+            sizeof(struct jitdump_jit_load_record) + strlen(symbol_name) + 1 + code->size,
+            (creation_timestamp.tv_sec) * 1000000000 + (creation_timestamp.tv_nsec),
+            getpid(), gettid(),
+            (uintptr_t)code->func_ptr, (uintptr_t)code->func_ptr, code->size,
+            code->seq_nr
+        };
+        fwrite(&load_record, sizeof(struct jitdump_jit_load_record), 1, tc->instance->jit_perf_jitdump);
+        fwrite(&symbol_name, 1, strlen(symbol_name) + 1, tc->instance->jit_perf_jitdump);
+        if (fwrite(code->func_ptr, 1, code->size, tc->instance->jit_perf_jitdump) != code->size) {
+            fprintf(stderr, "shit, didn't write full jit code ...\n");
+        }
     }
 #endif
 

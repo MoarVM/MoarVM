@@ -1716,6 +1716,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[reg_a], RV;
         break;
     }
+    case MVM_OP_iscoderef:
     case MVM_OP_isint:
     case MVM_OP_isnum:
     case MVM_OP_isstr:
@@ -1727,14 +1728,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                           op == MVM_OP_isnum ? MVM_REPR_ID_P6num :
                           op == MVM_OP_isstr ? MVM_REPR_ID_P6str :
                           op == MVM_OP_islist ? MVM_REPR_ID_VMArray :
-                     /*  op == MVM_OP_ishash */ MVM_REPR_ID_MVMHash;
+                          op == MVM_OP_ishash ? MVM_REPR_ID_MVMHash :
+                       /* op == MVM_OP_iscoderef ? */ MVM_REPR_ID_MVMCode;
         | mov TMP1, aword WORK[obj];
         | test TMP1, TMP1;
         | jz >1;
-        | mov TMP1, OBJECT:TMP1->st;
-        | mov TMP1, STABLE:TMP1->REPR;
-        | cmp qword REPR:TMP1->ID, reprid;
+        | mov TMP2, OBJECT:TMP1->st;
+        | mov TMP2, STABLE:TMP2->REPR;
+        | cmp qword REPR:TMP2->ID, reprid;
         | jne >1;
+        /* iscoderef also tests for concreteness */
+        if (op == MVM_OP_iscoderef) {
+            | test_type_object TMP1;
+            | jnz >1;
+        }
         | mov qword WORK[dst], 1;
         | jmp >2;
         |1:
@@ -2932,6 +2939,19 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     }
 }
 
+void MVM_jit_emit_all_bb_jumps(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 name) {
+    | jmp >1;
+    | nop;
+    for (MVMuint32 bbidx = 0; bbidx < compiler->graph->sg->num_bbs; bbidx++) {
+        if (bbidx % 16 == 0) {
+            | mov rax, bbidx;
+        }
+        | jmp =>(bbidx);
+    }
+    | nop;
+    |1:
+}
+
 void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                                MVMJitBranch * branch) {
     MVMSpeshIns *ins = branch->ins;
@@ -3370,9 +3390,20 @@ void MVM_jit_emit_runccode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | lea TMP6, [<5];
     | mov aword [rsp+0x10], TMP6;
     |.endif
-    | mov FUNCTION, aword WORK[runcode->code_register];
-    | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
-    | call FUNCTION
+
+    // If we know the value in the code register (because we just had it
+    // loaded from a "getspeshslot" operation) we can just put the value
+    // here literally.
+    MVMSpeshFacts *function_facts = MVM_spesh_get_facts(tc, jg->sg, runcode->code_operand);
+
+    if ((function_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && function_facts->value.o) {
+        uintptr_t call_target = (uintptr_t)(((MVMCFunction *)function_facts->value.o)->body.func);
+        | callp call_target;
+    } else {
+        | mov FUNCTION, aword WORK[runcode->code_operand.reg.orig];
+        | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
+        | call FUNCTION;
+    }
 }
 
 void MVM_jit_emit_runnativecall(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunNativeCall *runcode) {
