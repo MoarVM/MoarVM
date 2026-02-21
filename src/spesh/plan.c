@@ -98,7 +98,7 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
         /* It is. We'll try and produce some specializations, looping until
          * no tuples that remain give us anything significant. */
         MVMuint32 required_hits = (PERCENT_RELEVANT * (by_cs->hits + by_cs->osr_hits)) / 100;
-        MVMuint8 *tuples_used = MVM_calloc(by_cs->num_by_type, 1);
+        MVMuint8 tuples_used[512];
         MVMuint32 num_obj_args = 0, i;
         for (i = 0; i < by_cs->cs->flag_count; i++)
             if (by_cs->cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
@@ -113,7 +113,7 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
              * argument, but a lot in the second. */
             MVMSpeshStatsType *chosen_tuple = MVM_calloc(by_cs->cs->flag_count,
                     sizeof(MVMSpeshStatsType));
-            MVMuint8 *chosen_position = MVM_calloc(by_cs->cs->flag_count, 1);
+            MVMuint8 chosen_position[32] = {0};
             MVMuint32 param_idx, j, k, have_chosen;
             MVM_VECTOR_DECL(ParamTypeCount, type_counts);
             MVM_VECTOR_INIT(type_counts, by_cs->num_by_type);
@@ -209,20 +209,13 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                         : MVM_SPESH_PLANNED_DERIVED_TYPES,
                     sf, by_cs, chosen_tuple, evidence, MVM_VECTOR_ELEMS(evidence));
                 specializations++;
-
-                /* Clean up and we're done. */
-                MVM_free(chosen_position);
             }
             else {
                 /* No fitting tuple; clean up and leave the loop. */
-                MVM_free(chosen_position);
                 MVM_free(chosen_tuple);
                 break;
             }
         }
-
-        /* Clean up allocated memory. */
-        MVM_free(tuples_used);
     }
 
     /* If we get here, and found no specializations to produce, we can add
