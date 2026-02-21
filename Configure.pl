@@ -580,15 +580,20 @@ $config{auxclean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 print "OK\n\n";
 
 unless ($config{crossconf}) {
-    # detect x64 on Windows so we can build the correct dyncall version
+    # detect arch on Windows so we can build the correct dyncall version
     if ($config{cc} eq 'cl') {
-        print dots('    auto-detecting x64 toolchain');
+        print dots('    auto-detecting toolchain');
         my $msg = `cl 2>&1`;
         if (defined $msg) {
             if ($msg =~ /x64/) {
-                print "YES\n";
+                print "x64\n";
                 $defaults{-thirdparty}->{dc}->{rule} =
                     'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
+            }
+            elsif ($msg =~ /ARM64/) {
+                print "ARM64\n";
+                $defaults{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && configure.bat /target-arm64 && $(MAKE) -f Nmakefile';
             }
             else { print "NO\n" }
         }
