@@ -167,17 +167,39 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     result = MVM_malloc(result_alloc + 1);
     if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
-        memcpy(result, str->body.storage.blob_ascii, lengthu);
+        memcpy(result, str->body.storage.blob_ascii + start, lengthu);
         result[lengthu] = 0;
         if (output_size)
             *output_size = lengthu;
     }
     else {
         MVMuint32 i = 0;
-        MVMCodepointIter ci;
+        MVMCodepointIter ci, gci;
+        MVMGraphemeIter gi;
+        MVMuint64 codepoints_in_graphemes = 0;
         MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
-        while (MVM_string_ci_has_more(tc, &ci)) {
+        MVM_string_gi_init(tc, &gi, str);
+        /* Skip `start` number of graphmes, counting how many codepoints that is. */
+        while (MVM_string_gi_has_more(tc, &gi) && start > 0) {
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+            codepoints_in_graphemes += MVM_string_grapheme_ci_init(tc, &gci, g, 0);
+            start--;
+        }
+        /* Now skip that many codepoints. */
+        while (codepoints_in_graphemes > 0) {
+            MVM_string_ci_get_codepoint(tc, &ci);
+            codepoints_in_graphemes--;
+        }
+        /* Read `lengthu` number of graphemes, counting how many codepoints that is. */
+        while (MVM_string_gi_has_more(tc, &gi) && lengthu > 0) {
+            MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+            codepoints_in_graphemes += MVM_string_grapheme_ci_init(tc, &gci, g, 0);
+            lengthu--;
+        }
+        /* Now encode that many codepoints. */
+        while (codepoints_in_graphemes > 0) {
             MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
+            codepoints_in_graphemes--;
             if (i == result_alloc) {
                 result_alloc += 8;
                 result = MVM_realloc(result, result_alloc + 1);
