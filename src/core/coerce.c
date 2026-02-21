@@ -54,10 +54,11 @@ MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
     return str == NULL || !IS_CONCRETE(str) || MVM_string_graphs_nocheck(tc, str) == 0 ? 0 : 1;
 }
 
-/* ui64toa and i64toa
+/* ui64toa and i64toa */
+/*
 MIT License
 
-Copyright (c) 2017 James Edward Anhalt III - https://github.com/jeaiii/itoa
+Copyright (c) 2022 James Edward Anhalt III - https://github.com/jeaiii/itoa
 with minor modifications for formatting and so it will compile as C code
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -76,58 +77,205 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. */
+SOFTWARE.
+*/
 
-typedef struct pair { char t, o; } pair;
-#define P(T) T, '0',  T, '1', T, '2', T, '3', T, '4', T, '5', T, '6', T, '7', T, '8', T, '9'
-static const pair s_pairs[] = { P('0'), P('1'), P('2'), P('3'), P('4'), P('5'), P('6'), P('7'), P('8'), P('9') };
+struct pair
+{
+    char dd[2];
+};
 
-#define W(N, I) *(pair*)&b[N] = s_pairs[I]
-#define A(N) t = ((uint64_t)(1) << (32 + N / 5 * N * 53 / 16)) / (uint32_t)(1e##N) + 1 + N/6 - N/8, t *= u, t >>= N / 5 * N * 53 / 16, t += N / 6 * 4, W(0, t >> 32)
-#define S(N) b[N] = (char)((uint64_t)(10) * (uint32_t)(t) >> 32) + '0'
-#define D(N) t = (uint64_t)(100) * (uint32_t)(t), W(N, t >> 32)
+static const struct pair dd[100] =
+{
+    {'0','0'}, {'0','1'}, {'0','2'}, {'0','3'}, {'0','4'}, {'0','5'}, {'0','6'}, {'0','7'}, {'0','8'}, {'0','9'},
+    {'1','0'}, {'1','1'}, {'1','2'}, {'1','3'}, {'1','4'}, {'1','5'}, {'1','6'}, {'1','7'}, {'1','8'}, {'1','9'},
+    {'2','0'}, {'2','1'}, {'2','2'}, {'2','3'}, {'2','4'}, {'2','5'}, {'2','6'}, {'2','7'}, {'2','8'}, {'2','9'},
+    {'3','0'}, {'3','1'}, {'3','2'}, {'3','3'}, {'3','4'}, {'3','5'}, {'3','6'}, {'3','7'}, {'3','8'}, {'3','9'},
+    {'4','0'}, {'4','1'}, {'4','2'}, {'4','3'}, {'4','4'}, {'4','5'}, {'4','6'}, {'4','7'}, {'4','8'}, {'4','9'},
+    {'5','0'}, {'5','1'}, {'5','2'}, {'5','3'}, {'5','4'}, {'5','5'}, {'5','6'}, {'5','7'}, {'5','8'}, {'5','9'},
+    {'6','0'}, {'6','1'}, {'6','2'}, {'6','3'}, {'6','4'}, {'6','5'}, {'6','6'}, {'6','7'}, {'6','8'}, {'6','9'},
+    {'7','0'}, {'7','1'}, {'7','2'}, {'7','3'}, {'7','4'}, {'7','5'}, {'7','6'}, {'7','7'}, {'7','8'}, {'7','9'},
+    {'8','0'}, {'8','1'}, {'8','2'}, {'8','3'}, {'8','4'}, {'8','5'}, {'8','6'}, {'8','7'}, {'8','8'}, {'8','9'},
+    {'9','0'}, {'9','1'}, {'9','2'}, {'9','3'}, {'9','4'}, {'9','5'}, {'9','6'}, {'9','7'}, {'9','8'}, {'9','9'},
+};
+static const struct pair fd[100] =
+{
+    {'0','\0'}, {'1','\0'}, {'2','\0'}, {'3','\0'}, {'4','\0'}, {'5','\0'}, {'6','\0'}, {'7','\0'}, {'8','\0'}, {'9','\0'},
+    {'1','0'}, {'1','1'}, {'1','2'}, {'1','3'}, {'1','4'}, {'1','5'}, {'1','6'}, {'1','7'}, {'1','8'}, {'1','9'},
+    {'2','0'}, {'2','1'}, {'2','2'}, {'2','3'}, {'2','4'}, {'2','5'}, {'2','6'}, {'2','7'}, {'2','8'}, {'2','9'},
+    {'3','0'}, {'3','1'}, {'3','2'}, {'3','3'}, {'3','4'}, {'3','5'}, {'3','6'}, {'3','7'}, {'3','8'}, {'3','9'},
+    {'4','0'}, {'4','1'}, {'4','2'}, {'4','3'}, {'4','4'}, {'4','5'}, {'4','6'}, {'4','7'}, {'4','8'}, {'4','9'},
+    {'5','0'}, {'5','1'}, {'5','2'}, {'5','3'}, {'5','4'}, {'5','5'}, {'5','6'}, {'5','7'}, {'5','8'}, {'5','9'},
+    {'6','0'}, {'6','1'}, {'6','2'}, {'6','3'}, {'6','4'}, {'6','5'}, {'6','6'}, {'6','7'}, {'6','8'}, {'6','9'},
+    {'7','0'}, {'7','1'}, {'7','2'}, {'7','3'}, {'7','4'}, {'7','5'}, {'7','6'}, {'7','7'}, {'7','8'}, {'7','9'},
+    {'8','0'}, {'8','1'}, {'8','2'}, {'8','3'}, {'8','4'}, {'8','5'}, {'8','6'}, {'8','7'}, {'8','8'}, {'8','9'},
+    {'9','0'}, {'9','1'}, {'9','2'}, {'9','3'}, {'9','4'}, {'9','5'}, {'9','6'}, {'9','7'}, {'9','8'}, {'9','9'},
+};
 
-#define L0 b[0] = (char)(u) + '0'
-#define L1 W(0, u)
-#define L2 A(1), S(2)
-#define L3 A(2), D(2)
-#define L4 A(3), D(2), S(4)
-#define L5 A(4), D(2), D(4)
-#define L6 A(5), D(2), D(4), S(6)
-#define L7 A(6), D(2), D(4), D(6)
-#define L8 A(7), D(2), D(4), D(6), S(8)
-#define L9 A(8), D(2), D(4), D(6), D(8)
+static const MVMuint64 mask24 = ((MVMuint64)(1) << 24) - 1;
+static const MVMuint64 mask32 = ((MVMuint64)(1) << 32) - 1;
+static const MVMuint64 mask57 = ((MVMuint64)(1) << 57) - 1;
 
-#define LN(N) (L##N, b += N + 1)
-#define LZ LN
-
-#define LG(F) (u<100 ? u<10 ? F(0) : F(1) : u<1000000 ? u<10000 ? u<1000 ? F(2) : F(3) : u<100000 ? F(4) : F(5) : u<100000000 ? u<10000000 ? F(6) : F(7) : u<1000000000 ? F(8) : F(9))
-
-static char * u64toa_jeaiii(uint64_t n, char* b) {
-    uint32_t u;
-    uint64_t t;
-
-    if ((uint32_t)(n >> 32) == 0)
-        return u = (uint32_t)(n), LG(LZ);
-
-    uint64_t a = n / 100000000;
-
-    if ((uint32_t)(a >> 32) == 0) {
-        u = (uint32_t)(a);
-        LG(LN);
+MVM_STATIC_INLINE char * u64toa_jeaiii(uint64_t n, char* b) {
+    if (n < (MVMuint32)(1e2))
+    {
+        *(struct pair *)(b) = fd[n];
+        return n < 10 ? b + 1 : b + 2;
     }
-    else {
-        u = (uint32_t)(a / 100000000);
-        LG(LN);
-        u = a % 100000000;
-        LN(7);
+    if (n < (MVMuint32)(1e6))
+    {
+        if (n < (MVMuint32)(1e4))
+        {
+            MVMuint32 f0 = (MVMuint32)(10 * (1 << 24) / 1e3 + 1) * n;
+            *(struct pair *)(b) = fd[f0 >> 24];
+            b -= n < (MVMuint32)(1e3);
+            MVMuint32 f2 = (f0 & mask24) * 100;
+            *(struct pair *)(b + 2) = dd[f2 >> 24];
+            return b + 4;
+        }
+        MVMuint64 f0 = (MVMuint64)(10 * (1ull << 32ull)/ 1e5 + 1) * n;
+        *(struct pair *)(b) = fd[f0 >> 32];
+        b -= n < (MVMuint32)(1e5);
+        MVMuint64 f2 = (f0 & mask32) * 100;
+        *(struct pair *)(b + 2) = dd[f2 >> 32];
+        MVMuint64 f4 = (f2 & mask32) * 100;
+        *(struct pair *)(b + 4) = dd[f4 >> 32];
+        return b + 6;
+    }
+    if (n < (MVMuint64)(1ull << 32ull))
+    {
+        if (n < (MVMuint32)(1e8))
+        {
+            MVMuint64 f0 = (MVMuint64)(10 * (1ull << 48ull) / 1e7 + 1) * n >> 16;
+            *(struct pair *)(b) = fd[f0 >> 32];
+            b -= n < (MVMuint32)(1e7);
+            MVMuint64 f2 = (f0 & mask32) * 100;
+            *(struct pair *)(b + 2) = dd[f2 >> 32];
+            MVMuint64 f4 = (f2 & mask32) * 100;
+            *(struct pair *)(b + 4) = dd[f4 >> 32];
+            MVMuint64 f6 = (f4 & mask32) * 100;
+            *(struct pair *)(b + 6) = dd[f6 >> 32];
+            return b + 8;
+        }
+        MVMuint64 f0 = (MVMuint64)(10 * (1ull << 57ull) / 1e9 + 1) * n;
+        *(struct pair *)(b) = fd[f0 >> 57];
+        b -= n < (MVMuint32)(1e9);
+        MVMuint64 f2 = (f0 & mask57) * 100;
+        *(struct pair *)(b + 2) = dd[f2 >> 57];
+        MVMuint64 f4 = (f2 & mask57) * 100;
+        *(struct pair *)(b + 4) = dd[f4 >> 57];
+        MVMuint64 f6 = (f4 & mask57) * 100;
+        *(struct pair *)(b + 6) = dd[f6 >> 57];
+        MVMuint64 f8 = (f6 & mask57) * 100;
+        *(struct pair *)(b + 8) = dd[f8 >> 57];
+        return b + 10;
     }
 
-    u = n % 100000000;
-    return LZ(7);
+    // if we get here U must be (MVMuint64) but some compilers don't know that, so reassign n to a (MVMuint64) to avoid warnings
+    MVMuint32 z = n % (MVMuint32)(1e8);
+    MVMuint64 u = n / (MVMuint32)(1e8);
+
+    if (u < (MVMuint32)(1e2))
+    {
+        // u can't be 1 digit (if u < 10 it would have been handled above as a 9 digit 32bit number)
+        *(struct pair *)(b) = dd[u];
+        b += 2;
+    }
+    else if (u < (MVMuint32)(1e6))
+    {
+        if (u < (MVMuint32)(1e4))
+        {
+            MVMuint32 f0 = (MVMuint32)(10 * (1 << 24) / 1e3 + 1) * u;
+            *(struct pair *)(b) = fd[f0 >> 24];
+            b -= u < (MVMuint32)(1e3);
+            MVMuint32 f2 = (f0 & mask24) * 100;
+            *(struct pair *)(b + 2) = dd[f2 >> 24];
+            b += 4;
+        }
+        else
+        {
+            MVMuint64 f0 = (MVMuint64)(10 * (1ull << 32ull) / 1e5 + 1) * u;
+            *(struct pair *)(b) = fd[f0 >> 32];
+            b -= u < (MVMuint32)(1e5);
+            MVMuint64 f2 = (f0 & mask32) * 100;
+            *(struct pair *)(b + 2) = dd[f2 >> 32];
+            MVMuint64 f4 = (f2 & mask32) * 100;
+            *(struct pair *)(b + 4) = dd[f4 >> 32];
+            b += 6;
+        }
+    }
+    else if (u < (MVMuint32)(1e8))
+    {
+        MVMuint64 f0 = (MVMuint64)(10 * (1ull << 48ull) / 1e7 + 1) * u >> 16;
+        *(struct pair *)(b) = fd[f0 >> 32];
+        b -= u < (MVMuint32)(1e7);
+        MVMuint64 f2 = (f0 & mask32) * 100;
+        *(struct pair *)(b + 2) = dd[f2 >> 32];
+        MVMuint64 f4 = (f2 & mask32) * 100;
+        *(struct pair *)(b + 4) = dd[f4 >> 32];
+        MVMuint64 f6 = (f4 & mask32) * 100;
+        *(struct pair *)(b + 6) = dd[f6 >> 32];
+        b += 8;
+    }
+    else if (u < (MVMuint64)(1ull << 32ull))
+    {
+        MVMuint64 f0 = (MVMuint64)(10 * (1ull << 57ull) / 1e9 + 1) * u;
+        *(struct pair *)(b) = fd[f0 >> 57];
+        b -= u < (MVMuint32)(1e9);
+        MVMuint64 f2 = (f0 & mask57) * 100;
+        *(struct pair *)(b + 2) = dd[f2 >> 57];
+        MVMuint64 f4 = (f2 & mask57) * 100;
+        *(struct pair *)(b + 4) = dd[f4 >> 57];
+        MVMuint64 f6 = (f4 & mask57) * 100;
+        *(struct pair *)(b + 6) = dd[f6 >> 57];
+        MVMuint64 f8 = (f6 & mask57) * 100;
+        *(struct pair *)(b + 8) = dd[f8 >> 57];
+        b += 10;
+    }
+    else
+    {
+        MVMuint32 y = u % (MVMuint32)(1e8);
+        u /= (MVMuint32)(1e8);
+
+        // u is 2, 3, or 4 digits (if u < 10 it would have been handled above)
+        if (u < (MVMuint32)(1e2))
+        {
+            *(struct pair *)(b) = dd[u];
+            b += 2;
+        }
+        else
+        {
+            MVMuint32 f0 = (MVMuint32)(10 * (1 << 24) / 1e3 + 1) * u;
+            *(struct pair *)(b) = fd[f0 >> 24];
+            b -= u < (MVMuint32)(1e3);
+            MVMuint32 f2 = (f0 & mask24) * 100;
+            *(struct pair *)(b + 2) = dd[f2 >> 24];
+            b += 4;
+        }
+        // do 8 digits
+        MVMuint64 f0 = ((MVMuint64)((1ull << 48ull) / 1e6 + 1) * y >> 16) + 1;
+        *(struct pair *)(b) = dd[f0 >> 32];
+        MVMuint64 f2 = (f0 & mask32) * 100;
+        *(struct pair *)(b + 2) = dd[f2 >> 32];
+        MVMuint64 f4 = (f2 & mask32) * 100;
+        *(struct pair *)(b + 4) = dd[f4 >> 32];
+        MVMuint64 f6 = (f4 & mask32) * 100;
+        *(struct pair *)(b + 6) = dd[f6 >> 32];
+        b += 8;
+    }
+    // do 8 digits
+    MVMuint64 f0 = ((MVMuint64)((1ull << 48ull) / 1e6 + 1) * z >> 16) + 1;
+    *(struct pair *)(b) = dd[f0 >> 32];
+    MVMuint64 f2 = (f0 & mask32) * 100;
+    *(struct pair *)(b + 2) = dd[f2 >> 32];
+    MVMuint64 f4 = (f2 & mask32) * 100;
+    *(struct pair *)(b + 4) = dd[f4 >> 32];
+    MVMuint64 f6 = (f4 & mask32) * 100;
+    *(struct pair *)(b + 6) = dd[f6 >> 32];
+    return b + 8;
 }
 
-static char * i64toa_jeaiii(int64_t i, char* b) {
+MVM_STATIC_INLINE char * i64toa_jeaiii(int64_t i, char* b) {
     uint64_t n = i < 0 ? *b++ = '-', 0 - (uint64_t)(i) : (uint64_t)i;
     return u64toa_jeaiii(n, b);
 }
