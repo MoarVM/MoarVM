@@ -419,12 +419,22 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
 
     MVMJitExprTree *tree = list->tree;
     MVMuint32 bitmap_size = (alc->values_num >> 5) + 1;
+    MVMuint32 total_bitmap_alloc = (list->blocks_num + 1) * (sizeof(MVMBitmap) * bitmap_size);
 
  /* convenience macros */
 #define _BITMAP(_a)   (bitmaps + (_a)*bitmap_size)
 #define _SUCC(_a, _z) (list->blocks[(_a)].succ[(_z)])
 
-    MVMBitmap *bitmaps = MVM_calloc(list->blocks_num + 1, sizeof(MVMBitmap) * bitmap_size);
+    MVMint32 is_calloced = 0;
+    MVMBitmap *bitmaps;
+    if (total_bitmap_alloc > MAX_ALLOCA_SIZE) {
+        bitmaps = MVM_calloc(list->blocks_num + 1, sizeof(MVMBitmap) * bitmap_size);
+        is_calloced = 1;
+    }
+    else {
+        bitmaps = alloca(total_bitmap_alloc);
+        memset(bitmaps, 0, total_bitmap_alloc);
+    }
     /* last bitmap is allocated to hold diff, which is how we know which live
      * ranges holes potentially need to be closed */
     MVMBitmap *diff    = _BITMAP(list->blocks_num);
@@ -490,7 +500,8 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
             }
         }
     }
-    MVM_free(bitmaps);
+    if (is_calloced)
+        MVM_free(bitmaps);
 
 #undef _BITMAP
 #undef _SUCC

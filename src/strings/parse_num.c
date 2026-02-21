@@ -101,7 +101,16 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
     int frac_digits = 0;
     int digit;
     int ends_with_underscore = 0;
-    char *digits_buf = (char *)MVM_malloc(1 + MVM_string_graphs(tc, s));
+    int buf_size = 1 + MVM_string_graphs(tc, s);
+    int is_malloced = 0;
+    char *digits_buf;
+    if (buf_size > MAX_ALLOCA_SIZE) {
+       digits_buf = (char *)MVM_malloc(buf_size);
+       is_malloced = 1;
+    }
+    else {
+        digits_buf = alloca(buf_size);
+    }
     char *digits_buf_tail = digits_buf;
     double result;
 
@@ -172,7 +181,8 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
 
     *digits_buf_tail = '\0';
     result = strtod(digits_buf, NULL);
-    MVM_free(digits_buf);
+    if (is_malloced)
+        MVM_free(digits_buf);
     return result;
 }
 
