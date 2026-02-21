@@ -456,6 +456,11 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_setdebugtypename: return MVM_6model_set_debug_name;
 
+    case MVM_OP_ctxouter:
+    case MVM_OP_ctxcaller:
+    case MVM_OP_ctxouterskipthunks:
+    case MVM_OP_ctxcallerskipthunks: return MVM_context_apply_traversal;
+
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -1795,7 +1800,6 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getspeshslot:
     case MVM_OP_ctx:
     case MVM_OP_ctxlexpad:
-    case MVM_OP_ctxcallerskipthunks:
     case MVM_OP_curcode:
     case MVM_OP_getcode:
     case MVM_OP_sp_fastcreate:
@@ -4091,6 +4095,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+
     case MVM_OP_scsetobj:
     case MVM_OP_scsetcode: {
         MVMint16 sc  = ins->operands[0].reg.orig;
@@ -4110,6 +4115,24 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { type } },
                                  { MVM_JIT_REG_VAL, { name } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_ctxouter:
+    case MVM_OP_ctxcaller:
+    case MVM_OP_ctxouterskipthunks:
+    case MVM_OP_ctxcallerskipthunks: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 ctx  = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { ctx } },
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_ctxouter
+                                                        ? MVM_CTX_TRAV_OUTER
+                                                        : op == MVM_OP_ctxcaller
+                                                            ? MVM_CTX_TRAV_CALLER
+                                                            : op == MVM_OP_ctxouterskipthunks
+                                                                ? MVM_CTX_TRAV_OUTER_SKIP_THUNKS
+                                                                : MVM_CTX_TRAV_CALLER_SKIP_THUNKS } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     default: {
