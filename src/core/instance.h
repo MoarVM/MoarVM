@@ -223,9 +223,9 @@ struct MVMInstance {
     MVMPtrHashTable     object_ids;
     uv_mutex_t    mutex_object_ids;
 
-    /* Linked list of memory to free at the next safepoint, and a mutex to guard
+    /* Vector of memory to free at the next safepoint, and a mutex to guard
      * access to it. */
-    MVMAllocSafepointFreeListEntry *free_at_safepoint;
+    MVM_VECTOR_DECL(void *, free_at_safepoint);
     uv_mutex_t mutex_free_at_safepoint;
 
     /* Whether the --full-cleanup flag was passed. */

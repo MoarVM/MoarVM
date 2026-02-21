@@ -60,7 +60,6 @@ typedef struct MVMExtOpRegistry MVMExtOpRegistry;
 typedef struct MVMExtRegistry MVMExtRegistry;
 typedef struct MVMRegionAlloc MVMRegionAlloc;
 typedef struct MVMRegionBlock MVMRegionBlock;
-typedef struct MVMAllocSafepointFreeListEntry MVMAllocSafepointFreeListEntry;
 typedef struct MVMFrame MVMFrame;
 typedef struct MVMFrameExtra MVMFrameExtra;
 typedef struct MVMFrameHandler MVMFrameHandler;

@@ -173,7 +173,6 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_cond(instance->cond_blocked_can_continue, "GC thread unblock");
 
     /* Safe point free list. */
-    instance->free_at_safepoint = NULL;
     init_mutex(instance->mutex_free_at_safepoint, "safepoint free list");
 
     /* Set up REPR registry mutex. */
@@ -772,9 +771,10 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up event loop mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop);
 
-    /* Clean up safepoint free list. */
+    /* Clean up safepoint free vector. */
     uv_mutex_destroy(&instance->mutex_free_at_safepoint);
     MVM_alloc_safepoint(instance->main_thread);
+    MVM_VECTOR_DESTROY(instance->free_at_safepoint);
 
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
