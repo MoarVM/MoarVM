@@ -1,3 +1,23 @@
+New in 2026.02
+
+Core:
++ Use GCD implementation from Daniel Lemire [c80b587c]
++ MSVC doesn't have __builtin_ctz... [b509f046]
++ Fix a harmless CAS misusage [a4bac8e2]
++ A gc vs debugserver fix [42cb3592]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
+CI:
+
 New in 2026.01
 
 Core:
