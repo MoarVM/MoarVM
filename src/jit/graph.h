@@ -206,7 +206,7 @@ struct MVMJitRunCCode {
     MVMCallsite  *callsite;
     MVMReturnType return_type;
     MVMint16      return_register;
-    MVMint16      code_register;
+    MVMSpeshOperand code_operand;
     MVMSpeshOperand *map;
     MVMint32      reentry_label;
 };
@@ -278,6 +278,7 @@ typedef enum {
     MVM_JIT_NODE_RUNNATIVECALL,
     MVM_JIT_NODE_DISPATCH,
     MVM_JIT_NODE_ISTYPE,
+    MVM_JIT_NODE_ALL_BB_LABELS,
 } MVMJitNodeType;
 
 struct MVMJitNode {

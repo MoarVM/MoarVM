@@ -1,4 +1,30 @@
 #include "moar.h"
+#include "uv.h"
+
+#if linux
+#include <stdio.h>
+#include <sys/mman.h>
+#include <errno.h>
+#include <string.h>
+#include <time.h>
+
+struct jitdump_header {
+    uint32_t magic;     // a magic number tagging the file type. The value is
+            // 4-byte long and represents the string "JiTD" in ASCII form. It
+            // written is as 0x4A695444. The reader will detect an endian
+            // mismatch when it reads 0x4454694a.
+    uint32_t version;   // a 4-byte value representing the format version.
+            // It is currently set to 1
+    uint32_t total_size;// size in bytes of file header
+    uint32_t elf_mach;  // ELF architecture encoding (ELF e_machine value as
+            // specified in /usr/include/elf.h)
+    uint32_t pad1;      // padding. Reserved for future use
+    uint32_t pid;       // JIT runtime process identification (OS specific)
+    uint64_t timestamp; // timestamp of when the file was created
+    uint64_t flags;     // a bitmask of flags
+};
+
+#endif
 
 /* The specialization worker thread receives logs from other threads about
  * calls and types that showed up at runtime. It uses this to produce
@@ -25,6 +51,57 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 #endif
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
+
+#if linux
+    {
+        MVMuint8 success = 0;
+        if (tc->instance->jit_enabled && tc->instance->jit_perf_jitdump) {
+            /* Write jitdump header. */
+            struct timespec creation_timestamp;
+            clock_gettime(CLOCK_MONOTONIC, &creation_timestamp);
+
+            struct jitdump_header header = {
+                0x4A695444, 1,
+                sizeof(struct jitdump_header),
+                62, /* x86-64 */
+                0, MVM_proc_getpid(tc),
+                (creation_timestamp.tv_sec) * 1000000000 + (creation_timestamp.tv_nsec), 0b0
+            };
+            if (fwrite(&header, sizeof(struct jitdump_header), 1, tc->instance->jit_perf_jitdump) != 1) {
+                fprintf(stderr, "MoarVM JIT: Could not write jitdump header to file: %s", strerror(errno));
+            }
+
+            /* In order for perf to associate the jitdump file with the
+             * process, we have to mmap it PROT_EXEC once. We can munmap
+             * it immediately afterwards, though. */
+            int jitdump_fd = fileno(tc->instance->jit_perf_jitdump);
+            if (jitdump_fd == -1) {
+                fprintf(stderr, "MoarVM JIT: Could not get fileno for jit_perf_jitdump file: %s", strerror(errno));
+            } else {
+                void *block = mmap(NULL, 1024,
+                    PROT_WRITE | PROT_EXEC, MAP_SHARED, jitdump_fd, 0);
+                if (block == MAP_FAILED) {
+                    fprintf(stderr, "MoarVM JIT: Could not mmap jit_perf_jitdump file: %s", strerror(errno));
+                }
+                else {
+                    if (munmap(block, 1024) == -1) {
+                        fprintf(stderr, "MoarVM JIT: Could not unmap jit_perf_jitdump file: %s", strerror(errno));
+                    }
+                    else {
+                        success = 1;
+                    }
+                }
+            }
+            if (!success) {
+                if (fclose(tc->instance->jit_perf_jitdump) == -1) {
+                    fprintf(stderr, "MoarVM JIT: Could not close jit_perf_jitdump file: %s", strerror(errno));
+                }
+                tc->instance->jit_perf_jitdump = NULL;
+                exit(1);
+            }
+        }
+    }
+#endif
 
     MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames) {
         size_t log_tell_before = 0;
