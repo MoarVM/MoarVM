@@ -325,6 +325,10 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
                 MVMGCStatus_UNABLE) == MVMGCStatus_NONE)
             return;
 
+        if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST,
+                MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST) == (MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST))
+            return;
+
         if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST,
                 MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST))
             return;
@@ -335,7 +339,7 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
             MVM_gc_enter_from_interrupt(tc);
         else
             MVM_panic(MVM_exitcode_gcorch,
-                "Invalid GC status observed while blocking thread; aborting");
+                "Invalid GC status observed \"%lu\" while blocking thread; aborting", MVM_load(&tc->gc_status));
     }
 }
 
