@@ -150,7 +150,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->hashSeed ^= ptr_hash_64_to_64((uintptr_t)instance);
     instance->hashSeed ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
 #else
-    instance->hashSeed = RAPID_SEED;
+    /* Default seed value for rapidhash is now 0, old rapidhash had a default
+     * seed defined in its header file. */
+    instance->hashSeed = 0;
 #endif
     instance->main_thread->thread_id = 1;
 

@@ -60,6 +60,11 @@ src/gen/
 *.su
 # Callgrind files
 callgrind.out.*
+# Files built for AFL fuzzing
+*.o.afl.*
+fuzzing/*.asan
+fuzzing/*.cmplog
+fuzzing/*.native
 
 moar
 *.vsp

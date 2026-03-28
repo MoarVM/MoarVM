@@ -83,6 +83,8 @@ JIT_INTERMEDIATES = src/jit/x64/emit.c \
 
 JIT_PERL_LIBS = tools/lib/sexpr.pm tools/lib/expr_ops.pm tools/lib/oplist.pm
 
+FUZZING_TARGETS = fuzzing/stream_decoder
+
 MAIN_OBJECTS = src/main@obj@
 
 OBJECTS = $(OBJECTS1) $(OBJECTS2)
@@ -542,7 +544,7 @@ DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 all: moar@exe@ pkgconfig/moar.pc
 
 .SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile .h
-.PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich
+.PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich fuzzing fuzzing-complete
 
 install: all
 	$(MKPATH) "$(DESTDIR)$(BINDIR)"
@@ -701,6 +703,74 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $< @moarlib@ $(DLL_LIBS)
 
 
+# Fuzzing targets
+
+FUZZING_TARGETS_NATIVE = $(addsuffix .native@exe@, $(FUZZING_TARGETS))
+FUZZING_TARGETS_ALL = $(addsuffix .cmplog@exe@, $(FUZZING_TARGETS)) $(addsuffix .asan@exe@, $(FUZZING_TARGETS)) $(FUZZING_TARGETS_NATIVE)
+
+OBJECTS_AFL_CMPLOG = $(addsuffix .afl.cmplog, $(OBJECTS))
+OBJECTS_AFL_ASAN   = $(addsuffix .afl.asan,   $(OBJECTS))
+OBJECTS_AFL_NATIVE = $(addsuffix .afl.native, $(OBJECTS))
+
+FUZZING_DEFINES = -DMVM_HASH_RANDOMIZE=0
+
+src/jit/expr@obj@.afl.cmplog: src/jit/core_templates.h
+src/jit/tile@obj@.afl.cmplog: src/jit/x64/tile_pattern.h
+
+src/jit/expr@obj@.afl.asan: src/jit/core_templates.h
+src/jit/tile@obj@.afl.asan: src/jit/x64/tile_pattern.h
+
+src/jit/expr@obj@.afl.native: src/jit/core_templates.h
+src/jit/tile@obj@.afl.native: src/jit/x64/tile_pattern.h
+
+
+%@obj@.afl.cmplog: %.c
+	$(MSG) Building $@ with AFL + cmplog
+	$(CMD)export AFL_CMPLOG=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ $*.c
+
+%@obj@.afl.asan: %.c
+	$(MSG) Building $@ with AFL + ASAN
+	$(CMD)export AFL_USE_ASAN=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ $*.c
+
+%@obj@.afl.native: %.c
+	$(MSG) Building $@ with AFL
+	$(CMD)afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ $*.c
+
+fuzzing/%.cmplog@obj@: fuzzing/%.c
+	$(MSG) Compiling cmplog variant of $(basename $@) target
+	$(CMD)export AFL_CMPLOG=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+fuzzing/%.asan@obj@: fuzzing/%.c
+	$(MSG) Compiling asan variant of $(basename $@) target
+	$(CMD)export AFL_USE_ASAN=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+fuzzing/%.native@obj@: fuzzing/%.c
+	$(MSG) Compiling native variant of $(basename $@) target
+	$(CMD)afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+
+fuzzing/%.cmplog@exe@: fuzzing/%.cmplog@obj@ $(OBJECTS_AFL_CMPLOG) $(THIRDPARTY)
+	$(MSG) Compiling cmplog variant of fuzzing/$(basename $@) target
+	$(CMD)export AFL_CMPLOG=1 ; \
+	afl-cc @ldout@$@ -fPIC $@@obj@ $(OBJECTS_AFL_CMPLOG) $(DLL_LIBS)
+
+fuzzing/%.asan@exe@: fuzzing/%.asan@obj@ $(OBJECTS_AFL_ASAN) $(THIRDPARTY)
+	$(MSG) Building asan variant of fuzzing/$(basename $@) target
+	$(CMD)export AFL_USE_ASAN=1 ; \
+	afl-cc @ldout@$@ -fPIC $@@obj@ $(OBJECTS_AFL_ASAN) $(DLL_LIBS)
+
+fuzzing/%.native@exe@: fuzzing/%.native@obj@ $(OBJECTS_AFL_NATIVE) $(THIRDPARTY)
+	$(MSG) Building native variant of fuzzing/$(basename $@) target
+	$(CMD)afl-cc @ldout@$@ -fPIC $@@obj@ $(OBJECTS_AFL_NATIVE) $(DLL_LIBS)
+
+fuzzing-complete: fuzzing $(FUZZING_TARGETS_ALL)
+
+fuzzing: $(FUZZING_TARGETS_NATIVE)
+
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
 	$(CMD)@uvrule@ $(NOOUT)
@@ -736,6 +806,9 @@ clean:
 	-$(CMD)$(RM) $(MAIN_OBJECTS) $(JIT_INTERMEDIATES) $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) $(OBJECTS1) $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) $(OBJECTS2) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS_AFL_CMPLOG) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS_AFL_ASAN)   $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS_AFL_NATIVE) $(NOOUT) $(NOERR)
 
 realclean: clean
 	$(MSG) remove auxiliary files
@@ -753,6 +826,7 @@ realclean: clean
 distclean: realclean
 	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(FUZZING_TARGETS_ALL) $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c \
 	    tools/check.mk 3rdparty/libatomicops/config.log 3rdparty/libatomicops/config.status $(NOOUT) $(NOERR)
