@@ -30,6 +30,12 @@ be made, they should be numbered as `2014.01`**.1**, `2014.01`**.2**, etc.
    **NOTE** - Many recent release branches have used an extra trailing 0.
    This breaks step 8 - do not use the trailing 0.
 
+4.5 If you have any local modifications to 3rdparty/ that you did not intend, you can reset them
+   to avoid committing them as part of the branch with:
+
+   git submodule deinit -f .
+   git submodule update --init
+
 5. Update the `docs/ChangeLog` file with any significant changes since the previous release.
    To do so, write down commits from the previous release merge commit to latest ones (using
    Github interface or git's CLI). Changes are split into categories, usually to konw
