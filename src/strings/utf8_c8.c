@@ -171,6 +171,9 @@ typedef struct {
     /* The current position in the result buffer. */
     size_t result_pos;
 
+    /* The allocated size of the result buffer. */
+    size_t result_size;
+
     /* Buffer of original codepoints, to ensure we will not spit out any
      * synthetics into the result that will re-order on round-trip. */
     MVMCodepoint *orig_codes;
@@ -198,6 +201,10 @@ typedef struct {
  * codes buffer. */
 static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme32 g) {
     if (g == state->orig_codes[state->orig_codes_unnormalized]) {
+        if (state->result_pos >= state->result_size) {
+            state->result_size += 8;
+            state->result = MVM_realloc(state->result, state->result_size * sizeof(MVMGrapheme32));
+        }
         /* Easy case: exact match. */
         state->result[state->result_pos++] = g;
         state->orig_codes_unnormalized++;
@@ -221,6 +228,10 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
             mismatch = 1;
         }
         if (!mismatch) {
+            if (state->result_pos >= state->result_size) {
+                state->result_size += 8;
+                state->result = MVM_realloc(state->result, state->result_size * sizeof(MVMGrapheme32));
+            }
             state->result[state->result_pos++] = g;
             state->orig_codes_unnormalized += synth->num_codes;
             return 1;
@@ -231,10 +242,17 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
     {
         /* Spit out synthetics to keep the bytes as is. */
         size_t i, j;
+
         for (i = state->orig_codes_unnormalized; i < state->orig_codes_pos; i++) {
             MVMCodepoint to_encode = state->orig_codes[i];
             MVMuint8 encoded[4];
             MVMuint32 bytes = utf8_encode(encoded, to_encode);
+
+            if (state->result_pos + bytes >= state->result_size) {
+                state->result_size += bytes + 8;
+                state->result = MVM_realloc(state->result, state->result_size * sizeof(MVMGrapheme32));
+            }
+
             for (j = 0; j < bytes; j++)
                 state->result[state->result_pos++] = synthetic_for(tc, encoded[j]);
         }
@@ -292,6 +310,13 @@ static void process_bad_bytes(MVMThreadContext *tc, DecodeState *state) {
             break;
     }
 
+    size_t last_position_to_write = state->result_pos + state->num_prev_bad_bytes + state->cur_byte - state->unaccepted_start;
+
+    if (last_position_to_write >= state->result_size) {
+        state->result_size += last_position_to_write + 8;
+        state->result = MVM_realloc(state->result, state->result_size * sizeof(MVMGrapheme32));
+    }
+
     /* Now add in synthetics for bad bytes. */
     for (i = 0; i < state->num_prev_bad_bytes; i++)
         state->result[state->result_pos++] = synthetic_for(tc, state->prev_bad_bytes[i]);
@@ -329,6 +354,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     state.expecting = EXPECT_START;
     state.cur_codepoint = 0;
     state.result = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+    state.result_size = bytes;
     state.result_pos = 0;
     state.orig_codes = MVM_malloc(sizeof(MVMCodepoint) * bytes);
     state.orig_codes_pos = 0;
@@ -464,6 +490,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         state.orig_codes = MVM_realloc(state.orig_codes,
             sizeof(MVMCodepoint) * (state.orig_codes_pos + bytes));
         state.result_pos = 0;
+        state.result_size = bytes + 1;
         state.utf8 = (const MVMuint8*)cur_bytes->bytes;
         state.cur_byte = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         state.unaccepted_start = state.cur_byte;
@@ -555,7 +582,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
          * what we chewed through. */
         if (state.result_pos) {
             /* Release memory we didn't use */
-            if ((bytes + 1) > state.result_pos)
+            if (state.result_size > state.result_pos)
                 state.result = MVM_realloc(state.result,sizeof(MVMGrapheme32) * state.result_pos);
             MVM_string_decodestream_add_chars(tc, ds, state.result, state.result_pos);
         }
