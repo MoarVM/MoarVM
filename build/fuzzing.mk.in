@@ -1,0 +1,88 @@
+# Fuzzing targets
+
+FUZZING_TARGETS_NATIVE = $(addsuffix .native@exe@, $(FUZZING_TARGETS))
+FUZZING_TARGETS_EXTRAS = $(addsuffix .cmplog@exe@, $(FUZZING_TARGETS)) $(addsuffix .asan@exe@, $(FUZZING_TARGETS)) $(FUZZING_TARGETS_NATIVE)
+FUZZING_TARGETS_COVERAGE = $(addsuffix .gcov@exe@, $(FUZZING_TARGETS))
+
+OBJECTS_AFL_CMPLOG = $(addsuffix .afl.cmplog, $(OBJECTS))
+OBJECTS_AFL_ASAN   = $(addsuffix .afl.asan,   $(OBJECTS))
+OBJECTS_AFL_NATIVE = $(addsuffix .afl.native, $(OBJECTS))
+OBJECTS_COVERAGE   = $(addsuffix .gcov, $(OBJECTS))
+
+FUZZING_DEFINES = -DMVM_HASH_RANDOMIZE=0
+
+
+src/jit/expr@obj@.afl.cmplog: src/jit/core_templates.h
+src/jit/tile@obj@.afl.cmplog: src/jit/x64/tile_pattern.h
+
+src/jit/expr@obj@.afl.asan: src/jit/core_templates.h
+src/jit/tile@obj@.afl.asan: src/jit/x64/tile_pattern.h
+
+src/jit/expr@obj@.afl.native: src/jit/core_templates.h
+src/jit/tile@obj@.afl.native: src/jit/x64/tile_pattern.h
+
+src/jit/expr@obj@.gcov: src/jit/core_templates.h
+src/jit/tile@obj@.gcov: src/jit/x64/tile_pattern.h
+
+
+%@obj@.afl.cmplog: %.c
+	$(MSG) Building $@ with AFL + cmplog
+	$(CMD)export AFL_CMPLOG=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ $*.c
+
+%@obj@.afl.asan: %.c
+	$(MSG) Building $@ with AFL + ASAN
+	$(CMD)export AFL_USE_ASAN=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ $*.c
+
+%@obj@.afl.native: %.c
+	$(MSG) Building $@ with AFL
+	$(CMD)afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ $*.c
+
+%@obj@.gcov: %.c
+	$(MSG) Building $@ with gcov edge coverage
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) -fprofile-arcs -ftest-coverage $(CINCLUDES) @ccout@$@ $*.c
+
+
+fuzzing/%.cmplog@obj@: fuzzing/%.c
+	$(MSG) Compiling cmplog variant of $(basename $@) target
+	$(CMD)export AFL_CMPLOG=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+fuzzing/%.asan@obj@: fuzzing/%.c
+	$(MSG) Compiling asan variant of $(basename $@) target
+	$(CMD)export AFL_USE_ASAN=1 ; \
+	afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+fuzzing/%.native@obj@: fuzzing/%.c
+	$(MSG) Compiling native variant of $(basename $@) target
+	$(CMD)afl-cc @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+fuzzing/%.gcov@obj@: fuzzing/%.c
+	$(MSG) "Compiling edge coverage (gcov) variant of $(basename $@) target"
+	$(CMD)$(CC) @ccswitch@ $(CFLAGS) -fPIC $(FUZZING_DEFINES) -fprofile-arcs -ftest-coverage $(CINCLUDES) @ccout@$@ fuzzing/$(basename $*).c
+
+
+fuzzing/%.cmplog@exe@: fuzzing/%.cmplog@obj@ $(OBJECTS_AFL_CMPLOG) $(THIRDPARTY)
+	$(MSG) Compiling cmplog variant of fuzzing/$(basename $@) target
+	$(CMD)export AFL_CMPLOG=1 ; \
+	afl-cc @ldout@$@ -fPIC $@@obj@ $(OBJECTS_AFL_CMPLOG) $(DLL_LIBS)
+
+fuzzing/%.asan@exe@: fuzzing/%.asan@obj@ $(OBJECTS_AFL_ASAN) $(THIRDPARTY)
+	$(MSG) Building asan variant of fuzzing/$(basename $@) target
+	$(CMD)export AFL_USE_ASAN=1 ; \
+	afl-cc @ldout@$@ -fPIC $@@obj@ $(OBJECTS_AFL_ASAN) $(DLL_LIBS)
+
+fuzzing/%.native@exe@: fuzzing/%.native@obj@ $(OBJECTS_AFL_NATIVE) $(THIRDPARTY)
+	$(MSG) Building native variant of fuzzing/$(basename $@) target
+	$(CMD)afl-cc @ldout@$@ -fPIC $@@obj@ $(OBJECTS_AFL_NATIVE) $(DLL_LIBS)
+
+fuzzing/%.gcov@exe@: fuzzing/%.gcov@obj@ $(OBJECTS_COVERAGE) $(THIRDPARTY)
+	$(MSG) "Building edge coverage (gcov) variant of fuzzing/$(basename $@) target"
+	$(CMD)$(CC) @ldout@$@ -fPIC -fprofile-arcs -ftest-coverage $@@obj@ $(OBJECTS_COVERAGE) $(DLL_LIBS)
+
+
+fuzzing: $(FUZZING_TARGETS_NATIVE)
+fuzzing-extras: fuzzing $(FUZZING_TARGETS_ALL)
+fuzzing-coverage: $(FUZZING_TARGETS_COVERAGE)
+fuzzing-complete: fuzzing-extras fuzzing-coverage

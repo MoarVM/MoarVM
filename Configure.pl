@@ -49,7 +49,8 @@ GetOptions(\%args, qw(
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
     valgrind telemeh! dtrace show-autovect git-cache-dir=s
-    show-autovect-failed:s mimalloc! has-mimalloc c11-atomics!),
+    show-autovect-failed:s mimalloc! has-mimalloc c11-atomics!
+    fuzzing!),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -173,7 +174,7 @@ if ($^O eq 'darwin') {
     unless ($gnu_toolchain) {
         # When XCode toolchain is used then force use of XCode's make if
         # available.
-        $config{make} = '/usr/bin/make' if -x '/usr/bin/make'; 
+        $config{make} = '/usr/bin/make' if -x '/usr/bin/make';
     }
 
     # Here are the tools that seem to cause trouble.
@@ -684,7 +685,7 @@ build::probe::rdtscp(\%config, \%defaults);
 my $order = $config{be} ? 'big endian' : 'little endian';
 
 # dump configuration
-print "\n", <<TERM, "\n";
+print "\n\n", <<TERM, "\n";
         make: $config{make}
      compile: $config{cc} $config{cflags}
     includes: $config{cincludes} $config{moar_cincludes}
@@ -693,6 +694,44 @@ print "\n", <<TERM, "\n";
 
   byte order: $order
 TERM
+
+
+# Always define this default so that generating fuzzing.mk.in doesn't fail.
+$config{aflcc} = $ENV{AFLCC} if defined $ENV{AFLCC} && !defined $args{aflcc};
+$config{aflcc} = "afl-cc$config{exe}" unless defined $args{aflcc};
+$config{fuzzing} = $args{fuzzing};
+
+if (defined $args{fuzzing}) {
+    print("\n");
+    print dots("Fuzzing");
+
+    my $afl_usage = `$config{aflcc} 2>&1`;
+
+    if (!defined $afl_usage) {
+        print "PROBLEM\n";
+        print "    --fuzzing was specified, but $config{aflcc} doesn't seem to exist or work!\n";
+        print dots("    Trying to fuzz anyway; Set \$AFLCC!");
+        $config{aflcc} = '$AFLCC';
+    } elsif ($config{use_mimalloc}) {
+        print "PROBLEM\n";
+        print "    --fuzzing was specified along with mimalloc.\n";
+        print "    Consider using --no-mimalloc, as mimalloc prevents asan from giving useful results.\n";
+        print dots("    Trying to fuzz anyway");
+    } elsif ($^O eq 'MSWin32' && $config{make} eq 'nmake') {
+        softfail("The Makefile rules for --fuzzing use functions not found in microsoft nmake.");
+        print("    Try using --make=gmake if you have GNU Make.\n");
+        $config{fuzzing} = undef;
+    }
+}
+
+if (defined $config{fuzzing}) {
+    print "OK\n        Compiling fuzz targets with $config{aflcc}\n\n";
+    $config{fuzz_inc} = 'include Fuzzing.mk';
+}
+else {
+    $config{fuzz_inc} = '# Fuzzing not activated';
+}
+
 
 print dots("Checking perl5 modules");
 eval { require ExtUtils::Command };
@@ -837,6 +876,24 @@ For more information about available asan options, you can run moar with
 in your environment.
 
 ASANTERM
+}
+
+if (!$failed && $config{fuzzing}) {
+    print "\n\n", <<FUZZTERM;
+    Fuzzing Instructions
+
+- '$config{'make'} fuzzing': Build native afl-instrumented fuzzing targets in 'fuzzing/'.
+- '$config{'make'} fuzzing-extras': Also build an asan- and a cmplog-instrumented target.
+- '$config{'make'} fuzzing-coverage': Build native and a gcov-instrumented target.
+- '$config{'make'} fuzzing-complete': Build every target.
+
+The cmplog variant should be passed to afl-fuzz's `-c` parameter, and the asan
+variant should be passed to the `-w` parameter.
+
+The coverage variant can be used together with the `afl-cov` tool, or manually
+with `lcov` and optionally `genhtml`.
+
+FUZZTERM
 }
 
 print "\n", $failed ? <<TERM1 : <<TERM2;
