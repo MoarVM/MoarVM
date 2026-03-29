@@ -3,6 +3,7 @@
 #include <string.h>
 #include "moar.h"
 #include "platform/io.h"
+#include <stdbool.h>
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
@@ -234,7 +235,7 @@ int main(int argc, char **argv) {
     fseek(input, 0, SEEK_END);
 
     size_t Size = ftell(input);
-    char *Data = MVM_malloc(Size);
+    char *Data = malloc(Size);
     fseek(input, 0, SEEK_SET);
 
     while (nommed < Size) {
@@ -259,20 +260,22 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "Expected an ascii number before first newline\n");
                 exit(2);
             }
+            num_blocksizes++;
             break;
         }
         if ((list_of_numbers_parse_state == '\0' || list_of_numbers_parse_state == ',') && Data[nommed] >= '1' && Data[nommed] <= '9') {
             list_of_numbers_parse_state = '1';
-            num_blocksizes++;
         }
         else if (list_of_numbers_parse_state == '1' && Data[nommed] >= '0' && Data[nommed] <= '9') {
             list_of_numbers_parse_state = '1';
         }
         else if (list_of_numbers_parse_state == '1' && Data[nommed] == ',') {
             list_of_numbers_parse_state = ',';
+            num_blocksizes++;
         }
         else {
-            fprintf(stderr, "At character %zu, failed to parse list of ascii numbers!\n", nommed);
+            fprintf(stderr, "At character %zu, failed to parse list of ascii numbers! Saw a %c\n", nommed, Data[nommed]);
+            exit(1);
         }
         nommed++;
     }
@@ -285,20 +288,27 @@ int main(int argc, char **argv) {
         exit(3);
     }
 
-    MVMuint64 *read_at_a_time = MVM_malloc(num_blocksizes);
+    fprintf(stderr, "Saw %ld blocksizes in the first line.\n", num_blocksizes);
 
-    size_t blocksize_idx;
+    MVMuint64 *read_at_a_time = malloc(num_blocksizes * sizeof(MVMuint64));
+
+    size_t blocksize_idx = 0;
     size_t last_start_pos = 0;
     nommed = 0;
 
-    for (blocksize_idx = 0; blocksize_idx < num_blocksizes; blocksize_idx++) {
+    for (; blocksize_idx < num_blocksizes; nommed++) {
         if (Data[nommed] == ',' || Data[nommed] == '\n') {
             read_at_a_time[blocksize_idx] = strtol(Data + last_start_pos, NULL, 10);
+            fprintf(stderr, "read at a time[%ld] = %ld\n", blocksize_idx, read_at_a_time[blocksize_idx]);
             last_start_pos = nommed + 1;
+            blocksize_idx++;
+        }
+        if (Data[nommed] == '\n') {
+            break;
         }
     }
 
-    nommed = 0;
+    // nommed = 0;
 
     blocksize_idx = 0;
 
@@ -312,7 +322,8 @@ int main(int argc, char **argv) {
             to_nom = Size - nommed;
         }
 
-        MVMuint8 *buffer = MVM_malloc(to_nom);
+        fprintf(stderr, "making buffer to hold %ld bytes\n", to_nom);
+        MVMuint8 *buffer = malloc(to_nom);
         memcpy(buffer, Data + nommed, to_nom);
 
         fprintf(stderr, "nommed %10ld out of %10ld bytes. Last read %ld", nommed, Size, to_nom);
