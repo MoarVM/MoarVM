@@ -328,7 +328,7 @@ int main(int argc, char **argv) {
 
         fprintf(stderr, "nommed %10ld out of %10ld bytes. Last read %ld", nommed, Size, to_nom);
 
-        MVM_string_decodestream_add_bytes(tc, ds, buffer, 16);
+        MVM_string_decodestream_add_bytes(tc, ds, buffer, to_nom);
         for (;;) {
             if (!MVM_string_decodestream_is_empty(tc, ds)) {
                 MVMString *res_str = MVM_string_decodestream_get_until_sep(tc, ds, &dss, 1);
@@ -340,6 +340,9 @@ int main(int argc, char **argv) {
                     seen_total += strlen(res_bytes);
                     MVM_free(res_bytes);
                 }*/
+            }
+            else {
+                break;
             }
 
         }
