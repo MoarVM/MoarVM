@@ -5,21 +5,6 @@
 #include "platform/io.h"
 #include <stdbool.h>
 
-#if MVM_TRACING
-#  define TRACING_OPT "[--tracing] "
-#  define TRACING_USAGE "\n    --tracing         output a line to stderr on every interpreter instr"
-#else
-#  define TRACING_OPT ""
-#  define TRACING_USAGE ""
-#endif
-
-#ifdef HAVE_TELEMEH
-#  define TELEMEH_USAGE "    MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
-#else
-#  define TELEMEH_USAGE ""
-#endif
-
-
 #ifndef _WIN32
 #  include <unistd.h>
 #else
@@ -56,8 +41,8 @@ __AFL_FUZZ_INIT();
 
 /* To ensure checks are not optimized out it is recommended to disable
    code optimization for the fuzzer harness main() */
-#pragma clang optimize off
-#pragma GCC optimize("O0")
+/*#pragma clang optimize off
+#pragma GCC optimize("O0")*/
 
 /* End of aflplusplus example code. */
 
@@ -76,11 +61,11 @@ int main(int argc, char **argv) {
     bool read_input_from_file = false;
 
     if (argc >= 4) {
-        if (strcmp("enc", argv[3]) == 0) {
+        if (strncmp("enc", argv[3], 3) == 0) {
             // fprintf(stderr, "will encode output.\n");
             do_encode = true;
         } else {
-            fprintf(stderr, "Usage: program @@ [enc number [enc]]\n");
+            fprintf(stderr, "Usage: program @@ [<enc-number> [enc]]\n");
             exit(1);
         }
     }
@@ -111,7 +96,6 @@ int main(int argc, char **argv) {
     MVM_vm_set_prog_name(instance, "afl-fuzzing");
     MVM_vm_set_exec_name(instance, executable_name);
     instance->full_cleanup = 1;
-    MVM_crash_on_error();
 
     MVM_vm_destroy_instance(instance);
     instance = NULL;
@@ -127,7 +111,7 @@ int main(int argc, char **argv) {
 
     Data = __AFL_FUZZ_TESTCASE_BUF;  // this must be assigned before __AFL_LOOP!
 
-    while (__AFL_LOOP(1000000)) {  // increase if you have good stability
+    while (__AFL_LOOP(100000)) {  // increase if you have good stability
         instance = NULL;
         times_jump_reached = 0;
 
@@ -249,15 +233,14 @@ int main(int argc, char **argv) {
 
         MVMThreadContext *tc = instance->main_thread;
 
-        MVM_crash_on_error();
-
-
         MVM_setjmp(tc->interp_jump);
 
         times_jump_reached++;
 
+        /* TODO: without a frame that has exception handlers defined, this
+         *       does nothing. */
         if (times_jump_reached > 1) {
-            abort();
+            goto continue_afl_main_loop;
         }
 
         MVMDecodeStream *ds = MVM_string_decodestream_create(tc, encoding, 0, 0);
@@ -299,13 +282,13 @@ int main(int argc, char **argv) {
                     /* We could go one step further and manually turn the
                      * allocation pointer back to what it was before we got
                      * the MVMString, but that feels a lot more evil ... */
-                    /*if (do_encode) {
-                        fprintf(stderr, "  res str not null\n");
+                    if (do_encode) {
+                        // fprintf(stderr, "  res str not null\n");
                         char *res_bytes = MVM_string_utf8_encode_C_string(tc, res_str);
-                        fprintf(stderr, "\"%s\"\n", res_bytes);
+                        // fprintf(stderr, "\"%s\"\n", res_bytes);
                         seen_total += strlen(res_bytes);
                         MVM_free(res_bytes);
-                    }*/
+                    }
                 }
                 else {
                     break;
@@ -315,8 +298,8 @@ int main(int argc, char **argv) {
             nommed += to_nom;
         }
 
-        if (do_encode)
-            fprintf(stderr, "total bytes out seen: %ld\n", seen_total);
+/*        if (do_encode)
+            fprintf(stderr, "total bytes out seen: %ld\n", seen_total);*/
 
 continue_afl_main_loop:
         if (instance) {
