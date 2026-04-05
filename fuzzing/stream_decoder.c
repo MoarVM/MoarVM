@@ -34,140 +34,46 @@
 #define strtoll _strtoi64
 #endif
 
-enum {
-    NOT_A_FLAG = -2,
-    UNKNOWN_FLAG = -1,
+/* Persistent mode fuzzing harness taken from aflplusplus
+ * */
 
-    FLAG_CRASH,
-    FLAG_SUSPEND,
-    FLAG_DUMP,
-    FLAG_FULL_CLEANUP,
-    FLAG_HELP,
-    FLAG_TRACING,
-    FLAG_VERSION,
+/* this lets the source compile without afl-clang-fast/lto */
+#ifndef __AFL_FUZZ_TESTCASE_LEN
 
-    OPT_EXECNAME,
-    OPT_LIBPATH,
-    OPT_DEBUGPORT,
-#ifdef MVM_DO_PTY_OURSELF
-    OPT_PTY_SPAWN_HELPER,
+ssize_t       fuzz_len;
+unsigned char fuzz_buf[1024000];
+
+  #define __AFL_FUZZ_TESTCASE_LEN fuzz_len
+  #define __AFL_FUZZ_TESTCASE_BUF fuzz_buf
+  #define __AFL_FUZZ_INIT() void sync(void);
+  #define __AFL_LOOP(x) \
+    ((fuzz_len = read(0, fuzz_buf, sizeof(fuzz_buf))) > 0 ? 1 : 0)
+  #define __AFL_INIT() sync()
+
 #endif
-};
 
-/* FLAGS needs to be sorted alphabetically. */
-static const char *const FLAGS[] = {
-    "--crash",
-    "--debug-suspend",
-    "--dump",
-    "--full-cleanup",
-    "--help",
-    "--tracing",
-    "--version",
-};
+__AFL_FUZZ_INIT();
 
-static const char USAGE[] = "\
-USAGE: moar [--crash] [--libpath=...] " TRACING_OPT "input.moarvm [program args]\n\
-       moar --dump input.moarvm\n\
-       moar --help\n\
-\n\
-    --help            display this message\n\
-    --dump            dump the bytecode to stdout instead of executing\n\
-    --full-cleanup    try to free all memory and exit cleanly\n\
-    --crash           abort instead of exiting on unhandled exception\n\
-    --libpath         specify path loadbytecode should search in\n\
-    --version         show version information\n\
-    --debug-port=1234 listen for incoming debugger connections\n\
-    --debug-suspend   pause execution at the entry point"
-    TRACING_USAGE
-    "\n\
-\n\
-The following environment variables are respected:\n\
-\n\
-    MVM_SPESH_DISABLE           Disables all dynamic optimization\n\
-    MVM_SPESH_INLINE_DISABLE    Disables inlining\n\
-    MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
-    MVM_SPESH_PEA_DISABLE       Disables partial escape analysis and related optimizations\n\
-    MVM_SPESH_BLOCKING          Blocks log-sending thread while specializer runs\n\
-    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
-    MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
-    MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
-    MVM_JIT_DISABLE             Disables JITting to machine code\n\
-    MVM_JIT_EXPR_ENABLE         Enable advanced 'expression' JIT\n\
-    MVM_JIT_DEBUG               Add JIT debugging information to spesh log\n\
-    MVM_JIT_PERF_MAP            Create a map file for the 'perf' profiler (linux only)\n\
-    MVM_JIT_DUMP_BYTECODE       Dump bytecode in temporary directory\n\
-    MVM_SPESH_INLINE_LOG        Dump details of inlining attempts to stderr\n\
-    MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
-    MVM_COVERAGE_LOG            Append (de-duped by default) line-by-line coverage messages to this file\n\
-    MVM_COVERAGE_CONTROL        If set to 1, non-de-duping coverage started with nqp::coveragecontrol(1),\n\
-                                  if set to 2, non-de-duping coverage started right away\n"
-    TELEMEH_USAGE;
+/* To ensure checks are not optimized out it is recommended to disable
+   code optimization for the fuzzer harness main() */
+#pragma clang optimize off
+#pragma GCC optimize("O0")
 
-static int cmp_flag(const void *key, const void *value)
-{
-    return strcmp(key, *(char **)value);
-}
+/* End of aflplusplus example code. */
 
-static int starts_with(const char *str, const char *want) {
-    size_t str_len  = strlen(str);
-    size_t want_len = strlen(want);
-    return str_len < want_len
-        ? 0
-        : strncmp(str, want, want_len) == 0;
-}
-
-static int parse_flag(const char *arg)
-{
-    const char *const *found;
-
-    if (!arg || arg[0] != '-')
-        return NOT_A_FLAG;
-
-    found = bsearch(arg, FLAGS, sizeof FLAGS / sizeof *FLAGS, sizeof *FLAGS, cmp_flag);
-
-    if (found)
-        return (int)(found - FLAGS);
-    else if (starts_with(arg, "--libpath="))
-        return OPT_LIBPATH;
-    else if (starts_with(arg, "--execname="))
-        return OPT_EXECNAME;
-    else if (starts_with(arg, "--debug-port="))
-        return OPT_DEBUGPORT;
-#ifdef MVM_DO_PTY_OURSELF
-    else if (starts_with(arg, "--pty-spawn-helper="))
-        return OPT_PTY_SPAWN_HELPER;
-#endif
-    else
-        return UNKNOWN_FLAG;
-}
 
 int times_jump_reached = 0;
 
 int main(int argc, char **argv) {
     MVMInstance *instance;
-    const char  *input_file;
     const char  *executable_name = NULL;
-    const char  *lib_path[8];
     char *fake_args[1] = {"fake"};
-
-#ifdef _WIN32
-    char **argv = MVM_UnicodeToUTF8_argv(argc, wargv);
-#endif
-
-    int dump         = 0;
-    int full_cleanup = 0;
-    int argi         = 1;
-    int lib_path_i   = 0;
-    int flag;
-
-#ifdef HAVE_TELEMEH
-    unsigned int interval_id = 0;
-    char telemeh_inited = 0;
-#endif
 
     int encoding = 0;
 
     bool do_encode = false;
+
+    bool read_input_from_file = false;
 
     if (argc >= 4) {
         if (strcmp("enc", argv[3]) == 0) {
@@ -190,167 +96,225 @@ int main(int argc, char **argv) {
         /* Choose default encoding: utf8-c8. */
         encoding = MVM_encoding_type_utf8_c8;
     }
-
-    lib_path[lib_path_i] = NULL;
+    if (argc >= 2) {
+        if (strncmp("./", argv[1], 2) == 0) {
+            read_input_from_file = true;
+        }
+    }
 
     /* Do not start a spesh thread in MVM_vm_create_instance. */
     setenv("MVM_SPESH_DISABLE", "1", 0);
 
+    /* "warm up" the globally initialised things ... */
     instance   = MVM_vm_create_instance();
-
-    /* stash the rest of the raw command line args in the instance */
     MVM_vm_set_clargs(instance, 1, fake_args);
     MVM_vm_set_prog_name(instance, "afl-fuzzing");
     MVM_vm_set_exec_name(instance, executable_name);
-    // MVM_vm_set_lib_path(instance, lib_path_i, lib_path);
-
-    instance->full_cleanup = full_cleanup;
-
-    MVMThreadContext *tc = instance->main_thread;
-
+    instance->full_cleanup = 1;
     MVM_crash_on_error();
 
-    MVM_setjmp(tc->interp_jump);
+    MVM_vm_destroy_instance(instance);
+    instance = NULL;
 
-    times_jump_reached++;
+    unsigned char *Data;                       /* test case buffer pointer    */
 
-    if (times_jump_reached > 1) {
-        exit(1);
-    }
+    /* The number passed to __AFL_LOOP() controls the maximum number of
+        iterations before the loop exits and the program is allowed to
+        terminate normally. This limits the impact of accidental memory leaks
+        and similar hiccups. */
 
-    MVMDecodeStream *ds = MVM_string_decodestream_create(tc, MVM_encoding_type_utf8_c8, 0, 0);
-    MVMDecodeStreamSeparators dss = {0};
-    MVM_string_decode_stream_sep_default(tc, &dss);
+    __AFL_INIT();
 
-    size_t nommed = 0;
+    Data = __AFL_FUZZ_TESTCASE_BUF;  // this must be assigned before __AFL_LOOP!
 
-    size_t seen_total = 0;
+    while (__AFL_LOOP(1000000)) {  // increase if you have good stability
+        instance = NULL;
+        times_jump_reached = 0;
 
-    /* AFL Initialisation can go here. */
+        ssize_t Size = 0;
 
-    FILE *input = fopen(argv[1], "rb");
-
-    if (!input) { exit( 1); }
-
-    fseek(input, 0, SEEK_END);
-
-    size_t Size = ftell(input);
-    char *Data = malloc(Size);
-    fseek(input, 0, SEEK_SET);
-
-    while (nommed < Size) {
-        size_t read = fread(Data + nommed, 1, Size - nommed, input);
-        if (read == 0) {
-            fprintf(stderr, "failed to read from input file! (fread failed with %s)", strerror(errno));
+        if (!read_input_from_file) {
+            Size = __AFL_FUZZ_TESTCASE_LEN;  // do not use the macro directly in a call!
         }
-        nommed += read;
-    }
 
-    nommed = 0;
+        ssize_t nommed = 0;
 
-    size_t num_blocksizes = 0;
+        size_t seen_total = 0;
 
-    int list_of_numbers_parse_state = '\0';
+        /* If we didn't have AFL give us the test cases directly in memory, we would do this */
+        if (read_input_from_file) {
+            FILE *input = fopen(argv[1], "rb");
 
-    /* Allow passing a bunch of "how many bytes to read" in the
-     * first "line" of the input: */
-    while (nommed < Size) {
-        if (Data[nommed] == '\n') {
-            if (list_of_numbers_parse_state == ',' || list_of_numbers_parse_state == '\0') {
-                fprintf(stderr, "Expected an ascii number before first newline\n");
-                exit(2);
+            if (!input) {
+                fprintf(stderr, "Could not open input file %s: %s\n", argv[1], strerror(errno));
+                exit( 1);
             }
-            num_blocksizes++;
-            break;
-        }
-        if ((list_of_numbers_parse_state == '\0' || list_of_numbers_parse_state == ',') && Data[nommed] >= '1' && Data[nommed] <= '9') {
-            list_of_numbers_parse_state = '1';
-        }
-        else if (list_of_numbers_parse_state == '1' && Data[nommed] >= '0' && Data[nommed] <= '9') {
-            list_of_numbers_parse_state = '1';
-        }
-        else if (list_of_numbers_parse_state == '1' && Data[nommed] == ',') {
-            list_of_numbers_parse_state = ',';
-            num_blocksizes++;
-        }
-        else {
-            fprintf(stderr, "At character %zu, failed to parse list of ascii numbers! Saw a %c\n", nommed, Data[nommed]);
-            exit(1);
-        }
-        nommed++;
-    }
-    if (nommed == Size) {
-        fprintf(stderr, "expected to parse a line of ascii numbers as the first line, but reached the end of the file?\n");
-        exit(2);
-    }
-    if (list_of_numbers_parse_state != '1') {
-        fprintf(stderr, "At position %zu, expected at least one byte before the first newline of the input file... (at least one read-x-at-a-time value)\n", nommed);
-        exit(3);
-    }
 
-    fprintf(stderr, "Saw %ld blocksizes in the first line.\n", num_blocksizes);
+            fseek(input, 0, SEEK_END);
 
-    MVMuint64 *read_at_a_time = malloc(num_blocksizes * sizeof(MVMuint64));
+            Size = ftell(input);
+            Data = malloc(Size);
+            fseek(input, 0, SEEK_SET);
 
-    size_t blocksize_idx = 0;
-    size_t last_start_pos = 0;
-    nommed = 0;
-
-    for (; blocksize_idx < num_blocksizes; nommed++) {
-        if (Data[nommed] == ',' || Data[nommed] == '\n') {
-            read_at_a_time[blocksize_idx] = strtol(Data + last_start_pos, NULL, 10);
-            fprintf(stderr, "read at a time[%ld] = %ld\n", blocksize_idx, read_at_a_time[blocksize_idx]);
-            last_start_pos = nommed + 1;
-            blocksize_idx++;
-        }
-        if (Data[nommed] == '\n') {
-            break;
-        }
-    }
-
-    // nommed = 0;
-
-    blocksize_idx = 0;
-
-    while (nommed < Size) {
-        size_t to_nom = read_at_a_time[blocksize_idx];
-
-        blocksize_idx++;
-        blocksize_idx %= num_blocksizes;
-
-        if (nommed + to_nom > Size) {
-            to_nom = Size - nommed;
-        }
-
-        fprintf(stderr, "making buffer to hold %ld bytes\n", to_nom);
-        MVMuint8 *buffer = malloc(to_nom);
-        memcpy(buffer, Data + nommed, to_nom);
-
-        fprintf(stderr, "nommed %10ld out of %10ld bytes. Last read %ld", nommed, Size, to_nom);
-
-        MVM_string_decodestream_add_bytes(tc, ds, buffer, to_nom);
-        for (;;) {
-            if (!MVM_string_decodestream_is_empty(tc, ds)) {
-                MVMString *res_str = MVM_string_decodestream_get_until_sep(tc, ds, &dss, 1);
-                if (!res_str) break;
-                /*if (do_encode) {
-                    fprintf(stderr, "  res str not null\n");
-                    char *res_bytes = MVM_string_utf8_encode_C_string(tc, res_str);
-                    fprintf(stderr, "\"%s\"\n", res_bytes);
-                    seen_total += strlen(res_bytes);
-                    MVM_free(res_bytes);
-                }*/
+            while (nommed < Size) {
+                size_t read = fread(Data + nommed, 1, Size - nommed, input);
+                if (read == 0) {
+                    fprintf(stderr, "failed to read from input file! (fread failed with %s)\n", strerror(errno));
+                }
+                nommed += read;
             }
-            else {
+
+            fprintf(stderr, "read %ld from input file\n", Size);
+        }
+
+        nommed = 0;
+
+        size_t num_blocksizes = 0;
+
+        int list_of_numbers_parse_state = '\0';
+
+        /* Allow passing a bunch of "how many bytes to read" in the
+        * first "line" of the input: */
+        while (nommed < Size) {
+            if (Data[nommed] == '\n') {
+                if (list_of_numbers_parse_state == ',' || list_of_numbers_parse_state == '\0') {
+                    fprintf(stderr, "Expected an ascii number before first newline\n");
+                    goto continue_afl_main_loop;
+                }
+                num_blocksizes++;
                 break;
             }
-
+            if ((list_of_numbers_parse_state == '\0' || list_of_numbers_parse_state == ',') && Data[nommed] >= '1' && Data[nommed] <= '9') {
+                list_of_numbers_parse_state = '1';
+            }
+            else if (list_of_numbers_parse_state == '1' && Data[nommed] >= '0' && Data[nommed] <= '9') {
+                list_of_numbers_parse_state = '1';
+            }
+            else if (list_of_numbers_parse_state == '1' && Data[nommed] == ',') {
+                list_of_numbers_parse_state = ',';
+                num_blocksizes++;
+            }
+            else {
+                fprintf(stderr, "At character %zu, failed to parse list of ascii numbers! Saw a %c (%d)\n", nommed, Data[nommed], Data[nommed]);
+                goto continue_afl_main_loop;
+            }
+            nommed++;
         }
-        nommed += to_nom;
+        if (nommed == Size) {
+            fprintf(stderr, "expected to parse a line of ascii numbers as the first line, but reached the end of the file?\n");
+            goto continue_afl_main_loop;
+        }
+        if (list_of_numbers_parse_state != '1') {
+            fprintf(stderr, "At position %zu, expected at least one byte before the first newline of the input file... (at least one read-x-at-a-time value)\n", nommed);
+            goto continue_afl_main_loop;
+        }
+
+        fprintf(stderr, "Saw %ld blocksizes in the first line.\n", num_blocksizes);
+
+        MVMint64 *read_at_a_time = malloc(num_blocksizes * sizeof(MVMint64));
+
+        size_t blocksize_idx = 0;
+        size_t last_start_pos = 0;
+        nommed = 0;
+
+        for (; blocksize_idx < num_blocksizes; nommed++) {
+            if (Data[nommed] == ',' || Data[nommed] == '\n') {
+                /* Reject test cases with huge read-at-a-time values */
+                if (nommed - last_start_pos > 8) {
+                    fprintf(stderr, "i don't want a read-n-at-a-time longer than 8 chars (found value from %ld to %ld)\n", last_start_pos, nommed);
+                    goto continue_afl_main_loop;
+                }
+                read_at_a_time[blocksize_idx] = strtol((char *)Data + last_start_pos, NULL, 10);
+                fprintf(stderr, "read at a time[%ld] = %ld\n", blocksize_idx, read_at_a_time[blocksize_idx]);
+                last_start_pos = nommed + 1;
+                blocksize_idx++;
+            }
+            if (Data[nommed] == '\n') {
+                break;
+            }
+        }
+
+        nommed = 0;
+
+        blocksize_idx = 0;
+
+        instance   = MVM_vm_create_instance();
+
+        /* stash the rest of the raw command line args in the instance */
+        MVM_vm_set_clargs(instance, 1, fake_args);
+        MVM_vm_set_prog_name(instance, "afl-fuzzing");
+        MVM_vm_set_exec_name(instance, executable_name);
+        instance->full_cleanup = 1;
+        // MVM_vm_set_lib_path(instance, lib_path_i, lib_path);
+
+        MVMThreadContext *tc = instance->main_thread;
+
+        MVM_crash_on_error();
+
+
+        MVM_setjmp(tc->interp_jump);
+
+        times_jump_reached++;
+
+        if (times_jump_reached > 1) {
+            abort();
+        }
+
+        MVMDecodeStream *ds = MVM_string_decodestream_create(tc, encoding, 0, 0);
+        MVMDecodeStreamSeparators dss = {0};
+        MVM_string_decode_stream_sep_default(tc, &dss);
+
+
+        while (nommed < Size) {
+            ssize_t to_nom = read_at_a_time[blocksize_idx];
+
+            blocksize_idx++;
+            blocksize_idx %= num_blocksizes;
+
+            if (nommed + to_nom > Size) {
+                to_nom = Size - nommed;
+            }
+
+            fprintf(stderr, "making buffer to hold %ld bytes\n", to_nom);
+            MVMuint8 *buffer = malloc(to_nom);
+            memcpy(buffer, Data + nommed, to_nom);
+
+            fprintf(stderr, "nommed %10ld out of %10ld bytes. Last read %ld\n", nommed, Size, to_nom);
+
+            MVM_string_decodestream_add_bytes(tc, ds, buffer, to_nom);
+            for (;;) {
+                if (!MVM_string_decodestream_is_empty(tc, ds)) {
+                    MVMString *res_str = MVM_string_decodestream_get_until_sep(tc, ds, &dss, 1);
+                    if (!res_str) break;
+                    /*if (do_encode) {
+                        fprintf(stderr, "  res str not null\n");
+                        char *res_bytes = MVM_string_utf8_encode_C_string(tc, res_str);
+                        fprintf(stderr, "\"%s\"\n", res_bytes);
+                        seen_total += strlen(res_bytes);
+                        MVM_free(res_bytes);
+                    }*/
+                }
+                else {
+                    break;
+                }
+
+            }
+            nommed += to_nom;
+        }
+
+        MVM_gc_enter_from_allocator(tc);
+
+        if (do_encode)
+            fprintf(stderr, "total bytes out seen: %ld\n", seen_total);
+
+continue_afl_main_loop:
+        if (instance) {
+            MVM_vm_destroy_instance(instance);
+        }
+
+        if (read_input_from_file) {
+            fprintf(stderr, "read a single file from input, we are not in AFL mode.\n");
+            break;
+        }
     }
-
-    if (do_encode)
-        fprintf(stderr, "total bytes out seen: %ld\n", seen_total);
-
-    MVM_vm_exit(instance);
 }
