@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
 
     if (argc >= 4) {
         if (strcmp("enc", argv[3]) == 0) {
-            fprintf(stderr, "will encode output.\n");
+            // fprintf(stderr, "will encode output.\n");
             do_encode = true;
         } else {
             fprintf(stderr, "Usage: program @@ [enc number [enc]]\n");
@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
             goto continue_afl_main_loop;
         }
 
-        fprintf(stderr, "Saw %ld blocksizes in the first line.\n", num_blocksizes);
+        // fprintf(stderr, "Saw %ld blocksizes in the first line.\n", num_blocksizes);
 
         MVMint64 *read_at_a_time = malloc(num_blocksizes * sizeof(MVMint64));
 
@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
                     goto continue_afl_main_loop;
                 }
                 read_at_a_time[blocksize_idx] = strtol((char *)Data + last_start_pos, NULL, 10);
-                fprintf(stderr, "read at a time[%ld] = %ld\n", blocksize_idx, read_at_a_time[blocksize_idx]);
+                // fprintf(stderr, "read at a time[%ld] = %ld\n", blocksize_idx, read_at_a_time[blocksize_idx]);
                 last_start_pos = nommed + 1;
                 blocksize_idx++;
             }
@@ -275,17 +275,30 @@ int main(int argc, char **argv) {
                 to_nom = Size - nommed;
             }
 
-            fprintf(stderr, "making buffer to hold %ld bytes\n", to_nom);
+            // fprintf(stderr, "making buffer to hold %ld bytes\n", to_nom);
             MVMuint8 *buffer = malloc(to_nom);
             memcpy(buffer, Data + nommed, to_nom);
 
-            fprintf(stderr, "nommed %10ld out of %10ld bytes. Last read %ld\n", nommed, Size, to_nom);
+            // fprintf(stderr, "nommed %10ld out of %10ld bytes. Last read %ld\n", nommed, Size, to_nom);
 
             MVM_string_decodestream_add_bytes(tc, ds, buffer, to_nom);
             for (;;) {
                 if (!MVM_string_decodestream_is_empty(tc, ds)) {
                     MVMString *res_str = MVM_string_decodestream_get_until_sep(tc, ds, &dss, 1);
                     if (!res_str) break;
+                    /* Super, super cheeky optimization: any string that had
+                     * some memory allocated for it, we free and switch over
+                     * to claiming to have in situ storage instead so if
+                     * we ever enter GC, we don't attempt to free its pointer.
+                     */
+                    if (res_str->body.storage_type != MVM_STRING_IN_SITU_8 && res_str->body.storage_type != MVM_STRING_IN_SITU_32) {
+                        MVM_free(res_str->body.storage.any_ptr);
+                        res_str->body.storage_type = MVM_STRING_IN_SITU_8;
+                        res_str->body.num_graphs = 0;
+                    }
+                    /* We could go one step further and manually turn the
+                     * allocation pointer back to what it was before we got
+                     * the MVMString, but that feels a lot more evil ... */
                     /*if (do_encode) {
                         fprintf(stderr, "  res str not null\n");
                         char *res_bytes = MVM_string_utf8_encode_C_string(tc, res_str);
@@ -301,8 +314,6 @@ int main(int argc, char **argv) {
             }
             nommed += to_nom;
         }
-
-        MVM_gc_enter_from_allocator(tc);
 
         if (do_encode)
             fprintf(stderr, "total bytes out seen: %ld\n", seen_total);
