@@ -2094,7 +2094,14 @@ static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, con
         MVMuint16 lextype, MVMRegister *result) {
     cmp_write_str(ctx, c_key_name, strlen(c_key_name));
 
-    if (lextype == MVM_reg_obj) { /* Object */
+    if (result == NULL) {
+        cmp_write_map(ctx, 2);
+        cmp_write_conststr(ctx, "kind");
+        cmp_write_str(ctx, "???", 3);
+        cmp_write_conststr(ctx, "value");
+        cmp_write_nil(ctx);
+    }
+    else if (lextype == MVM_reg_obj) { /* Object */
         char *debugname;
 
         if (!result->o)
@@ -2219,7 +2226,12 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 ? MVM_str_hash_fetch_nocheck(dtc, debug_locals, name)
                 : NULL;
             if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
-                result = &frame->work[debug_entry->local_idx];
+                if (frame->work == NULL) {
+                    result = NULL;
+                }
+                else {
+                    result = &frame->work[debug_entry->local_idx];
+                }
                 was_from_local = 1;
             }
 
