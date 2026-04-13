@@ -2396,9 +2396,54 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
                             switch (attr_storage_spec->boxed_primitive) {
                                 case MVM_STORAGE_SPEC_BP_INT:
-                                    cmp_write_conststr(ctx, "int");
-                                    cmp_write_conststr(ctx, "value");
-                                    cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                    if (attr_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                                        char *bodyc = (char *)data + offset;
+                                        MVMP6bigintBody *body = (MVMP6bigintBody *)bodyc;
+                                        if (MVM_BIGINT_IS_BIG(body)) {
+                                            mp_int *i = body->u.bigint;
+                                            const int bits = mp_count_bits(i);
+
+                                            /* For 64-bit 2's complement numbers the positive max is 2**63-1, which is 63 bits,
+                                             * but the negative max is -(2**63), which is 64 bits. */
+                                            if ((MP_NEG == i->sign && bits > 64) || (MP_NEG != i->sign && bits > 63)) {
+                                                cmp_write_conststr(ctx, "bigint");
+                                                cmp_write_conststr(ctx, "value");
+                                                mp_err err;
+                                                int len;
+                                                char *buf;
+                                                if ((err = mp_radix_size(i, 10, &len)) != MP_OKAY) {
+                                                    cmp_write_conststr(ctx, "Failed to render big integer (size calculation)");
+                                                }
+                                                else {
+                                                    buf = (char *)MVM_malloc(len);
+                                                    if ((err = mp_to_decimal(i, buf, len)) != MP_OKAY) {
+                                                        MVM_free(buf);
+                                                        cmp_write_conststr(ctx, "Failed to render big integer");
+                                                    }
+                                                    else {
+                                                        // Excluding terminating \0
+                                                        cmp_write_str(ctx, buf, len - 1);
+                                                        MVM_free(buf);
+                                                    }
+                                                }
+                                            }
+                                            else {
+                                                cmp_write_conststr(ctx, "int");
+                                                cmp_write_conststr(ctx, "value");
+                                                cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                            }
+                                        }
+                                        else {
+                                            cmp_write_conststr(ctx, "int");
+                                            cmp_write_conststr(ctx, "value");
+                                            cmp_write_integer(ctx, body->u.smallint.value);
+                                        }
+                                    }
+                                    else {
+                                        cmp_write_conststr(ctx, "int");
+                                        cmp_write_conststr(ctx, "value");
+                                        cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                    }
                                     break;
                                 case MVM_STORAGE_SPEC_BP_NUM:
                                     cmp_write_conststr(ctx, "num");
