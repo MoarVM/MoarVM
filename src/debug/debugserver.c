@@ -158,7 +158,7 @@ static void normalize_filename(char *name) {
         cur_bs = strchr(cur_bs + 1, '\\');
     }
 }
-MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
+MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx, MVMuint8 lock_network) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
     MVMDebugServerBreakpointFileTable *found = NULL;
@@ -172,6 +172,14 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         }
     }
 
+    /* The network send lock is only sometimes needed in notify_new_file. But
+     * the network and breakpoint locks are often both acquired in other code
+     * paths. We have to use the same locking order everywhere, otherwise we
+     * risk deadlocking. So always first the network lock, then the breakpoint
+     * lock. */
+    if (lock_network) {
+        uv_mutex_lock(&debugserver->mutex_network_send);
+    }
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
     if (*file_idx < table->files_used) {
@@ -251,6 +259,9 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
     }
 
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
+    if (lock_network) {
+        uv_mutex_unlock(&debugserver->mutex_network_send);
+    }
 }
 
 static void stop_point_hit(MVMThreadContext *tc) {
@@ -649,7 +660,6 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
 
     if (ctx) {
         if (debugserver->loaded_file_event_id != 0) {
-            uv_mutex_lock(&debugserver->mutex_network_send);
 
             cmp_write_map(ctx, 4 + (debugserver->backtrace_on_new_file ? 1 : 0));
             cmp_write_conststr(ctx, "id");
@@ -685,7 +695,6 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
                 write_stacktrace_frames(tc, ctx, tc->thread_obj);
             }
 
-            uv_mutex_unlock(&debugserver->mutex_network_send);
 
             if (debugserver->stop_on_new_file == 1) {
                 MVMint64 attempts = 10000;
@@ -1268,7 +1277,7 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "asked to set a breakpoint for file %s line %"PRIu32" to send id %"PRIu64"\n", argument->file, argument->line, argument->id);
 
-    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
+    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index, 0);
 
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
@@ -1347,7 +1356,7 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
     MVMuint32 bpidx = 0;
     MVMuint32 num_cleared = 0;
 
-    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
+    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index, 0);
 
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "asked to clear breakpoints for file %s line %"PRIu32"\n", argument->file, argument->line);
