@@ -2190,7 +2190,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 MVMStaticFrameDebugLocal *debug_entry
                     = MVM_str_hash_current_nocheck(dtc, debug_locals, iterator);
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
-                if (idx != MVM_INDEX_HASH_NOT_FOUND)
+                if (idx == MVM_INDEX_HASH_NOT_FOUND)
                     lexcount++;
                 iterator = MVM_str_hash_next_nocheck(dtc, debug_locals, iterator);
             }
@@ -2252,8 +2252,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 MVMStaticFrameDebugLocal *debug_entry
                     = MVM_str_hash_current_nocheck(dtc, debug_locals, iterator);
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
-                if (idx != MVM_INDEX_HASH_NOT_FOUND) {
-                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, lexical_names_list[idx]);
+                if (idx == MVM_INDEX_HASH_NOT_FOUND) {
+                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->hash_handle.key);
                     MVMRegister *result = &frame->work[debug_entry->local_idx];
                     MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
                     write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
