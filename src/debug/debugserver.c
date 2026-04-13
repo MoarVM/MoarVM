@@ -2077,9 +2077,13 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
     if (argument->type == MT_OuterContextRequest) {
         if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
             this_ctx = MVM_context_from_frame(dtc, frame);
+        else
+            this_ctx = NULL;
     } else if (argument->type == MT_CallerContextRequest) {
         if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
             this_ctx = MVM_context_from_frame(dtc, frame);
+        else
+            this_ctx = NULL;
     }
 
     allocate_and_send_handle(dtc, ctx, argument, this_ctx);
