@@ -671,7 +671,7 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
              * length than what the null byte tells us, then there's no
              * module name in the filename and then there is no point in
              * sending the "full name" on top. */
-	    if (strlen(filename) != filename_len) {
+            if (strlen(filename) != filename_len) {
                 cmp_write_map(ctx, 2);
 
                 cmp_write_conststr(ctx, "full_name");
@@ -694,12 +694,8 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
             if (debugserver->stop_on_new_file == 1) {
                 MVMint64 attempts = 10000;
                 while (attempts-- > 0) {
-                    if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST)
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
                             == MVMGCStatus_NONE) {
-                        break;
-                    }
-                    /* If there is already a suspend request, we don't have to do anything. */
-                    if (MVM_load(&tc->gc_status) == (MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST)) {
                         break;
                     }
                     /* Maybe we are already interrupted so that we join a GC run. */
@@ -719,6 +715,9 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
                      * if debugspam is on. */
                     if (tc->instance->debugserver->debugspam_protocol)
                         fprintf(stderr, "thread %u couldn't suspend to react to a new file being created.\n", tc->thread_id);
+                }
+                else {
+                    MVM_gc_enter_from_interrupt(tc);
                 }
             }
         }
