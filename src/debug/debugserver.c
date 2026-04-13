@@ -1572,6 +1572,7 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
     cmp_write_integer(ctx, MT_FileLoadedNotification);
     cmp_write_conststr(ctx, "filenames");
 
+    uv_mutex_lock(&debugserver->mutex_breakpoints);
     cmp_write_array(ctx, debugserver->breakpoints->files_used);
 
     for (MVMuint32 file_idx = 0; file_idx < debugserver->breakpoints->files_used; file_idx++) {
@@ -1585,6 +1586,7 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
             cmp_write_bool(ctx, 1);
         }
     }
+    uv_mutex_unlock(&debugserver->mutex_breakpoints);
 }
 
 static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
