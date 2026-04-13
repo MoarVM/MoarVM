@@ -293,7 +293,7 @@ static void stop_point_hit(MVMThreadContext *tc) {
 
 static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
     cmp_ctx_t *ctx = NULL;
-    MVMDebugServerBreakpointInfo *info;
+    MVMDebugServerBreakpointInfo *info = NULL;
     MVMuint32 index;
     MVMuint8 must_suspend = 0;
 
@@ -301,32 +301,40 @@ static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFil
         ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
     }
 
-    for (index = 0; index < file->breakpoints_used; index++) {
-        info = &file->breakpoints[index];
+    if (file->lines_active[line_no]) {
+        for (index = 0; index < file->breakpoints_used; index++) {
+            if (file->breakpoints[index].line_no == line_no) {
+                info = &file->breakpoints[index];
+                break;
+            }
+        }
+    }
+    if (!info && file->any_break) {
+        info = file->any_break;
+    }
 
-        if (info->line_no == line_no) {
-            if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "hit a breakpoint\n");
-            if (ctx) {
-                uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
-                cmp_write_map(ctx, 4);
-                cmp_write_conststr(ctx, "id");
-                cmp_write_integer(ctx, info->breakpoint_id);
-                cmp_write_conststr(ctx, "type");
-                cmp_write_integer(ctx, MT_BreakpointNotification);
-                cmp_write_conststr(ctx, "thread");
-                cmp_write_integer(ctx, tc->thread_id);
-                cmp_write_conststr(ctx, "frames");
-                if (info->send_backtrace) {
-                    write_stacktrace_frames(tc, ctx, tc->thread_obj);
-                } else {
-                    cmp_write_nil(ctx);
-                }
-                uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+    if (info) {
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "hit a breakpoint\n");
+        if (ctx) {
+            uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+            cmp_write_map(ctx, 4);
+            cmp_write_conststr(ctx, "id");
+            cmp_write_integer(ctx, info->breakpoint_id);
+            cmp_write_conststr(ctx, "type");
+            cmp_write_integer(ctx, MT_BreakpointNotification);
+            cmp_write_conststr(ctx, "thread");
+            cmp_write_integer(ctx, tc->thread_id);
+            cmp_write_conststr(ctx, "frames");
+            if (info->send_backtrace) {
+                write_stacktrace_frames(tc, ctx, tc->thread_obj);
+            } else {
+                cmp_write_nil(ctx);
             }
-            if (info->shall_suspend) {
-                must_suspend = 1;
-            }
+            uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+        }
+        if (info->shall_suspend) {
+            must_suspend = 1;
         }
     }
 
@@ -359,7 +367,7 @@ MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMui
         MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
         MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
 
-        if (debugserver->any_breakpoints_at_all && found->breakpoints_used && found->lines_active[line_no]) {
+        if (debugserver->any_breakpoints_at_all && (found->breakpoints_used && found->lines_active[line_no] || found->any_break)) {
             shall_suspend |= breakpoint_hit(tc, found, line_no);
         }
     }
@@ -1283,23 +1291,31 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
 
     found = &table->files[index];
 
-    /* Create breakpoint first so that if a thread breaks on the activated line
-     * the breakpoint information already exists */
-    if (found->breakpoints_alloc == 0) {
-        found->breakpoints_alloc = 4;
-        found->breakpoints = MVM_calloc(found->breakpoints_alloc, sizeof(MVMDebugServerBreakpointInfo));
-    }
-    if (found->breakpoints_used++ >= found->breakpoints_alloc) {
-        MVMuint32 old_alloc = found->breakpoints_alloc;
-        found->breakpoints_alloc *= 2;
-        found->breakpoints = MVM_realloc_at_safepoint(tc, found->breakpoints,
-                old_alloc * sizeof(MVMDebugServerBreakpointInfo),
-                found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
-        if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "table for breakpoints increased to %"PRIu32" slots\n", found->breakpoints_alloc);
-    }
 
-    bp_info = &found->breakpoints[found->breakpoints_used - 1];
+    if (argument->line == 0) {
+        found->any_break = MVM_calloc(1, sizeof(MVMDebugServerBreakpointInfo));
+        bp_info = found->any_break;
+    }
+    else {
+        /* Create breakpoint first so that if a thread breaks on the activated line
+         * the breakpoint information already exists */
+        if (found->breakpoints_alloc == 0) {
+            found->breakpoints_alloc = 4;
+            found->breakpoints = MVM_calloc(found->breakpoints_alloc, sizeof(MVMDebugServerBreakpointInfo));
+        }
+        if (found->breakpoints_used++ >= found->breakpoints_alloc) {
+            MVMuint32 old_alloc = found->breakpoints_alloc;
+            found->breakpoints_alloc *= 2;
+            found->breakpoints = MVM_realloc_at_safepoint(tc, found->breakpoints,
+                    old_alloc * sizeof(MVMDebugServerBreakpointInfo),
+                    found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "table for breakpoints increased to %"PRIu32" slots\n", found->breakpoints_alloc);
+        }
+
+        bp_info = &found->breakpoints[found->breakpoints_used - 1];
+        found->lines_active[argument->line] = 1;
+    }
 
     bp_info->breakpoint_id = argument->id;
     bp_info->line_no = argument->line;
@@ -1311,7 +1327,6 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "breakpoint settings: index %"PRIu32" bpid %"PRIu64" lineno %"PRIu32" suspend %"PRIu32" backtrace %"PRIu32"\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
-    found->lines_active[argument->line] = 1;
 
     cmp_write_map(ctx, 3);
     cmp_write_conststr(ctx, "id");
@@ -1375,18 +1390,27 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
 
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "trying to clear breakpoints\n\n");
-    for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
-        MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
-        if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "breakpoint index %"PRIu32" has id %"PRIu64", is at line %"PRIu32"\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
-
-        if (bp_info->line_no == argument->line) {
-            if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "breakpoint with id %"PRIu64" cleared\n", bp_info->breakpoint_id);
-            found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
+    if (argument->line == 0) {
+        if (found->any_break != NULL) {
+            found->any_break = NULL;
             num_cleared++;
-            bpidx--;
             debugserver->any_breakpoints_at_all--;
+        }
+    }
+    else {
+        for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
+            MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "breakpoint index %"PRIu32" has id %"PRIu64", is at line %"PRIu32"\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+
+            if (bp_info->line_no == argument->line) {
+                if (tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "breakpoint with id %"PRIu64" cleared\n", bp_info->breakpoint_id);
+                found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
+                num_cleared++;
+                bpidx--;
+                debugserver->any_breakpoints_at_all--;
+            }
         }
     }
 

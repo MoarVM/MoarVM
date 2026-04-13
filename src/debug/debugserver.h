@@ -69,6 +69,10 @@ struct MVMDebugServerBreakpointFileTable {
     MVMuint32 breakpoints_alloc;
     MVMuint32 breakpoints_used;
 
+    /* When set, will break on every possible break position.
+       I.e. line_no will be ignored. */
+    MVMDebugServerBreakpointInfo *any_break;
+
     /* When a breakpoint is added for a file that is not loaded yet, we create
      * an entry in the files table, but the filename is completely arbitrary
      * and is not guaranteed to ever show up.
