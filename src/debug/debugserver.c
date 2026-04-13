@@ -227,10 +227,6 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
 
         *file_idx = table->files_used - 1;
-
-        found->breakpoints = NULL;
-        found->breakpoints_alloc = 0;
-        found->breakpoints_used = 0;
     }
     else {
         /* We might have had a not-really-loaded entry before, so update
