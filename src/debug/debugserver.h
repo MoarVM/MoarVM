@@ -152,10 +152,8 @@ struct MVMDebugServerData {
     /* If the user asked to watch new files showing up, this is the event ID
      * to send notifications for. */
     MVMuint64 loaded_file_event_id;
-    /* May also stop one or all threads when a new file is hit */
-    MVMuint8  stop_on_new_file : 2;
-    /* May send a backtrace along when that happens, for convenience. */
-    MVMuint8  backtrace_on_new_file : 1;
+    MVMuint8 new_file_shall_suspend : 1;
+    MVMuint8 new_file_send_backtrace : 1;
 
     void *messagepack_data;
 

@@ -146,7 +146,7 @@ static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMTh
 static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
-void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_len);
+void notify_new_file(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *new_file, char *filename, MVMuint32 filename_len);
 
 /* Breakpoint stuff */
 static void normalize_filename(char *name) {
@@ -227,8 +227,8 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
          * request, in which case we must not tell the client that a new file has been
          * loaded. */
         if (tc->instance->debugserver->thread_id != tc->thread_id) {
-            notify_new_file(tc, filename, filename_len);
             found->really_loaded = 1;
+            notify_new_file(tc, found, filename, filename_len);
         }
 
         found->lines_active_alloc = line_no + 32;
@@ -243,7 +243,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         if (tc->instance->debugserver->thread_id != tc->thread_id) {
             if (!found->really_loaded) {
                 found->really_loaded = 1;
-                notify_new_file(tc, found->filename, found->filename_length);
+                notify_new_file(tc, found, found->filename, found->filename_length);
             }
         }
     }
@@ -655,7 +655,7 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
 
 static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread);
 
-void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_len) {
+void notify_new_file(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *new_file, char *filename, MVMuint32 filename_len) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     cmp_ctx_t *ctx = NULL;
 
@@ -668,14 +668,13 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
 
     if (ctx) {
         if (debugserver->loaded_file_event_id != 0) {
+            MVMuint8 create_breakpoint = debugserver->new_file_shall_suspend || debugserver->new_file_send_backtrace;
 
-            cmp_write_map(ctx, 4 + (debugserver->backtrace_on_new_file ? 1 : 0));
+            cmp_write_map(ctx, 3 + (create_breakpoint ? 1 : 0));
             cmp_write_conststr(ctx, "id");
             cmp_write_integer(ctx, debugserver->loaded_file_event_id);
             cmp_write_conststr(ctx, "type");
             cmp_write_integer(ctx, MT_FileLoadedNotification);
-            cmp_write_conststr(ctx, "thread");
-            cmp_write_integer(ctx, tc->thread_id);
 
             cmp_write_conststr(ctx, "filenames");
 
@@ -694,44 +693,23 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
             else {
                 cmp_write_map(ctx, 1);
             }
+
             cmp_write_conststr(ctx, "path");
             cmp_write_str(ctx, filename, filename_len);
 
+            if (create_breakpoint && !new_file->any_break) {
+                new_file->any_break = MVM_calloc(1, sizeof(MVMDebugServerBreakpointInfo));
 
-            if (debugserver->backtrace_on_new_file) {
-                cmp_write_conststr(ctx, "frames");
-                write_stacktrace_frames(tc, ctx, tc->thread_obj);
-            }
+                new_file->any_break->breakpoint_id = debugserver->event_id;
+                debugserver->event_id += 2;
 
+                new_file->any_break->line_no = 0;
+                new_file->any_break->shall_suspend = debugserver->new_file_shall_suspend;
+                new_file->any_break->send_backtrace = debugserver->new_file_send_backtrace;
+                debugserver->any_breakpoints_at_all++;
 
-            if (debugserver->stop_on_new_file == 1) {
-                MVMint64 attempts = 10000;
-                while (attempts-- > 0) {
-                    if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                            == MVMGCStatus_NONE) {
-                        break;
-                    }
-                    /* Maybe we are already interrupted so that we join a GC run. */
-                    /* If we have the suspend request flag already set, do nothing. */
-                    if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
-                        break;
-                    }
-                    /* Store the suspend request flag. */
-                    if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                            == MVMGCStatus_INTERRUPT) {
-                        break;
-                    }
-                }
-                if (attempts == 0) {
-                    /* It's not a reason to panic or oops when this
-                     * doesn't succeed for some reason, but do log
-                     * if debugspam is on. */
-                    if (tc->instance->debugserver->debugspam_protocol)
-                        fprintf(stderr, "thread %u couldn't suspend to react to a new file being created.\n", tc->thread_id);
-                }
-                else {
-                    MVM_gc_enter_from_interrupt(tc);
-                }
+                cmp_write_conststr(ctx, "breakpoint_id");
+                cmp_write_integer(ctx, new_file->any_break->breakpoint_id);
             }
         }
     }
@@ -1587,10 +1565,10 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
         debugserver->loaded_file_event_id = argument->start_watching ? argument->id : 0;
     }
     if (argument->fields_set & FS_stacktrace) {
-        debugserver->backtrace_on_new_file = argument->stacktrace;
+        debugserver->new_file_send_backtrace = argument->stacktrace;
     }
     if (argument->fields_set & FS_suspend) {
-        debugserver->stop_on_new_file = argument->suspend;
+        debugserver->new_file_shall_suspend = argument->suspend;
     }
 
     cmp_write_map(ctx, 3);
