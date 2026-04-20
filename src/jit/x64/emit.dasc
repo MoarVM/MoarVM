@@ -2765,7 +2765,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
     MVMint32 num_gpr = 0, num_fpr = 0, num_stack = 0, i;
     MVMJitCallArg in_gpr[6], in_fpr[8], *on_stack = NULL;
     if (num_args > 6)
-        on_stack = MVM_malloc(sizeof(MVMJitCallArg) * (num_args - 6));
+        on_stack = alloca(sizeof(MVMJitCallArg) * (num_args - 6));
     /* divide in gpr, fpr, stack values */
     for (i = 0; i < num_args; i++) {
         switch (args[i].type) {
@@ -2825,8 +2825,6 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         // I'm not sure this is correct, btw
         emit_stack_arg(tc, compiler, jg, 8, i*8);
     }
-    if (on_stack)
-        MVM_free(on_stack);
 }
 
 static void emit_win64_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
