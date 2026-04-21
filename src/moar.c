@@ -465,6 +465,13 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->afl_edge_coverage |= MVM_BB_COVERAGE_BACKTRACE_ON_SELECTED_EDGES;
             __mvm_last_edge_seen = MVM_calloc(4 * 65536, sizeof(MVMuint16));
         }
+
+        if (getenv("MVM_EDGE_COVERAGE_FILE")) {
+            instance->edge_coverage_fh = fopen_perhaps_with_pid("MVM_EDGE_COVERAGE_FILE", getenv("MVM_EDGE_COVERAGE_FILE"), "w");
+        }
+        else {
+            instance->edge_coverage_fh = stderr;
+        }
     }
 
     if (getenv("MVM_COVERAGE_LOG")) {

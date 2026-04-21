@@ -555,6 +555,9 @@ struct MVMInstance {
     /* The time it takes to run the profiler instrumentation. */
     MVMuint64 profiling_overhead;
 
+    MVMStrHashTable *afl_edge_coverage_filenames_reported;
+    FILE *edge_coverage_fh;
+
     /************************************************************************
      * Debugging
      ************************************************************************/

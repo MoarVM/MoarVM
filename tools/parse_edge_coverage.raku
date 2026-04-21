@@ -1,3 +1,9 @@
+use Data::MessagePack::StreamingUnpacker;
+
+unit sub MAIN($fn where .IO.f);
+
+my %str_by_idx;
+
 my %id_to_frame;
 my %frame_to_ids;
 my %id_to_fnl;
@@ -17,36 +23,55 @@ sub SHRT($_) {
     $_.subst($nqplib_prefix, '$NQPLIB').subst($rakudo_prefix, '$PREFIX')
 }
 
-for lines() -> $lin {
-    my @bits = $lin.split(":");
-    if @bits[0] eq "EHIT" || @bits[0] eq "CHIT" {
-        # skip very first edge which comes from 0
-        next if @bits[1] eq "0";
+my $inf = $fn.IO.open(:bin, :r);
 
-        %incoming{@bits[2]}.push(@bits[1]);
-        %outgoing{@bits[1]}.push(@bits[2]);
-        my $from_frame = %id_to_frame{@bits[1]};
-        my $to_frame   = %id_to_frame{@bits[2]};
+my $inf-bits = supply { whenever Supply.interval(0.01) { emit $inf.read(10240); done if $inf.eof } };
+my $unp-supply = Data::MessagePack::StreamingUnpacker.new(source => $inf-bits).Supply;
+
+react whenever $unp-supply -> $entry {
+    if $entry ~~ Callable { done }
+    dd $entry;
+    my $typ = $entry<T>;
+    if $typ eq "H" {
+        # skip very first edge which comes from 0
+        next if $entry<p> == 0;
+
+        my $id = $entry<i>;
+        my $prev = $entry<p>;
+        # no need for the w key yet
+
+        %incoming{$id}.push($prev);
+        %outgoing{$prev}.push($id);
+        my $from_frame = %id_to_frame{$prev};
+        my $to_frame   = %id_to_frame{$id};
         if $from_frame[0] ne $to_frame[0] {
-            %frame_incoming{$to_frame[0]}.push(  $($from_frame[0], $from_frame[1], $to_frame[1],   @bits[1], @bits[2]));
-            %frame_outgoing{$from_frame[0]}.push($($to_frame[0],   $to_frame[1],   $from_frame[1], @bits[1], @bits[2]));
+            %frame_incoming{$to_frame[0]}.push(  $($from_frame[0], $from_frame[1], $to_frame[1], $prev, $id));
+            %frame_outgoing{$from_frame[0]}.push($($to_frame[0],   $to_frame[1], $from_frame[1], $prev, $id));
         }
         else {
             %intra_frame_paths{$from_frame[0]}.push($($from_frame[1], $to_frame[1]));
         }
     }
-    elsif @bits[0] eq "BBI" {
-        my $frame = SHRT(@bits[1]) ~ "[" ~ @bits[2] ~ "]";
-        %frame_to_ids{$frame}.push($(+@bits[3], +@bits[4]));
-        %id_to_frame{@bits[4]} = $($frame, +@bits[3]);
+    elsif $typ eq "STR" {
+        %str_by_idx{$entry<id>} = $entry<str>;
     }
-    elsif @bits[0] eq "FNL" {
-        my $frame = %id_to_frame{SHRT(@bits[1])};
-        %id_to_fnl{$frame[0]}{$frame[1]} = my $fnl = SHRT(@bits.skip(3).join(":")) ~ ":" ~ @bits[2];
+    elsif $typ eq "BBIDX" {
+        # bits used to be: BBI:filename:cuid:bb_idx:bb_id
+        # idx, cu, cuid, bbid, su, hsu, pr
+
+        my $frame = SHRT(%str_by_idx{$entry<cu>}) ~ "[" ~ $entry<cuid> ~ "]";
+        %frame_to_ids{$frame}.push($($entry<idx>, $entry<bbid>));
+        %id_to_frame{$entry<bbid>} = $($frame, $entry<idx>);
+    }
+    elsif $typ eq "LINE" {
+        # bits used to be  FNL:bb_id:linenum:filename
+        # now: bbid, fnm, lnum
+        my $frame = %id_to_frame{SHRT($entry<bbid>)};
+        %id_to_fnl{$frame[0]}{$frame[1]} = my $fnl = SHRT(%str_by_idx{$entry<fnm>}) ~ ":" ~ $entry<lnum>;
         %fnl_to_frames{$fnl}.push($frame[0]);
     }
-    elsif @bits[0] eq "FN" {
-        %id_to_fname{%id_to_frame{@bits[1]}[0]} = @bits.skip(2).join(":");
+    elsif $typ eq "FNAME" {
+        %id_to_fname{%id_to_frame{$entry<id>}[0]} = $entry<str>;
     }
 }
 
