@@ -3902,6 +3902,15 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         }
 
         MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+
+        /* Still need to implement support for variadic calls in the JIT, so
+         * bail out jitting for now. */
+        if (body->variadic) {
+            MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                "BAIL: op <%s> (native call body is variadic)", ins->info->name);
+            return 0;
+        }
+
         MVMCallsite *callsite = (MVMCallsite*)ins->operands[1 + start].lit_ui64;
         MVMJitCallArg *args = callsite->flag_count > 1 /* first arg is return_type */
             ? MVM_spesh_alloc(tc, jg->sg, (callsite->flag_count - 1) * sizeof(MVMJitCallArg))

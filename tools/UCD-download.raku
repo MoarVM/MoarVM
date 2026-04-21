@@ -11,7 +11,7 @@ my @CODETABLES  =
     'VENDORS/MICSFT/WINDOWS/CP1251.TXT';
 my $JIS-url     = "https://encoding.spec.whatwg.org/index-jis0208.txt";
 
-sub MAIN {
+sub MAIN(Bool :$allow-draft) {
     quit "Must run in the top level of a checked-out MoarVM git repo."
         unless '.git'.IO.d;
 
@@ -34,7 +34,7 @@ sub MAIN {
             download-files($JIS-url);
         }
 
-        get-emoji;
+        get-emoji(:$allow-draft);
     }
 }
 
@@ -45,6 +45,10 @@ sub quit($message) {
 
 sub read-url($url) {
     qqx{curl --ftp-method nocwd -s "$url"}
+}
+
+sub ftp-dir-entries($url) {
+    read-url($url).lines.map(*.split(/' '+/)[8])
 }
 
 sub download-files(+@urls) {
@@ -69,35 +73,47 @@ sub download-zip-file(Str:D $url, Str:D $dir = '.') {
     }
 }
 
-sub get-emoji {
-    # Since emoji sequence names are not canonical and unchangeable, we get
-    # all of them starting with the first the feature was added in
-    my $first-emoji-ver = <4.0>;
+sub get-emoji(Bool :$allow-draft) {
+    # Since emoji sequence names are not canonical and unchangeable, we get all
+    # of them starting with the first the feature was added in.  Directory layout
+    # changed as of versions 13.0 and 17.0, so handle before/after separately.
+    my $first-emoji-ver = v4.0;
+    my $data-moved-ver  = v13.0;
+    my $reorg-emoji-ver = v17.0;
 
-    say "\nGetting a listing of available Emoji versions";
-    my $emoji-base = "ftp://ftp.unicode.org/Public/emoji/";
-    my @emoji-vers = read-url($emoji-base).lines.map(*.split(/' '+/)[8]);
-    my @sorted-emoji-versions = @emoji-vers.grep(/^\d/).sort(*.Num);
-    say "Emoji versions found: ", @sorted-emoji-versions.join(' ');
+    say "\nGetting a listing of available OLD emoji versions (< $reorg-emoji-ver)";
+    my @old-list     = ftp-dir-entries($unicode-ftp ~ '/emoji/');
+    my @old-versions = @old-list.grep(/^\d/).map({Version.new($_)})
+                        .grep($first-emoji-ver <= *).sort;
+    my @downloads    = @old-versions.map({ $_ => "$unicode-ftp/emoji/$_" });
+    say "OLD emoji versions found: @old-versions[]";
 
-    my @to-download = < ReadMe.txt emoji-data.txt emoji-sequences.txt
-                        emoji-zwj-sequences.txt emoji-test.txt >;
+    say "\nGetting a listing of available NEW emoji versions (>= $reorg-emoji-ver)";
+    my @new-list     = ftp-dir-entries($unicode-ftp ~ '/');
+    my @new-versions = @new-list.grep(/^\d/).map({Version.new($_)})
+                                .grep($reorg-emoji-ver <= *).sort;
+    @downloads.append: @new-versions.map({ $_ => "$unicode-ftp/$_/emoji" });
+    say "NEW emoji versions found: @new-versions[]";
 
-    for @sorted-emoji-versions.reverse.grep($first-emoji-ver <= *) -> $version {
+    my @new-file-list = < ReadMe.txt emoji-sequences.txt
+                          emoji-zwj-sequences.txt emoji-test.txt >;
+    my @old-file-list = |@new-file-list, 'emoji-data.txt';
+
+    for @downloads -> (:key($version), :value($emoji-data-url)) {
         put "\nEmoji version $version:";
-        my $emoji-data-url = "$emoji-base/$version";
         my $readme = read-url("$emoji-data-url/ReadMe.txt").chomp;
         if $readme.match(/draft|PRELIMINARY/, :i) {
             say "Looks like this version is a draft. ReadMe.txt text: <<$readme>>";
-            next;
+            next unless $allow-draft;
         }
-        else {
-            my @urls = @to-download.map({ "$emoji-data-url/$_" });
-            say "Fetching: @to-download[]";
 
-            my $emoji-folder = "emoji-$version".IO;
-            $emoji-folder.mkdir;
-            indir $emoji-folder, { download-files(@urls) };
-        }
+        my @files = $version >= $data-moved-ver ?? @new-file-list
+                                                !! @old-file-list;
+        my @urls  = @files.map({ "$emoji-data-url/$_" });
+        my $emoji-folder = "emoji-$version".IO;
+        say "Fetching @files[] to $emoji-folder";
+
+        $emoji-folder.mkdir;
+        indir $emoji-folder, { download-files(@urls) };
     }
 }

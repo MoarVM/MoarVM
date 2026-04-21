@@ -257,8 +257,31 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
 #endif
 
             /* Mark thread free to continue. */
-            MVM_cas(&other->gc_status, MVMGCStatus_STOLEN, MVMGCStatus_UNABLE);
-            MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_NONE);
+            unsigned int suspend_bits = 0;
+            unsigned int status_bits = 0;
+            while(1) {
+                AO_t current = MVM_load(&other->gc_status);
+                status_bits = AO_READ(current) & MVMGCSTATUS_MASK;
+                suspend_bits = AO_READ(current) & MVMSUSPENDSTATUS_MASK;
+                if (status_bits == MVMGCStatus_STOLEN) {
+                    if (MVM_cas(&other->gc_status, MVMGCStatus_STOLEN | suspend_bits, MVMGCStatus_UNABLE | suspend_bits)
+                            == (MVMGCStatus_STOLEN | suspend_bits)) {
+                        break;
+                    }
+                }
+                else if (status_bits == MVMGCStatus_INTERRUPT) {
+                    if (MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT | suspend_bits, MVMGCStatus_NONE | suspend_bits) == (MVMGCStatus_INTERRUPT | suspend_bits)) {
+                        break;
+                    }
+                }
+                else if (status_bits == MVMGCStatus_NONE || status_bits == MVMGCStatus_UNABLE) {
+                    break;
+                }
+                else {
+                    MVM_panic(MVM_exitcode_gcorch,
+                        "Invalid GC status observed \"%lu\" while unblocking thread; aborting", AO_READ(current));
+                }
+            }
         }
     }
 

@@ -765,11 +765,51 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gcd_i): {
-                MVMint64 a = labs(GET_REG(cur_op, 2).i64), b = labs(GET_REG(cur_op, 4).i64), c;
-                while ( b != 0 ) {
-                    c = a % b; a = b; b = c;
+                /* Implementation from Daniel Lemire's blogs and code (placed in the public domain)), very slightly modified for MoarVM:
+                 *   https://lemire.me/blog/2013/12/26/fastest-way-to-compute-the-greatest-common-divisor/
+                 *   https://lemire.me/blog/2024/04/13/greatest-common-divisor-the-extended-euclidean-algorithm-and-speed/
+                 *   https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2013/12/26/gcd.cpp
+                 * While some of the other variants were faster when running his benchmark program, this was actually
+                 * the fastest when added to MoarVM and tested with some Raku code. Notice that because the values are 64-bit
+                 * we must use __builtin_ctzll instead of __builtin_ctz.
+                 */
+
+                MVMuint64 u = labs(GET_REG(cur_op, 2).i64), v = labs(GET_REG(cur_op, 4).i64), ret;
+
+                MVMint64 shift, uz, vz;
+                if (u == 0) {
+                    ret = v;
                 }
-                GET_REG(cur_op, 0).i64 = a;
+                else if (v == 0) {
+                    ret = u;
+                }
+                else {
+#ifdef _WIN32
+                    uz = _tzcnt_u64(u);
+                    vz = _tzcnt_u64(v);
+#else
+                    uz = __builtin_ctzll(u);
+                    vz = __builtin_ctzll(v);
+#endif
+                    shift = uz > vz ? vz : uz;
+                    u >>= uz;
+                    do {
+                        v >>= vz;
+                        MVMint64 diff = v;
+                        diff -= u;
+#ifdef _WIN32
+                        vz = _tzcnt_u64(diff);
+#else
+                        vz = __builtin_ctzll(diff);
+#endif
+                        if (diff == 0) break;
+                        if (v < u) u = v;
+                        v = labs(diff);
+                    } while (1);
+                    ret = u << shift;
+                }
+
+                GET_REG(cur_op, 0).i64 = ret;
                 cur_op += 6;
                 goto NEXT;
             }

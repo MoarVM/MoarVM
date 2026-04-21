@@ -1060,7 +1060,7 @@ static void optimize_bindlex(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
 }
 
 /* Transforms a late-bound lexical lookup into a constant. */
-static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
                             MVMObject *log_obj) {
     MVMSpeshFacts *facts;
 
@@ -1091,6 +1091,11 @@ static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         facts->flags |= MVM_SPESH_FACT_CONCRETE;
     else
         facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+
+    /* Look if there's a prof_allocated ins that we can toss now */
+    if (ins->next && ins->next->info->opcode == MVM_OP_prof_allocated) {
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->next);
+    }
 }
 
 /* Optimizes away a lexical lookup when we know the value won't change from
@@ -1109,7 +1114,7 @@ static void optimize_getlexstatic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         MVMObject *resolution =  MVM_disp_inline_cache_get_lex_resolution(tc, g->sf,
                 ann->data.bytecode_offset);
         if (resolution) {
-            lex_to_constant(tc, g, ins, resolution);
+            lex_to_constant(tc, g, bb, ins, resolution);
             return;
         }
 
@@ -1160,7 +1165,7 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
                     if (ts->by_offset[j].num_types == 1) {
                         MVMObject *log_obj = ts->by_offset[j].types[0].type;
                         if (log_obj && !ts->by_offset[j].types[0].type_concrete)
-                            lex_to_constant(tc, g, ins, log_obj);
+                            lex_to_constant(tc, g, bb, ins, log_obj);
                         return;
                     }
                     break;

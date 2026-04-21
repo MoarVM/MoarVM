@@ -61,8 +61,30 @@ struct MVMNormalizer {
 
     MVMint32 prepend_buffer;
 
-    MVMint32 regional_indicator;
 
+    // These fields are only used for grapheme finding, and are stored here just
+    // to avoid passing around a thousand parameters to the functions that make
+    // up that task.
+
+    /* Holds the index of the codepoint currently being tested. This codepoint
+     * has not yet been taken as part of a grapheme cluster.
+     */
+    MVMint32 next_grapheme_cur;
+
+    /* Holds an index just past the end of the search area for grapheme boundary
+     * searches.
+     */
+    MVMint32 next_grapheme_last;
+
+    /* Codepoint currently being indicated by 'next_grapheme_cur', for easier
+     * access.
+     */
+    MVMCodepoint next_grapheme_code;
+
+    /* The Grapheme_Cluster_Boundary value of the codepoint indicated by
+     * 'next_grapheme_cur'.
+     */
+    int next_grapheme_gcb;
 };
 
 /* Guts-y functions, called by the API level ones below. */
@@ -196,7 +218,7 @@ MVM_STATIC_INLINE MVMint32 fast_atoi( const char * dec_str ) {
     return value;
 }
 MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp);
-MVMint32 MVM_unicode_normalize_should_break(MVMThreadContext *tc, MVMCodepoint a, MVMCodepoint b, MVMNormalizer *norm);
+MVMint32 MVM_unicode_normalize_nfg_breaks(MVMThreadContext * tc, MVMGrapheme32 a, MVMGrapheme32 b);
 MVMint64 MVM_unicode_relative_ccc(MVMThreadContext *tc, MVMCodepoint cp);
 MVMint32 MVM_string_is_control_full(MVMThreadContext *tc, MVMCodepoint in);
 /* Function for choosing the appropriate line-ending grapheme depending on if

@@ -1,3 +1,71 @@
+New in 2026.03
+
++ Bump mimalloc to v2.2.7
++ Bump libtommath to 1.3.0
+
+New in 2026.02
+
+Core:
++ Use GCD implementation from Daniel Lemire [c80b587c]
++ MSVC doesn't have __builtin_ctz... [b509f046]
++ Fix a harmless CAS misusage [a4bac8e2]
++ A gc vs debugserver fix [42cb3592]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
+CI:
+
+New in 2026.01
+
+Core:
++ Fix building MoarVM with a system provided libuv [52a918c8]
++ Always align region allocator allocations to multiples of 8 [1aa273fd]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
++ Fewer unneeded prof allocated calls [5eb2ccf3]
+
+Strings:
+
+CI:
+
+New in 2025.12
+Unicode:
++ Update to Unicode 17, including:
+   + Fix synthetic codepoint breaks
+   + Speed up concats using CRLF
+   + Fix grapheme boundary searching
+   + Update unicode import scripts to work with new Unicode 17 rules
+   + Add more enumeration properties to ucd2c.pl
+   + Support new CJK Ideograph Extension
+   + Support all versions of emoji dirs
+NativeCall:
+   + Add vararg support (not supported in JIT yet)
+   + Don't read from outdated pointers
+Core:
+   + Add PTY support
+   + Switch to temp fork of libuv
+   + Update azure pipeline OS versions
+
+
+New in 2025.11
+Core:
++ Bump rapidhash to v3
++ Throw exception in known bad state
+
 New in 2025.10
 Core:
 + Fix https://github.com/rakudo/rakudo/issues/5954 [f7d6a0828]

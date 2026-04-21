@@ -107,6 +107,10 @@ struct MVMStringConsts {
     MVMString *boolify_boxed_str_with_zero_false;
     MVMString *boolify_iter;
     MVMString *boolify_using_elems;
+    MVMString *variadic;
+    MVMString *pty;
+    MVMString *pty_cols;
+    MVMString *pty_rows;
 };
 
 struct MVMEventSubscriptions {

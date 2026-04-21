@@ -118,6 +118,7 @@ static void cleanup_all(ReaderState *rs) {
 MVM_STATIC_INLINE void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
     if (pos + size > rs->read_limit) {
         cleanup_all(rs);
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
     }
 }
@@ -284,6 +285,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             MVM_free_null(cu_body->scs);
             MVM_free_null(cu_body->scs_to_resolve);
             MVM_free_null(cu_body->sc_handle_idxs);
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
         cu_body->sc_handle_idxs[i] = sh_idx;
@@ -293,6 +295,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             MVM_free_null(cu_body->scs);
             MVM_free_null(cu_body->scs_to_resolve);
             MVM_free_null(cu_body->sc_handle_idxs);
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_str_hash_key_throw_invalid(tc, handle);
         }
 
@@ -471,6 +474,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
         cleanup_all(rs);
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc, "Bytecode file must have at least one frame");
     }
     frames = MVM_malloc(sizeof(MVMStaticFrame *) * rs->expected_frames);
@@ -497,11 +501,13 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMuint32 bytecode_size = rs->bytecode_size;
             cleanup_all(rs);
             MVM_free(frames);
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, bytecode_size);
         }
         if (bytecode_pos + bytecode_size > rs->bytecode_size) {
             cleanup_all(rs);
             MVM_free(frames);
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc, "Frame bytecode overflows bytecode stream");
         }
         static_frame_body->bytecode      = rs->bytecode_seg + bytecode_pos;
@@ -526,6 +532,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             if (annot_offset + num_annotations * 12 > rs->annotation_size) {
                 cleanup_all(rs);
                 MVM_free(frames);
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
             static_frame_body->annotations_data = rs->annotation_seg + annot_offset;
@@ -587,6 +594,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             else {
                 cleanup_all(rs);
                 MVM_free(frames);
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc, "Invalid frame outer index; cannot fixup");
             }
         }
@@ -819,6 +827,7 @@ MVM_NO_RETURN static void report_deserialize_callsites_violation(MVMThreadContex
         }
     }
     MVM_free(callsites);
+    MVM_gc_allocate_gen2_default_clear(tc);
     MVM_exception_throw_adhoc(tc, "%s, violated by arg %d in callsite %d",
                               violation, j, i);
 }
@@ -951,11 +960,12 @@ static void create_code_objects(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     ReaderState *rs;
     MVMCompUnitBody *cu_body = &cu->body;
-    /* Allocate directly in generation 2 so the object is not moving around. */
-    MVM_gc_allocate_gen2_default_set(tc);
 
     /* Dissect the bytecode into its parts. */
     rs = dissect_bytecode(tc, cu);
+
+    /* Allocate directly in generation 2 so the object is not moving around. */
+    MVM_gc_allocate_gen2_default_set(tc);
 
     /* Allocate space for the strings heap; we deserialize it lazily. */
     cu_body->strings = MVM_calloc(rs->expected_strings, sizeof(MVMString *));
@@ -988,6 +998,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     if (rs->hll_str_idx > rs->expected_strings) {
         MVM_free(cu_body->string_heap_fast_table);
         MVM_free(cu_body->strings);
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc, "Unpacking bytecode: HLL name string index out of range: %d > %d", rs->hll_str_idx, rs->expected_strings);
     }
 

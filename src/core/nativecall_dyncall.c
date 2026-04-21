@@ -467,7 +467,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16    i;
 
     /* Get native call body, so we can locate the call info. Read out all we
-     * shall need, since later we may allocate a result and and move it. */
+     * shall need, since later we may allocate a result and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
         MVMROOT3(tc, site, args, res_type) {
@@ -480,6 +480,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
     void     *ptr         = NULL;
+    MVMObject **arg_info  = body->arg_info;
 
     unsigned int interval_id;
     DCCallVM *vm;
@@ -541,7 +542,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                         MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                         /* Allocate a full byte aligned area where the C++ structure fits into. */
                         ptr    = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                        result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        MVMROOT2(tc, args, res_type) {
+                            result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                        }
 
                         dcArgPointer(vm, ptr);
                     }
@@ -576,7 +579,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_CALLBACK: {
                 if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                     MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
-                dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]));
+                dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, arg_info[i]));
                 break;
             }
             case MVM_NATIVECALL_ARG_UCHAR:
@@ -884,7 +887,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16    i;
 
     /* Get native call body, so we can locate the call info. Read out all we
-     * shall need, since later we may allocate a result and and move it. */
+     * shall need, since later we may allocate a result and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
         MVMROOT2(tc, site, res_type) {
@@ -892,25 +895,53 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         }
         body = MVM_nativecall_get_nc_body(tc, site);
     }
-    MVMint16  num_args    = body->num_args;
-    MVMint16 *arg_types   = body->arg_types;
+    MVMint16  num_fixed_args  = body->num_args;
+    MVMuint16  num_args    = args.callsite->num_pos - 1;
+    MVMuint64 variadic_rw_bitfield;
+
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
     void     *ptr         = NULL;
+    MVMObject **arg_info  = body->arg_info;
+    MVMuint8 is_variadic  = body->variadic;
 
     unsigned int interval_id;
     DCCallVM *vm;
 
     /* Create and set up call VM. */
     vm = dcNewCallVM(8192);
-    dcMode(vm, body->convention);
-    dcReset(vm);
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
     MVM_telemetry_interval_annotate((intptr_t)entry_point, interval_id, "nc entrypoint");
 
+    MVMint16 *arg_types;
+    if (is_variadic) {
+        variadic_rw_bitfield = MVM_repr_get_uint(tc, args.source[args.map[num_args]].o);
+        num_args--;
+
+        arg_types = MVM_malloc(sizeof(MVMint16) * num_args);
+        for (i = 0; i < num_fixed_args; i++)
+            arg_types[i] = body->arg_types[i];
+        MVM_nativecall_fill_var_arg_types(tc, args, variadic_rw_bitfield, arg_types, i, num_args, interval_id);
+
+        dcMode(vm, DC_CALL_C_ELLIPSIS);
+    }
+    else {
+        arg_types = body->arg_types;
+        dcMode(vm, body->convention);
+    }
+
+    /* We don't bother rooting the correct pointer and restoring the body
+     * after a GC happens. Null it out here so we don't accidentally use it */
+    body = NULL;
+
+    dcReset(vm);
+
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
+        if (i == num_fixed_args)
+            dcMode(vm, DC_CALL_C_ELLIPSIS_VARARGS);
+
         if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_OBJ) {
             MVMObject *value = args.source[args.map[i + 1]].o;
             switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
@@ -959,7 +990,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                             MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)STABLE(res_type)->REPR_data;
                             /* Allocate a full byte aligned area where the C++ structure fits into. */
                             ptr    = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
-                            result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                            MVMROOT2(tc, args, res_type) {
+                                result = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
+                            }
 
                             dcArgPointer(vm, ptr);
                         }
@@ -994,7 +1027,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_CALLBACK: {
                     if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                         MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
-                    dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]));
+                    dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, arg_info[i]));
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UCHAR:
@@ -1294,6 +1327,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
 
     /* Free any memory that we need to. */
+    if (is_variadic)
+        MVM_free(arg_types);
+
     if (free_strs)
         for (i = 0; i < num_strs; i++)
 #ifdef MVM_USE_MIMALLOC

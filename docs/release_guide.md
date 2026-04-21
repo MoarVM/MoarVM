@@ -30,6 +30,12 @@ be made, they should be numbered as `2014.01`**.1**, `2014.01`**.2**, etc.
    **NOTE** - Many recent release branches have used an extra trailing 0.
    This breaks step 8 - do not use the trailing 0.
 
+4.5 If you have any local modifications to 3rdparty/ that you did not intend, you can reset them
+   to avoid committing them as part of the branch with:
+
+   git submodule deinit -f .
+   git submodule update --init
+
 5. Update the `docs/ChangeLog` file with any significant changes since the previous release.
    To do so, write down commits from the previous release merge commit to latest ones (using
    Github interface or git's CLI). Changes are split into categories, usually to konw
@@ -43,7 +49,8 @@ be made, they should be numbered as `2014.01`**.1**, `2014.01`**.2**, etc.
 7. Commit the changes.  Typically the message is just "Update changelog and
    version".
 
-8. Run `make release VERSION=2014.01`, substituting the correct version.
+8. Run `make release VERSION=2014.01`, substituting the correct version. You may have
+   to run `perl Configure.pl` first to generate a makefile if this is a fresh clone.
 
 Note:
 the version here must match the branch name or this command errors out. However, this means
@@ -126,7 +133,7 @@ but recreate it with the correct internal folder name so you can follow the rema
     pushes.  Once it appears you have to add the release assets (the tarball and
     the sig file) by hand.  If need be the old way should still work, which is available in `tools/releasable/github-release.p6`:
 
-        raku github-release.p6 --repo=MoarVM/MoarVM --tag=2014.01 --token=... --asset=MoarVM-2014.01.tar.gz --asset=MoarVM-2014.01.tar.gz.asc
+        raku github-release.p6 --repo=MoarVM/MoarVM --tag=2014.01 --token=$(cat ~/.ghtoken-raku-release) --asset=MoarVM-2014.01.tar.gz --asset=MoarVM-2014.01.tar.gz.asc
 
     but the asset upload is broken so still have to get those up by hand.
 
