@@ -1,0 +1,7 @@
+#define MVM_BB_COVERAGE_DUMP_FIRST_EDGE_HIT 4
+#define MVM_BB_COVERAGE_DUMP_BB_IDS 8
+#define MVM_BB_COVERAGE_DUMP_BB_LINENOS 32
+#define MVM_BB_COVERAGE_NFA_FEEDBACK 128
+#define MVM_BB_COVERAGE_BACKTRACE_ON_SELECTED_EDGES 1024
+
+void MVM_edge_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *static_frame);

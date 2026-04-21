@@ -8,6 +8,10 @@
 #define snprintf _snprintf
 #endif
 
+MVMuint8 *__mvm_afl_trace_edges = NULL;
+MVMuint8 *__mvm_afl_trace_edges_pristine = NULL;
+MVMuint16 *__mvm_last_edge_seen = NULL;
+
 #ifndef _WIN32
 #  include <unistd.h>
 #else
@@ -444,6 +448,34 @@ MVMInstance * MVM_vm_create_instance(void) {
     }
     else {
         instance->cross_thread_write_logging = 0;
+    }
+
+    char *afl_edge_coverage = getenv("MVM_AFL_EDGE_COVERAGE");
+    if (afl_edge_coverage) {
+        instance->afl_edge_coverage = atol(afl_edge_coverage);
+        instance->instrumentation_level++;
+
+        char *dataptr = getenv("MVM_AFL_TRACE_EDGES");
+        if (dataptr) {
+            char *end_of_int = NULL;
+
+            __mvm_afl_trace_edges = MVM_calloc(65536, 4);
+            __mvm_afl_trace_edges_pristine = MVM_calloc(65536, 4);
+            errno = 0;
+            for (;;) {
+                long res = strtol(dataptr, &end_of_int, 10);
+                if (dataptr == end_of_int) { break; }
+                if (errno) { break; }
+                if (res >= 0 && res < 65536 * 4) {
+                    __mvm_afl_trace_edges[res] = 1;
+                    __mvm_afl_trace_edges_pristine[res] = 1;
+                }
+                dataptr = end_of_int;
+            }
+
+            instance->afl_edge_coverage |= MVM_BB_COVERAGE_BACKTRACE_ON_SELECTED_EDGES;
+            __mvm_last_edge_seen = MVM_calloc(4 * 65536, sizeof(MVMuint16));
+        }
     }
 
     char *coverage_log = getenv("MVM_COVERAGE_LOG");

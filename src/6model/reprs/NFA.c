@@ -1,5 +1,12 @@
 #include "moar.h"
 
+#include "rapidhash/rapidhash.h"
+
+#if __AFL_COMPILER
+extern unsigned char *__afl_area_ptr;
+extern unsigned int   __afl_cov_map_size;
+#endif
+
 /* This representation's function pointer table. */
 static const MVMREPROps NFA_this_repr;
 
@@ -590,6 +597,11 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
      * against this so we don't init for the empty string. */
     if (target->body.num_graphs) MVM_string_gi_cached_init(tc, &gic, target, 0);
 
+#if __AFL_COMPILER
+    MVMuint8 do_afl_coverage_feedback = (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_NFA_FEEDBACK) && !tc->suppress_coverage;
+    MVMuint64 nfa_object_base_edge_hash = 0;
+#endif
+
     while (numnext && offset <= eos) {
         /* Swap next and current */
         MVMuint32 *temp = curst;
@@ -627,6 +639,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
              * an entry at index 0 for the fates. That means that in order to
              * access nfa->states, we have to use st - 1. */
             MVMint64 st = curst[--numcur];
+
+#if __AFL_COMPILER
+            MVMint32 numnext_before = numnext;
+#endif
 
             /* There is not really a reason for a number above num_states to
              * get into the curst stack, but better to throw than to crash. */
@@ -733,7 +749,41 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     switch (act) {
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
                             const MVMGrapheme32 arg = edge_info[i].arg.g;
-                            if (MVM_string_gi_cached_get_grapheme(tc, &gic, offset) == arg) {
+                            const MVMGrapheme32 gotten = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
+                            #if __AFL_COMPILER
+                            if (do_afl_coverage_feedback) {
+                                if (nfa_object_base_edge_hash == 0) {
+                                    // yolo, we just hash based on all the state's outgoing edge numbers
+                                    // stolen from further below
+                                    nfa_object_base_edge_hash = rapidhash(nfa->num_state_edges, sizeof(MVMint64) * nfa->num_states);
+                                }
+                                MVMint64 st_and_target[2] = {st, i};
+                                MVMuint64 base_state_hash = rapidhash_withSeed(st_and_target, sizeof(st_and_target), nfa_object_base_edge_hash);
+                                MVMuint64 part_hash = base_state_hash;
+                                const MVMint32 distances[5] = {4096, 256, 64, 16, 4};
+                                if (MVM_UNLIKELY(nfadeb)) {
+                                    fprintf(stderr, "(LLspcov %d - %d ", gotten, arg);
+                                }
+                                for (MVMint8 di = 0; di < 5; di++) {
+                                    if (abs(gotten - arg) < distances[di]) {
+                                        part_hash = rapidhash_withSeed(&distances[di], sizeof(MVMint32), part_hash);
+                                        MVMuint64 wrapped = part_hash % __afl_cov_map_size;
+                                        MVMuint8 *map_pos = &__afl_area_ptr[wrapped];
+                                        *map_pos = *map_pos + 1 == 0 ? 255 : *map_pos + 1;
+                                        if (MVM_UNLIKELY(nfadeb)) {
+                                            fprintf(stderr, "%lx, ", wrapped);
+                                        }
+                                    }
+                                    else {
+                                        break;
+                                    }
+                                }
+                                if (MVM_UNLIKELY(nfadeb)) {
+                                    fprintf(stderr, ")");
+                                }
+                            }
+                            #endif
+                            if (gotten == arg) {
                                 MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
                                 /* Fill up longlit array with zeroes if
@@ -748,7 +798,41 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         }
                         case MVM_NFA_EDGE_CODEPOINT: {
                             const MVMGrapheme32 arg = edge_info[i].arg.g;
-                            if (MVM_string_gi_cached_get_grapheme(tc, &gic, offset) == arg) {
+                            const MVMGrapheme32 gotten = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
+                            #if __AFL_COMPILER
+                            if (do_afl_coverage_feedback) {
+                                if (nfa_object_base_edge_hash == 0) {
+                                    // yolo, we just hash based on all the state's outgoing edge numbers
+                                    // stolen from further below
+                                    nfa_object_base_edge_hash = rapidhash(nfa->num_state_edges, sizeof(MVMint64) * nfa->num_states);
+                                }
+                                MVMint64 st_and_target[2] = {st, i};
+                                MVMuint64 base_state_hash = rapidhash_withSeed(st_and_target, sizeof(st_and_target), nfa_object_base_edge_hash);
+                                MVMuint64 part_hash = base_state_hash;
+                                const MVMint32 distances[5] = {4096, 256, 64, 16, 4};
+                                if (MVM_UNLIKELY(nfadeb)) {
+                                    fprintf(stderr, "(spcov %d - %d ", gotten, arg);
+                                }
+                                for (MVMint8 di = 0; di < 5; di++) {
+                                    if (abs(gotten - arg) < distances[di]) {
+                                        part_hash = rapidhash_withSeed(&distances[di], sizeof(MVMint32), part_hash);
+                                        MVMuint64 wrapped = part_hash % __afl_cov_map_size;
+                                        MVMuint8 *map_pos = &__afl_area_ptr[wrapped];
+                                        *map_pos = *map_pos + 1 == 0 ? 255 : *map_pos + 1;
+                                        if (MVM_UNLIKELY(nfadeb)) {
+                                            fprintf(stderr, "%lx, ", wrapped);
+                                        }
+                                    }
+                                    else {
+                                        break;
+                                    }
+                                }
+                                if (MVM_UNLIKELY(nfadeb)) {
+                                    fprintf(stderr, ")");
+                                }
+                            }
+                            #endif
+                            if (gotten == arg) {
                                 nextst[numnext++] = to;
                                 if (MVM_UNLIKELY(nfadeb))
                                     fprintf(stderr, "%d->%d ", (int)i, (int)to);
@@ -966,6 +1050,34 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     }
                 }
             }
+
+#if __AFL_COMPILER
+            if (do_afl_coverage_feedback && numnext_before < numnext) {
+                if (nfa_object_base_edge_hash == 0) {
+                    // yolo, we just hash based on all the state's outgoing edge numbers
+                    // TODO: check if the base edge hash is sufficiently distinctive already
+                    nfa_object_base_edge_hash = rapidhash(nfa->num_state_edges, sizeof(MVMint64) * nfa->num_states);
+                }
+                MVMuint64 base_state_hash = rapidhash_withSeed(&st, sizeof(st), nfa_object_base_edge_hash);
+                if (MVM_UNLIKELY(nfadeb)) {
+                    fprintf(stderr, "  (cov ");
+                }
+                for (MVMint32 nextidx = numnext_before; nextidx < numnext; nextidx++) {
+                    MVMuint64 next_state_hash = rapidhash_withSeed(&nextst[nextidx], sizeof(MVMuint32), nfa_object_base_edge_hash);
+                    MVMuint64 combined_id = (base_state_hash >> 1) ^ next_state_hash;
+                    MVMuint64 wrapped = combined_id % __afl_cov_map_size;
+                    MVMuint8 *map_pos = &__afl_area_ptr[wrapped];
+                    if (MVM_UNLIKELY(nfadeb)) {
+                        fprintf(stderr, "%ld, ", wrapped);
+                    }
+                    *map_pos = *map_pos + 1 == 0 ? 255 : *map_pos + 1;
+                }
+                if (MVM_UNLIKELY(nfadeb)) {
+                    fprintf(stderr, ") ");
+                }
+            }
+#endif
+
             if (MVM_UNLIKELY(nfadeb)) fprintf(stderr,"\n");
         }
 
