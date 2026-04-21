@@ -140,6 +140,21 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     MVM_callsite_mark_interns(tc, worklist, snapshot);
 
+    if (tc->instance->afl_edge_coverage_filenames_reported) {
+        MVMStrHashTable *hashtable = tc->instance->afl_edge_coverage_filenames_reported;
+        iterator = MVM_str_hash_first(tc, hashtable);
+        while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
+            /* Since the type for this hash starts with  the handle, as it
+             * has to, and the rest of the key isn't GC'd, no need for the
+             * actual struct to be pulled in here. */
+            struct MVMStrHashHandle *current
+                = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
+            add_collectable(tc, worklist, snapshot, current->key,
+                "Coverage output interned string");
+            iterator = MVM_str_hash_next_nocheck(tc, weakhash, iterator);
+        }
+    }
+
     if (worklist)
         MVM_disp_registry_mark(tc, worklist);
     else

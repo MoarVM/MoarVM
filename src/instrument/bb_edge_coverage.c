@@ -2,9 +2,48 @@
 
 #include "rapidhash/rapidhash.h"
 
+#include <stdbool.h>
+
+#include "cmp.h"
+
+typedef struct buffered_cmp_writer {
+    MVMThreadContext *tc;
+    char *buf;
+    size_t write_offs;
+    size_t size;
+} buffered_cmp_writer;
+
+static size_t cmp_buf_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
+    struct buffered_cmp_writer *buf = (struct buffered_cmp_writer*)ctx->buf;
+
+    if (buf->write_offs + limit > buf->size) {
+        fprintf(stderr, "write offs %ld + limit %ld > size %ld\n", buf->write_offs, limit, buf->size);
+        memset(buf->buf + buf->write_offs, 'X', buf->size - buf->write_offs);
+        return 0;
+    }
+
+    memcpy(buf->buf + buf->write_offs, data, limit);
+    buf->write_offs += limit;
+
+    return 1;
+}
+
+static void flush_buf(cmp_ctx_t *ctx) {
+    struct buffered_cmp_writer *buf = (struct buffered_cmp_writer*)ctx->buf;
+    fwrite(buf->buf, 1, buf->write_offs, buf->tc->instance->edge_coverage_fh);
+    buf->write_offs = 0;
+}
+
 #ifdef _WIN32
 #define snprintf _snprintf
 #endif
+
+typedef struct filename_id_entry {
+    struct MVMStrHashHandle hash_handle;
+    MVMuint64 id_for_filename;
+} filename_id_entry;
+
+#define CMP_WRITE_TYPE(typ) do { char *t = (typ); cmp_write_str(&cmp_writer, "T", 1); cmp_write_str(&cmp_writer, t, strlen(t)); } while(0)
 
 /* Taken from Linux man-pages 6.13 man page `stpncpy(3)`.
  * MSVC chokes on stpncpy while linking, even though it seems to have the
@@ -23,6 +62,9 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMuint8 should_dump = tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_IDS;
     MVMuint8 should_track_linenos = tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_LINENOS;
 
+    cmp_ctx_t cmp_writer;
+    struct buffered_cmp_writer buffered_writer = {0};
+
     MVMuint8 is_running_cmplog = !!getenv("__AFL_CMPLOG_SHM_ID");
 
     MVMuint8 has_written_frame_name = 0;
@@ -31,21 +73,44 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     MVMint64 last_filename = -1;
     MVMint64 last_line_number = -1;
+    MVMuint64 last_filename_cmp_strid = 0;
 
-    char info_buf[4096] = {0};
-    char *concat_pos = NULL;
-
-    concat_pos = stpncpy(info_buf, "BBI:", 5);
+    MVMuint64 cmp_strid_for_cu_filename = 0;
 
     if (g->sf->body.cu->body.filename) {
         char *c_filename = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.filename);
         frame_base_hash = rapidhash(c_filename, strlen(c_filename));
+
         if (should_dump) {
-            // Lower limit than the full buffer for the first part of the line
-            concat_pos = stpncpy(concat_pos, c_filename, 2048);
-            *concat_pos = ':';
-            concat_pos++;
+            buffered_writer.buf = MVM_malloc(4096);
+            buffered_writer.size = 4096;
+            buffered_writer.write_offs = 0;
+            buffered_writer.tc = tc;
+            cmp_init(&cmp_writer, &buffered_writer, NULL, NULL, cmp_buf_writer);
+
+            MVMStrHashTable *sht = tc->instance->afl_edge_coverage_filenames_reported;
+            if (!sht) {
+                tc->instance->afl_edge_coverage_filenames_reported = sht = MVM_calloc(1, sizeof(MVMStrHashTable));
+                MVM_str_hash_build(tc, sht, sizeof(struct filename_id_entry), 4096);
+            }
+
+            struct filename_id_entry *lv = MVM_str_hash_lvalue_fetch(tc, sht, g->sf->body.cu->body.filename);
+            if (lv->hash_handle.key == NULL) {
+                lv->hash_handle.key = g->sf->body.cu->body.filename;
+                cmp_strid_for_cu_filename = lv->id_for_filename = MVM_str_hash_count(tc, sht) + 0xfa000000;
+                cmp_write_map(&cmp_writer, 3);
+                CMP_WRITE_TYPE("STR");
+                cmp_write_str(&cmp_writer, "id", 2);
+                cmp_write_integer(&cmp_writer, cmp_strid_for_cu_filename);
+                cmp_write_str(&cmp_writer, "str", 3);
+                cmp_write_str(&cmp_writer, c_filename, strlen(c_filename));
+                flush_buf(&cmp_writer);
+            }
+            else {
+                cmp_strid_for_cu_filename = lv->id_for_filename;
+            }
         }
+
         MVM_free(c_filename);
     }
     else {
@@ -56,12 +121,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     char *c_cuid = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
     frame_base_hash = rapidhash_withSeed(c_cuid, strlen(c_cuid), frame_base_hash);
-    if (should_dump) {
-        concat_pos = stpncpy(concat_pos, c_cuid, 2048 - (concat_pos - info_buf));
-        *concat_pos = ':';
-        concat_pos++;
-    }
-    MVM_free(c_cuid);
 
     MVMBytecodeAnnotation *bbba = NULL;
 
@@ -88,7 +147,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             continue;
         }
 
-        log_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        log_ins              = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
         log_ins->info        = MVM_op_get_op(MVM_OP_bb_entered);
         log_ins->operands    = MVM_spesh_alloc(tc, g, 1 * sizeof(MVMSpeshOperand));
 
@@ -96,16 +155,63 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         log_ins->operands[0].lit_i64 = bb_id;
 
         if (should_dump) {
-            snprintf(concat_pos, 4096 - (concat_pos - info_buf), "%d:%lx\n", bb->idx, bb_id);
-            fputs(info_buf, stderr);
+            cmp_write_map(&cmp_writer, 5 + !!bb->num_succ + !!bb->num_handler_succ + !!bb->num_pred);
+
+            CMP_WRITE_TYPE("BBIDX");
+            cmp_write_str(&cmp_writer, "cu", 2);
+            cmp_write_integer(&cmp_writer, cmp_strid_for_cu_filename);
+
+            cmp_write_str(&cmp_writer, "cuid", 4);
+            cmp_write_str(&cmp_writer, c_cuid, strlen(c_cuid));
+
+            cmp_write_str(&cmp_writer, "idx", 3);
+            cmp_write_integer(&cmp_writer, bb->idx);
+
+            cmp_write_str(&cmp_writer, "bbid", 4);
+            cmp_write_uinteger(&cmp_writer, bb_id);
+
+            if (bb->num_succ) {
+                cmp_write_str(&cmp_writer, "su", 2);
+                cmp_write_array(&cmp_writer, bb->num_succ);
+                for (MVMuint32 succid = 0; succid < bb->num_succ; succid++) {
+                    cmp_write_uinteger(&cmp_writer, bb->succ[succid]->idx);
+                }
+            }
+
+            if (bb->num_handler_succ) {
+                cmp_write_str(&cmp_writer, "hsu", 3);
+                cmp_write_array(&cmp_writer, bb->num_handler_succ);
+                for (MVMuint32 succid = 0; succid < bb->num_handler_succ; succid++) {
+                    cmp_write_uinteger(&cmp_writer, bb->handler_succ[succid]->idx);
+                }
+            }
+
+            if (bb->num_pred) {
+                cmp_write_str(&cmp_writer, "pr", 2);
+                cmp_write_array(&cmp_writer, bb->num_pred);
+                for (MVMuint32 predid = 0; predid < bb->num_pred; predid++) {
+                    cmp_write_uinteger(&cmp_writer, bb->pred[predid]->idx);
+                }
+            }
+
+            flush_buf(&cmp_writer);
 
             if (!has_written_frame_name && g->sf->body.name && MVM_string_graphs(tc, g->sf->body.name)) {
                 has_written_frame_name = 1;
                 char *encoded = MVM_string_utf8_encode_C_string(tc, g->sf->body.name);
-                char buffer[4096];
-                snprintf(buffer, 4096, "FN:%lx:%s\n", bb_id, encoded);
-                fputs(buffer, stderr);
+
+                cmp_write_map(&cmp_writer, 3);
+
+                CMP_WRITE_TYPE("FNAME");
+
+                cmp_write_str(&cmp_writer, "id", 2);
+                cmp_write_uinteger(&cmp_writer, bb_id);
+                cmp_write_str(&cmp_writer, "str", 3);
+                cmp_write_str(&cmp_writer, encoded, strlen(encoded));
+
                 MVM_free(encoded);
+
+                flush_buf(&cmp_writer);
             }
 
         }
@@ -113,6 +219,10 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_spesh_manipulate_insert_ins(tc, bb, ins, log_ins);
 
         MVMSpeshIns *look_for_cmp = ins->next;
+
+        MVMuint8 found_annotation = 0;
+        MVMuint32 fnshi = 0;
+        MVMuint32 linenum = 0;
 
         if (should_track_linenos) {
             if (bbba) {
@@ -124,18 +234,13 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 bbba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, bb->initial_pc);
             }
 
-            if (bbba && bbba->filename_string_heap_index != 0 && (bbba->line_number != last_line_number || bbba->filename_string_heap_index != last_filename)) {
-                MVMString *fn = MVM_cu_string(tc, g->sf->body.cu, bbba->filename_string_heap_index);
-                char *encoded = MVM_string_utf8_encode_C_string(tc, fn);
-                char buffer[4096];
-                snprintf(buffer, 4096, "FNL:%lx:%u:%s\n", bb_id, bbba->line_number, encoded);
-                MVM_free(encoded);
-
-                fputs(buffer, stderr);
-
-                last_filename = bbba->filename_string_heap_index;
-                last_line_number = bbba->line_number;
-
+            if (bbba
+                    && bbba->filename_string_heap_index != 0
+                    && (bbba->line_number != last_line_number
+                        || bbba->filename_string_heap_index != last_filename)) {
+                found_annotation = 1;
+                fnshi = bbba->filename_string_heap_index;
+                linenum = bbba->line_number;
                 goto got_a_lineno_for_this_bb;
             }
 
@@ -145,18 +250,12 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 MVMSpeshAnn *ann = ins->annotations;
 
                 while (ann) {
-                    if (ann->type == MVM_SPESH_ANN_LINENO && ann->data.lineno.filename_string_index != last_filename && ann->data.lineno.line_number != last_line_number) {
-                        MVMString *fn = MVM_cu_string(tc, g->sf->body.cu, ann->data.lineno.filename_string_index);
-                        char *encoded = MVM_string_utf8_encode_C_string(tc, fn);
-                        char buffer[4096];
-                        snprintf(buffer, 4096, "FNL:%lx:%u:%s\n", bb_id, ann->data.lineno.line_number, encoded);
-                        MVM_free(encoded);
-
-                        fputs(buffer, stderr);
-
-                        last_filename    = ann->data.lineno.filename_string_index;
-                        last_line_number = ann->data.lineno.line_number;
-
+                    if (ann->type == MVM_SPESH_ANN_LINENO
+                            && ann->data.lineno.filename_string_index != last_filename
+                            && ann->data.lineno.line_number != last_line_number) {
+                        found_annotation = 1;
+                        fnshi = ann->data.lineno.filename_string_index;
+                        linenum = ann->data.lineno.line_number;
                         goto got_a_lineno_for_this_bb;
                     }
 
@@ -168,6 +267,46 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
 
 got_a_lineno_for_this_bb:
+        if (found_annotation) {
+            /* If the filename hasn't changed, no need to look in the hash. */
+            if (last_filename != fnshi) {
+                MVMString *fn = MVM_cu_string(tc, g->sf->body.cu, fnshi);
+
+                MVMStrHashTable *sht = tc->instance->afl_edge_coverage_filenames_reported;
+                struct filename_id_entry *lv = MVM_str_hash_lvalue_fetch(tc, sht, fn);
+                if (lv->hash_handle.key == NULL) {
+                    char *encoded = MVM_string_utf8_encode_C_string(tc, fn);
+
+                    lv->hash_handle.key = fn;
+                    last_filename_cmp_strid = lv->id_for_filename = MVM_str_hash_count(tc, sht) + 0xcd000000;
+                    cmp_write_map(&cmp_writer, 3);
+                    CMP_WRITE_TYPE("STR");
+                    cmp_write_str(&cmp_writer, "id", 2);
+                    cmp_write_integer(&cmp_writer, last_filename_cmp_strid);
+                    cmp_write_str(&cmp_writer, "str", 3);
+                    cmp_write_str(&cmp_writer, encoded, strlen(encoded));
+
+                    MVM_free(encoded);
+                    flush_buf(&cmp_writer);
+                }
+                else {
+                    last_filename_cmp_strid = lv->id_for_filename;
+                }
+            }
+
+            cmp_write_map(&cmp_writer, 4);
+            CMP_WRITE_TYPE("LINE");
+            cmp_write_str(&cmp_writer, "bbid", 4);
+            cmp_write_uinteger(&cmp_writer, bb_id);
+            cmp_write_str(&cmp_writer, "fnm", 3);
+            cmp_write_uinteger(&cmp_writer, last_filename_cmp_strid);
+            cmp_write_str(&cmp_writer, "lnum", 4);
+            cmp_write_uinteger(&cmp_writer, linenum);
+            flush_buf(&cmp_writer);
+
+            last_filename = fnshi;
+            last_line_number = linenum;
+        }
 
         if (is_running_cmplog && look_for_cmp) {
             MVMuint64 caller_id = bb_id;
@@ -238,6 +377,11 @@ got_a_lineno_for_this_bb:
 
         bb = bb->linear_next;
     }
+
+    if (buffered_writer.size)
+        MVM_free(buffered_writer.buf);
+
+    MVM_free(c_cuid);
 }
 
 /* Adds instrumented version of the unspecialized bytecode. */
@@ -245,6 +389,10 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshCode  *sc;
     MVMStaticFrameInstrumentation *ins;
     MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1, 0);
+    /* If we don't dump the preds of BBs, we don't need to compute them here */
+    if (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_IDS) {
+        MVM_spesh_graph_recompute_dominance(tc, sg);
+    }
     instrument_graph(tc, sg);
     sc = MVM_spesh_codegen(tc, sg);
     ins = sf->body.instrumentation;
@@ -515,15 +663,44 @@ void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint64 bb_id)
         if (__mvm_last_edge_seen) __mvm_last_edge_seen[wrapped_pos] = (MVMuint32)(combined_id << 32);
         if (MVM_UNLIKELY(is_new)) {
             MVMuint8 dumped = 0;
+
+            cmp_ctx_t cmp_writer;
+            struct buffered_cmp_writer buffered_writer = {0};
+            char cmpbuffer[2048];
+            buffered_writer.buf = cmpbuffer;
+            buffered_writer.size = 2048;
+            buffered_writer.tc = tc;
+            cmp_init(&cmp_writer, &buffered_writer, NULL, NULL, cmp_buf_writer);
+
             if ((tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_BACKTRACE_ON_SELECTED_EDGES) && __mvm_afl_trace_edges[wrapped_pos]) {
-                if (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_FIRST_EDGE_HIT)
-                    fprintf(stderr, "CHIT:%lx:%lx:%lx\n", tc->previous_bb_id, bb_id, wrapped_pos);
+                if (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_FIRST_EDGE_HIT) {
+                    cmp_write_map(&cmp_writer, 4);
+                    CMP_WRITE_TYPE("C");
+                    cmp_write_str(&cmp_writer, "p", 1);
+                    cmp_write_uinteger(&cmp_writer, tc->previous_bb_id);
+                    cmp_write_str(&cmp_writer, "i", 1);
+                    cmp_write_uinteger(&cmp_writer, bb_id);
+                    cmp_write_str(&cmp_writer, "w", 1);
+                    cmp_write_uinteger(&cmp_writer, wrapped_pos);
+                    flush_buf(&cmp_writer);
+                    //fprintf(stderr, "CHIT:%lx:%lx:%lx\n", tc->previous_bb_id, bb_id, wrapped_pos);
+                }
                 MVM_dump_backtrace(tc);
                 dumped = 1;
                 __mvm_afl_trace_edges[wrapped_pos] = 0;
             }
             if (!dumped && (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_FIRST_EDGE_HIT)) {
-                fprintf(stderr, "EHIT:%lx:%lx:%lx\n", tc->previous_bb_id, bb_id, wrapped_pos);
+                cmp_write_map(&cmp_writer, 4);
+                CMP_WRITE_TYPE("H");
+                cmp_write_str(&cmp_writer, "p", 1);
+                cmp_write_uinteger(&cmp_writer, tc->previous_bb_id);
+                cmp_write_str(&cmp_writer, "i", 1);
+                cmp_write_uinteger(&cmp_writer, bb_id);
+                cmp_write_str(&cmp_writer, "w", 1);
+                cmp_write_uinteger(&cmp_writer, wrapped_pos);
+                flush_buf(&cmp_writer);
+
+                //fprintf(stderr, "EHIT:%lx:%lx:%lx\n", tc->previous_bb_id, bb_id, wrapped_pos);
             }
         }
         tc->previous_bb_id = bb_id;
