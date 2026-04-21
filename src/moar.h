@@ -307,6 +307,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "profiler/configuration.h"
 #include "instrument/crossthreadwrite.h"
 #include "instrument/line_coverage.h"
+#include "instrument/bb_edge_coverage.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

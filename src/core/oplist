@@ -1168,3 +1168,10 @@ ctw_check        .s r(obj) int16
 coverage_log     .s str int32 int32 int64
 
 breakpoint       .s int32 int32 :throwish :invokish
+
+# Coverage for BB edges
+bb_entered       .s int64
+
+# Cmplog feature for coverage-guided fuzzing
+cmplog_i         .s r(int64) r(int64) int64 int16
+cmplog_atkey     .s r(obj) r(str) int64
