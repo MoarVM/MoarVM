@@ -8,9 +8,9 @@
 #define snprintf _snprintf
 #endif
 
-MVMuint8 *__mvm_afl_trace_edges = NULL;
-MVMuint8 *__mvm_afl_trace_edges_pristine = NULL;
-MVMuint16 *__mvm_last_edge_seen = NULL;
+extern MVMuint8 *__mvm_afl_trace_edges;
+extern MVMuint8 *__mvm_afl_trace_edges_pristine;
+extern MVMuint16 *__mvm_last_edge_seen;
 
 #ifndef _WIN32
 #  include <unistd.h>

@@ -8,10 +8,10 @@ __AFL_FUZZ_INIT();
 
 int __afl_persistent_loop(int);
 extern MVMuint32 __afl_already_initialized_forkserver;
+#endif
 
 extern MVMuint8 *__mvm_afl_trace_edges;
 extern MVMuint8 *__mvm_afl_trace_edges_pristine;
-#endif
 
 /* Since the boot-syscall dispatcher verifies the argument count and register
  * types, we can pull arguments out of the MVMArgs directly, without going via
