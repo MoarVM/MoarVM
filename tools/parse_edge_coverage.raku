@@ -16,6 +16,8 @@ my %frame_incoming;
 my %frame_outgoing;
 my %intra_frame_paths;
 
+my %bb_to_succ;
+
 my $rakudo_prefix = $*VM.config<prefix>;
 my $nqplib_prefix = $rakudo_prefix ~ "/share/nqp/lib";
 
@@ -30,7 +32,6 @@ my $unp-supply = Data::MessagePack::StreamingUnpacker.new(source => $inf-bits).S
 
 react whenever $unp-supply -> $entry {
     if $entry ~~ Callable { done }
-    dd $entry;
     my $typ = $entry<T>;
     if $typ eq "H" {
         # skip very first edge which comes from 0
@@ -62,6 +63,9 @@ react whenever $unp-supply -> $entry {
         my $frame = SHRT(%str_by_idx{$entry<cu>}) ~ "[" ~ $entry<cuid> ~ "]";
         %frame_to_ids{$frame}.push($($entry<idx>, $entry<bbid>));
         %id_to_frame{$entry<bbid>} = $($frame, $entry<idx>);
+        if $entry<su> {
+            %bb_to_succ{$frame}{$entry<idx>} = $entry<su>;
+        }
     }
     elsif $typ eq "LINE" {
         # bits used to be  FNL:bb_id:linenum:filename
@@ -146,17 +150,26 @@ for %intra_frame_paths.sort({ .key.split("[").head, +.key.split("[").tail.chop }
         for @$_ {
             my $frame_with_name = .[0] ~ ("    \"&htmlify($_)\"" with %id_to_fname{.[0]});
             $frame_with_name = linky_frame(.[0], $frame_with_name);
-            @bb_list.push($( (+.[2], "X"), .[2].Int.fmt("% 3s"), "      ", "->", $frame_with_name, "BB " ~ .[1]));
+            @bb_list.push($( (+.[2], "X"), .[2].Int.fmt("% 3s"), "      ", " ->", $frame_with_name, "BB " ~ .[1]));
         }
     }
     with %frame_incoming{.key} {
         for @$_ {
             my $frame_with_name = .[0] ~ ("    \"&htmlify($_)\"" with %id_to_fname{.[0]});
             $frame_with_name = linky_frame(.[0], $frame_with_name);
-            @bb_list.push($((+.[2], "D"), .[2].Int.fmt("% 3s"), "      ", "<-", $frame_with_name, "BB " ~ .[1]));
+            @bb_list.push($((+.[2], "D"), .[2].Int.fmt("% 3s"), "      ", "<- ", $frame_with_name, "BB " ~ .[1]));
         }
     }
-    @bb_list.push(|.value.list.map({ $((+.[0], "M"), .[0].Int.fmt("% 3s"), "->", .[1].fmt("% 3s")) }));
+    @bb_list.push(|.value.list.map({ $((+.[0], "M"), .[0].Int.fmt("% 3s"), " ->", .[1].fmt("% 3s")) }));
+    my $conns = .value;
+    my @allconns;
+    for %bb_to_succ{.key}.list -> $succpair {
+        @allconns.push($_) for $succpair.value.map({ $( $succpair.key, $_ ) });
+    }
+    for @allconns.grep(-> $cand { $conns.list.map(-> $exist { $exist[0] == $cand[0] && $exist[1] == $cand[1] }).none })
+            .map({ $( (+.[0], "m"), .[0].Int.fmt("% 3s"), " -x", .[1].Int.fmt("% 3s")) }) {
+        @bb_list.push($_);
+    }
     for @bb_list.sort.unique {
         say "    $_.skip(1)";
     }
