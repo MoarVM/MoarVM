@@ -6,6 +6,18 @@
 #define snprintf _snprintf
 #endif
 
+/* Taken from Linux man-pages 6.13 man page `stpncpy(3)`.
+ * MSVC chokes on stpncpy while linking, even though it seems to have the
+ * function prototype in its headers? */
+char *
+stpncpy(char *restrict dst, const char *restrict src, size_t dsize)
+{
+    size_t  dlen;
+
+    dlen = strnlen(src, dsize);
+    return memset(mempcpy(dst, src, dlen), 0, dsize - dlen);
+}
+
 static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
     MVMuint8 should_dump = tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_IDS;
