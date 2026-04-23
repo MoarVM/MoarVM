@@ -92,6 +92,12 @@ proceed.
 
 ### Changes
 
+#### Version 1.5
+
+ * Add support for any-break breakpoints.
+ * Changed the Loaded Files Request to create any-break breakpoints
+   when the `suspend` option was passed instead of instantly breaking.
+
 #### Version 1.4
 
  * Add Loaded Files Request (50) and File Loaded Notification (51).

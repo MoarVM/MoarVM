@@ -2,7 +2,7 @@
 #include <string.h>
 
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
-#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 4
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 5
 
 #include <stdbool.h>
 
