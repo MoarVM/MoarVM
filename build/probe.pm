@@ -967,6 +967,60 @@ int main(int argc, char **argv) {
 EOT
 }
 
+sub musttail {
+    my ($config) = @_;
+    return compile_probe_first_of(config => $config,
+                                  probing => 'musttail return attribute',
+                                  key => 'musttail',
+                                  fallback => '(none found)',
+                                  options => [qw([[clang::musttail]] [[gnu::musttail]] [[musttail]] __attribute__((musttail)))],
+                                  code => <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+
+float test_two(int one, char two, float three) {
+    return one + two + three;
+}
+float test_one(int one, char two, float three) {
+    PROBE_MACRO return test_two(one, two, three);
+}
+
+int main(int argc, char **argv) {
+    if (test_one(1,2,3.0f) == 1 + 2 + 3.0f) {
+        return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
+}
+EOT
+}
+
+sub preserve_none {
+    my ($config) = @_;
+    return compile_probe_first_of(config => $config,
+                                  probing => 'preserve_none call convention attribute',
+                                  key => 'preserve_none',
+                                  fallback => '(none found)',
+                                  options => [qw(__attribute__((preserve_none)) __preserve_none)],
+                                  code => <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+
+static PROBE_MACRO float test_two(int one, char two, float three) {
+    return one + two + three;
+}
+static PROBE_MACRO float test_one(int one, char two, float three) {
+    return test_two(one, two, three);
+}
+
+int main(int argc, char **argv) {
+    if (test_one(1,2,3.0f) == 1 + 2 + 3.0f) {
+        return EXIT_SUCCESS;
+    }
+    return EXIT_FAILURE;
+}
+EOT
+}
+
 sub check_fn_malloc_trim {
     my ($config) = @_;
     # Seems that this was written with a plan to be generic, but so far nothing

@@ -675,6 +675,8 @@ if ($^O eq 'aix' && $config{ptr_size} == 4) {
 }
 
 build::probe::C_type_bool(\%config, \%defaults);
+build::probe::musttail(\%config, \%defaults);
+build::probe::preserve_none(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
 build::probe::pthread_setname_np(\%config, \%defaults);
@@ -682,6 +684,24 @@ build::probe::check_fn_malloc_trim(\%config, \%defaults);
 build::probe::rdtscp(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';
+
+my $interpstyle;
+
+if ($config{has_musttail}) {
+  $config{use_cgoto} = 0;
+  $config{use_musttail} = 1;
+  $interpstyle = "tail-called functions";
+}
+elsif ($config{cancgoto}) {
+  $config{use_cgoto} = 1;
+  $config{use_musttail} = 0;
+  $interpstyle = "computed goto";
+}
+else {
+  $config{use_cgoto} = 0;
+  $config{use_musttail} = 0;
+  $interpstyle = "switched loop";
+}
 
 # dump configuration
 print "\n", <<TERM, "\n";
@@ -691,6 +711,7 @@ print "\n", <<TERM, "\n";
         link: $config{ld} $config{ldflags}
         libs: $config{ldlibs}
 
+ interpreter: $interpstyle
   byte order: $order
 TERM
 
