@@ -1,3 +1,8 @@
+New in 2026.04
+
++ utf8-c8: don't write past end of result buffer (#1994) [ [c7365e733]
++ Clear gen2 default alloc flag when reporting erroneous bytecode (#1998) [6b1fbd6cc]
+
 New in 2026.03
 
 + Bump mimalloc to v2.2.7
