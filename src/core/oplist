@@ -1092,6 +1092,14 @@ sp_mul_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
 
 sp_bool_I        .s w(int64) r(obj) int16 :pure
 
+# Op contains a constant target string's length and hash code so that the
+# comparison string may not need to be loaded into the cpu cache.
+sp_eq_s          .s w(int64) r(obj) r(obj) int16 int64 :pure
+
+# Like sp_eq_s, but also contains strings up to 8 MVMGrapheme8
+# right there in the instruction instead of a register.
+sp_eq_s_insitu   .s w(int64) r(obj) int16 int64 int64 :pure
+
 # Run bytecode. This is what a dispatch op with a bytecode terminal
 # specializes as. The r(obj) register is the bytecode handle. The
 # uint64 is a pointer to the MVMCallsite (they never move and we know

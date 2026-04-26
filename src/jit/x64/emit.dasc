@@ -2551,6 +2551,112 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
+    case MVM_OP_sp_eq_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 b = ins->operands[2].reg.orig;
+        MVMuint16 length = (MVMuint16)ins->operands[3].lit_i16;
+        MVMuint64 hashcode = ins->operands[4].lit_i64;
+
+        /* First check for null or not-concrete string */
+        | mov TMP6, qword WORK[a];
+        | test TMP6, TMP6;
+        | jz >1;
+        | test_type_object TMP6;
+        | jz >2;
+        |1:
+        | throw_adhoc "eq_s requires a concrete string";
+        |2:
+        | cmp dword STRING:TMP6->body.num_graphs, (MVMuint32)length;
+        /* length mismatch means no match */
+        | jne >8;
+        | mov TMP3, STRING:TMP6->body.cached_hash_code;
+        | test TMP3, TMP3
+        /* zero cached hash code means skip the hash check */
+        | jz >4;
+        | mov64 TMP4, hashcode;
+        | cmp TMP3, TMP4;
+        /* valid hash check mismatch means no match. */
+        | jne >8;
+        |4:
+        /* No definite mismatch yet means we have to call
+         * the full string comparison function. */
+        // MVM_string_substrings_equal_nocheck(tc, check, 0, target_len, GET_REG(cur_op, 4).s, 0);
+
+        | mov ARG1, TC;
+        | mov ARG2, TMP6;
+        | mov ARG3, 0;
+
+        | mov ARG4, TMP6;
+        | mov TMP3d, STRING:ARG4->body.num_graphs;
+        | movsxd ARG4, TMP3d;
+
+        | mov TMP5, qword WORK[b];
+        | mov ARG5, TMP5;
+        | mov ARG6, 0;
+
+        | callp &MVM_string_substrings_equal_nocheck
+
+        | mov qword WORK[dst], RV;
+        | jmp >9;
+
+        |8:
+        | mov qword WORK[dst], 0;
+        |9:
+
+        break;
+    }
+    case MVM_OP_sp_eq_s_insitu: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMuint16 length = (MVMuint16)ins->operands[2].lit_i16;
+        MVMuint64 hashcode = ins->operands[3].lit_i64;
+        MVMuint64 in_situ = ins->operands[4].lit_i64;
+
+        /* First check for null or not-concrete string */
+        | mov TMP6, qword WORK[a];
+        | test TMP6, TMP6;
+        | jz >1;
+        | test_type_object TMP6;
+        | jz >2;
+        |1:
+        | throw_adhoc "eq_s requires a concrete string";
+        |2:
+        | cmp dword STRING:TMP6->body.num_graphs, (MVMuint32)length;
+        /* length mismatch means no match */
+        | jne >8;
+        | mov TMP3, qword STRING:TMP6->body.cached_hash_code;
+        | test TMP3, TMP3
+        /* zero cached hash code means skip the hash check */
+        | jz >4;
+        | mov64 TMP4, hashcode;
+        | cmp TMP3, TMP4;
+        /* valid hash check mismatch means no match. */
+        | jne >8;
+        |4:
+        /* No definite mismatch yet means we have to call
+         * the full string comparison function. */
+        // MVM_string_substring_equal_insitu8_nocheck(tc, check, 0, target_len, GET_UI64(cur_op, 14));
+
+        | mov ARG1, TC;
+        | mov ARG2, TMP6;
+        | mov ARG3, 0;
+        | mov ARG4, qword WORK[a];
+        | mov TMP3d, STRING:ARG4->body.num_graphs;
+        | movsxd ARG4, TMP3d;
+        | mov64 ARG5, in_situ;
+
+        | callp &MVM_string_substring_equal_insitu8_nocheck;
+
+        | mov qword WORK[dst], RV;
+        | jmp >9;
+
+        |8:
+        | mov qword WORK[dst], 0;
+        |9:
+
+        break;
+    }
     case MVM_OP_getcomp: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 comp = ins->operands[1].reg.orig;

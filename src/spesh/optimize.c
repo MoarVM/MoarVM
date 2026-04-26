@@ -980,10 +980,15 @@ static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
         target_facts->value.i = ins->operands[1].lit_i16;
     }
     else if (a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE || b_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        MVMuint8 was_a_known = !!(a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE);
         MVMSpeshFacts *the_facts =
-            a_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE ? a_facts : b_facts;
+            was_a_known ? a_facts : b_facts;
+        MVMSpeshOperand the_operand = was_a_known ? ins->operands[2] : ins->operands[1];
+        MVMSpeshOperand other_operand = was_a_known ? ins->operands[1] : ins->operands[2];
 
-        if (MVM_string_graphs(tc, the_facts->value.s) == 0) {
+        MVMString *known_s = the_facts->value.s;
+
+        if (MVM_string_graphs(tc, known_s) == 0) {
             /* Turn this into an istrue_s or isfalse_s */
             ins->info = MVM_op_get_op(was_eq ? MVM_OP_isfalse_s : MVM_OP_istrue_s);
 
@@ -991,6 +996,40 @@ static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
             if (the_facts == a_facts)
                 ins->operands[1] = ins->operands[2];
             MVM_spesh_usages_delete(tc, g, the_facts, ins);
+        }
+        else if (was_eq && known_s->body.num_graphs && known_s->body.num_graphs < 0x10000) {
+            /* Make sure there's a cached hash code in our target string. */
+            MVM_string_compute_hash_code(tc, known_s);
+
+            if (known_s->body.num_graphs <= 8 && (known_s->body.storage_type == MVM_STRING_GRAPHEME_8 || known_s->body.storage_type == MVM_STRING_IN_SITU_8)) {
+                /* Put not just the length and cached hash code but also the
+                 * string itself in the instruction. */
+                MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
+                new_operands[0] = ins->operands[0];
+                new_operands[1] = the_operand;
+                new_operands[2].lit_i16 = known_s->body.num_graphs;
+                new_operands[3].lit_ui64 = known_s->body.cached_hash_code;
+                new_operands[4].lit_ui64 = 0;
+
+                memcpy(&new_operands[4].lit_ui64, known_s->body.storage_type == MVM_STRING_IN_SITU_8 ? known_s->body.storage.in_situ_8 : known_s->body.storage.blob_8, known_s->body.num_graphs);
+
+                ins->operands = new_operands;
+                ins->info = MVM_op_get_op(MVM_OP_sp_eq_s_insitu);
+
+                /* We are not using the constant string any more. */
+                MVM_spesh_usages_delete(tc, g, the_facts, ins);
+            }
+            else {
+                /* Put the length and cached hash code in the instruction. */
+                MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 5 * sizeof(MVMSpeshOperand));
+                new_operands[0] = ins->operands[0];
+                new_operands[1] = the_operand;
+                new_operands[2] = other_operand;
+                new_operands[3].lit_i16 = known_s->body.num_graphs;
+                new_operands[4].lit_ui64 = known_s->body.cached_hash_code;
+                ins->operands = new_operands;
+                ins->info = MVM_op_get_op(MVM_OP_sp_eq_s);
+            }
         }
     }
 }

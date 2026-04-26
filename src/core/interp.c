@@ -6657,6 +6657,40 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_eq_s): {
+                MVMString *check = GET_REG(cur_op, 2).s;
+                if (!check || !IS_CONCRETE(check)) {
+                    MVM_exception_throw_adhoc(tc, "eq_s requires a concrete string, but got %s",
+                        check ? "a type object" : "null");
+                }
+                MVMint16 target_len = GET_I16(cur_op, 6);
+                if (check->body.num_graphs == (MVMuint32)target_len &&
+                    (check->body.cached_hash_code == 0 || check->body.cached_hash_code == GET_UI64(cur_op, 8))) {
+                    GET_REG(cur_op, 0).i64 = MVM_string_substrings_equal_nocheck(tc, check, 0, target_len, GET_REG(cur_op, 4).s, 0);
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
+                cur_op += 16;
+                goto NEXT;
+            }
+            OP(sp_eq_s_insitu): {
+                MVMString *check = GET_REG(cur_op, 2).s;
+                if (!check || !IS_CONCRETE(check)) {
+                    MVM_exception_throw_adhoc(tc, "eq_s requires a concrete string, but got %s",
+                        check ? "a type object" : "null");
+                }
+                MVMint16 target_len = GET_I16(cur_op, 4);
+                if (check->body.num_graphs == (MVMuint32)target_len &&
+                    (check->body.cached_hash_code == 0 || check->body.cached_hash_code == GET_UI64(cur_op, 6))) {
+                    GET_REG(cur_op, 0).i64 = MVM_string_substring_equal_insitu8_nocheck(tc, check, 0, target_len, GET_UI64(cur_op, 14));
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                }
+                cur_op += 22;
+                goto NEXT;
+            }
             OP(sp_runbytecode_v): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 0).o;
                 MVMint16 spesh_cand = GET_I16(cur_op, 10);

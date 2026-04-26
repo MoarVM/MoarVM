@@ -1880,6 +1880,9 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_getarg_n:
     case MVM_OP_sp_getarg_s:
     case MVM_OP_sp_getarg_o:
+        /* Specialized string matching */
+    case MVM_OP_sp_eq_s:
+    case MVM_OP_sp_eq_s_insitu:
         jg_append_primitive(tc, jg, ins);
         break;
         /* Unspecialized parameter access */

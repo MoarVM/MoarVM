@@ -15106,6 +15106,38 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16 }
     },
     {
+        MVM_OP_sp_eq_s,
+        "sp_eq_s",
+        5,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int64 }
+    },
+    {
+        MVM_OP_sp_eq_s_insitu,
+        "sp_eq_s_insitu",
+        5,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_int64, MVM_operand_int64 }
+    },
+    {
         MVM_OP_sp_runbytecode_v,
         "sp_runbytecode_v",
         3,
@@ -15571,7 +15603,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 973;
+static const unsigned short MVM_op_counts = 975;
 
 static const MVMuint16 last_op_allowed = 837;
 

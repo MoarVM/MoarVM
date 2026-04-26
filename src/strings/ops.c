@@ -530,6 +530,54 @@ static MVMString * re_nfg(MVMThreadContext *tc, MVMString *in) {
     return out;
 }
 
+/* Special version of substring compare where one of the strings is given as
+ * an in situ array (in the form of a 64 bit integer) instead of a full object,
+ * for use by a spesh instruction. */
+MVMint64 MVM_string_substring_equal_insitu8_nocheck(MVMThreadContext *tc, MVMString *a,
+        MVMint64 starta, MVMint64 length, MVMuint64 insitu) {
+    MVMint64 i;
+
+    assert(length <= 8);
+
+    /* Fast paths when storage types are identical. */
+    switch (a->body.storage_type) {
+        case MVM_STRING_GRAPHEME_8:
+            return 0 == memcmp(
+                a->body.storage.blob_8 + starta,
+                &insitu,
+                length * sizeof(MVMGrapheme8));
+            break;
+        case MVM_STRING_IN_SITU_8:
+            return 0 == memcmp(
+                a->body.storage.in_situ_8 + starta,
+                &insitu,
+                length);
+            break;
+    }
+
+    /* If both are flat, use MVM_string_get_grapheme_at_nocheck on both for speed */
+    if (a->body.storage_type != MVM_STRING_STRAND) {
+        for (i = 0; i < length; i++)
+            if (MVM_string_get_grapheme_at_nocheck(tc, a, starta + i)
+             != ((char *)&insitu)[i])
+                return 0;
+        return 1;
+    }
+    else if (a->body.storage_type == MVM_STRING_STRAND) {
+        MVMGraphemeIter gia;
+        MVM_string_gi_init(tc, &gia, a);
+        if (starta) MVM_string_gi_move_to(tc, &gia, starta);
+        for (i = 0; i < length; i++)
+            if (MVM_string_gi_get_grapheme(tc, &gia) != ((char *)&insitu)[i])
+                return 0;
+        return 1;
+    }
+    else {
+        MVM_oops(tc, "Unreachable code reached");
+    }
+}
+
+
 /* Returns nonzero if two substrings are equal, doesn't check bounds */
 MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
         MVMint64 starta, MVMint64 length, MVMString *b, MVMint64 startb) {
