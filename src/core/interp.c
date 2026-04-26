@@ -64,7 +64,7 @@ MVM_STATIC_INLINE MVMuint64 GET_UI64(const MVMuint8 *pc, MVMint32 idx) {
 #define GOTO_NEXT_OP MVMuint16 op; MVM_MUSTTAIL return INTERP_OP_FUNCTIONS[NEXT_OP](tc, arg_cur_op, arg_bytecode_start, arg_reg_base, arg_cu);
 #define GOTO_RETURN_LABEL return 0;
 
-#elif MVM_CGOTO
+#elif MVM_CGOTO_INTERP
 #define DISPATCH(op)
 #define OP(name) OP_ ## name:
 #define GOTO_NEXT_OP goto *LABELS[NEXT_OP];
@@ -157,7 +157,7 @@ MVMDispInlineCacheEntry ** MVM_disp_inline_cache_get_spesh(MVMStaticFrame *sf, M
 
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop) {
-#if MVM_CGOTO && !MVM_MUSTTAIL_INTERP
+#if MVM_CGOTO_INTERP && !MVM_MUSTTAIL_INTERP
 #include "oplabels.h"
 #endif
 
@@ -205,7 +205,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
 #if !MVM_MUSTTAIL_INTERP
 #define CU cu
-#if !MVM_CGOTO
+#if !MVM_CGOTO_INTERP
     /* Enter runloop. */
     runloop:
 #endif
@@ -7705,7 +7705,7 @@ tailcall_interp_return_label:
                     cur_op += record->operand_bytes;
                 GOTO_NEXT_OP
             }
-#elif MVM_CGOTO
+#elif MVM_CGOTO_INTERP
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */
                 MVMuint8 *op_before = cur_op;
