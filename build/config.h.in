@@ -133,6 +133,10 @@
 #define MVM_INTERP_OP_CC
 #endif
 
+#if @cancgoto@
+#define MVM_HAS_CGOTO 1
+#endif
+
 /* Should we translate \n to \r\n on output? */
 #define MVM_TRANSLATE_NEWLINE_OUTPUT @translate_newline_output@
 
