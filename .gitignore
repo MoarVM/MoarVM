@@ -19,6 +19,7 @@ MoarVM-*
 
 # Generated files
 Makefile
+Fuzzing.mk
 3rdparty/libatomic_ops/autom4te.cache/
 3rdparty/libatomic_ops/config.log
 3rdparty/libatomic_ops/config.status
@@ -60,6 +61,12 @@ src/gen/
 *.su
 # Callgrind files
 callgrind.out.*
+# Files built for AFL fuzzing
+*.o.afl.*
+fuzzing/*.asan
+fuzzing/*.cmplog
+fuzzing/*.native
+fuzzing/*.gcov
 
 moar
 *.vsp

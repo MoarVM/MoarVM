@@ -83,6 +83,8 @@ JIT_INTERMEDIATES = src/jit/x64/emit.c \
 
 JIT_PERL_LIBS = tools/lib/sexpr.pm tools/lib/expr_ops.pm tools/lib/oplist.pm
 
+FUZZING_TARGETS = fuzzing/stream_decoder
+
 MAIN_OBJECTS = src/main@obj@
 
 OBJECTS = $(OBJECTS1) $(OBJECTS2)
@@ -248,6 +250,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/profiler/configuration@obj@ \
           src/instrument/crossthreadwrite@obj@ \
           src/instrument/line_coverage@obj@ \
+		  src/instrument/bb_edge_coverage@obj@ \
           src/platform/sys@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
@@ -456,6 +459,7 @@ HEADERS = src/moar.h \
           src/jit/dump.h \
           src/instrument/crossthreadwrite.h \
           src/instrument/line_coverage.h \
+		  src/instrument/bb_edge_coverage.h \
           src/gen/config.h \
           src/debug/debugserver.h \
           3rdparty/cmp/cmp.h \
@@ -542,7 +546,7 @@ DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
 all: moar@exe@ pkgconfig/moar.pc
 
 .SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile .h
-.PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich
+.PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich fuzzing fuzzing-complete fuzzing-extras
 
 install: all
 	$(MKPATH) "$(DESTDIR)$(BINDIR)"
@@ -701,6 +705,9 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $< @moarlib@ $(DLL_LIBS)
 
 
+@fuzzing@
+
+
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
 	$(CMD)@uvrule@ $(NOOUT)
@@ -736,6 +743,9 @@ clean:
 	-$(CMD)$(RM) $(MAIN_OBJECTS) $(JIT_INTERMEDIATES) $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) $(OBJECTS1) $(NOOUT) $(NOERR)
 	-$(CMD)$(RM) $(OBJECTS2) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS_AFL_CMPLOG) $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS_AFL_ASAN)   $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(OBJECTS_AFL_NATIVE) $(NOOUT) $(NOERR)
 
 realclean: clean
 	$(MSG) remove auxiliary files
@@ -753,6 +763,7 @@ realclean: clean
 distclean: realclean
 	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
+	-$(CMD)$(RM) $(FUZZING_TARGETS_ALL) $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c \
 	    tools/check.mk 3rdparty/libatomicops/config.log 3rdparty/libatomicops/config.status $(NOOUT) $(NOERR)

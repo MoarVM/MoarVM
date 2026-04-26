@@ -7004,6 +7004,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 goto NEXT;
             }
+            OP(bb_entered): {
+                MVMuint64 bb_id = GET_UI64(cur_op, 0);
+                MVM_edge_coverage_report_bb_edge_hit_quickcheck(tc, bb_id);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(cmplog_i): {
+                MVMuint64 arg1 = GET_REG(cur_op, 0).i64;
+                MVMuint64 arg2 = GET_REG(cur_op, 2).i64;
+                MVMuint64 bb_id = GET_UI64(cur_op, 4);
+                MVMuint16 attrs = GET_UI16(cur_op, 8);
+                if (!tc->suppress_coverage) {
+                    if (arg1 != arg2)
+                        MVM_fuzzing_cmplog_ins_hook8(arg1, arg2, bb_id, attrs);
+                }
+                cur_op += 14;
+                goto NEXT;
+            }
+            OP(cmplog_atkey): {
+                MVMObject *hash = GET_REG(cur_op, 0).o;
+                MVMString *key = GET_REG(cur_op, 2).s;
+                MVMuint64 bb_id = GET_UI64(cur_op, 4);
+                if (!tc->suppress_coverage) {
+                    MVM_fuzzing_cmplog_rtn_hook_atkey_hook(tc, hash, key, bb_id);
+                }
+                cur_op += 12;
+                goto NEXT;
+            }
+
 #if MVM_CGOTO
             OP_CALL_EXTOP: {
                 /* Bounds checking? Never heard of that. */

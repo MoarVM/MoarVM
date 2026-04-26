@@ -8,6 +8,10 @@
 #define snprintf _snprintf
 #endif
 
+extern MVMuint8 *__mvm_afl_trace_edges;
+extern MVMuint8 *__mvm_afl_trace_edges_pristine;
+extern MVMuint16 *__mvm_last_edge_seen;
+
 #ifndef _WIN32
 #  include <unistd.h>
 #else
@@ -150,7 +154,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->hashSeed ^= ptr_hash_64_to_64((uintptr_t)instance);
     instance->hashSeed ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
 #else
-    instance->hashSeed = RAPID_SEED;
+    /* Default seed value for rapidhash is now 0, old rapidhash had a default
+     * seed defined in its header file. */
+    instance->hashSeed = 0;
 #endif
     instance->main_thread->thread_id = 1;
 
@@ -433,6 +439,39 @@ MVMInstance * MVM_vm_create_instance(void) {
     }
     else {
         instance->cross_thread_write_logging = 0;
+    }
+
+    if (getenv("MVM_AFL_EDGE_COVERAGE")) {
+        instance->afl_edge_coverage = atol(getenv("MVM_AFL_EDGE_COVERAGE"));
+        instance->instrumentation_level++;
+
+        if (getenv("MVM_AFL_TRACE_EDGES")) {
+            char *end_of_int = NULL;
+            char *dataptr = getenv("MVM_AFL_TRACE_EDGES");
+            __mvm_afl_trace_edges = MVM_calloc(65536, 4);
+            __mvm_afl_trace_edges_pristine = MVM_calloc(65536, 4);
+            errno = 0;
+            for (;;) {
+                long res = strtol(dataptr, &end_of_int, 10);
+                if (dataptr == end_of_int) { break; }
+                if (errno) { break; }
+                if (res >= 0 && res < 65536 * 4) {
+                    __mvm_afl_trace_edges[res] = 1;
+                    __mvm_afl_trace_edges_pristine[res] = 1;
+                }
+                dataptr = end_of_int;
+            }
+
+            instance->afl_edge_coverage |= MVM_BB_COVERAGE_BACKTRACE_ON_SELECTED_EDGES;
+            __mvm_last_edge_seen = MVM_calloc(4 * 65536, sizeof(MVMuint16));
+        }
+
+        if (getenv("MVM_EDGE_COVERAGE_FILE")) {
+            instance->edge_coverage_fh = fopen_perhaps_with_pid("MVM_EDGE_COVERAGE_FILE", getenv("MVM_EDGE_COVERAGE_FILE"), "w");
+        }
+        else {
+            instance->edge_coverage_fh = stderr;
+        }
     }
 
     if (getenv("MVM_COVERAGE_LOG")) {

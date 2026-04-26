@@ -548,10 +548,15 @@ struct MVMInstance {
     /* Log file for coverage logging. */
     MVMuint32  coverage_logging;
     FILE *coverage_log_fh;
-    MVMuint32  coverage_control;
+    MVMuint16  coverage_control;
+
+    MVMuint16 afl_edge_coverage;
 
     /* The time it takes to run the profiler instrumentation. */
     MVMuint64 profiling_overhead;
+
+    MVMStrHashTable *afl_edge_coverage_filenames_reported;
+    FILE *edge_coverage_fh;
 
     /************************************************************************
      * Debugging

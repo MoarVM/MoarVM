@@ -3,6 +3,16 @@
 #include <unistd.h>
 #endif
 
+#if __AFL_COMPILER
+__AFL_FUZZ_INIT();
+
+int __afl_persistent_loop(int);
+extern MVMuint32 __afl_already_initialized_forkserver;
+#endif
+
+extern MVMuint8 *__mvm_afl_trace_edges;
+extern MVMuint8 *__mvm_afl_trace_edges_pristine;
+
 /* Since the boot-syscall dispatcher verifies the argument count and register
  * types, we can pull arguments out of the MVMArgs directly, without going via
  * the usual argument handling functions. */
@@ -1649,6 +1659,140 @@ static MVMDispSysCall pty_resize = {
     .expected_concrete = { 1, 1, 1 },
 };
 
+/* afl-testcase-to-string */
+static void afl_testcase_to_string_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMString *result = tc->instance->str_consts.empty;
+
+#if __AFL_COMPILER
+    if (!__afl_already_initialized_forkserver) {
+        __AFL_INIT();
+    }
+
+    char     *testcase      = (char *)__AFL_FUZZ_TESTCASE_BUF;
+    MVMint64  testcase_size = __AFL_FUZZ_TESTCASE_LEN;
+
+    if (__mvm_afl_trace_edges && __mvm_afl_trace_edges_pristine) {
+        memcpy(__mvm_afl_trace_edges, __mvm_afl_trace_edges_pristine, 65536);
+    }
+
+
+    MVMuint8 encoding_flag = arg_info.callsite->num_pos == 1 ? MVM_string_find_encoding(tc, get_str_arg(arg_info, 0)) : MVM_encoding_type_utf8;
+    result = MVM_string_decode(tc, tc->instance->VMString, testcase, testcase_size, encoding_flag);
+#endif
+
+    MVM_args_set_result_str(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall afl_testcase_to_string = {
+    .c_name = "afl-testcase-to-string",
+    .implementation = afl_testcase_to_string_impl,
+    .min_args = 0,
+    .max_args = 1,
+    .expected_kinds    = { MVM_CALLSITE_ARG_STR },
+    .expected_reprs    = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* afl-testcase-loop */
+/* If you want to use this, make sure to invoke afl-fuzz with AFL_PERSISTENT
+ * since we don't compile the signature AFL uses to autodetect usage of
+ * the __AFL_LOOP macro into our binary. */
+static void afl_testcase_loop_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMuint8 result = 0;
+#if __AFL_COMPILER
+    result = __afl_persistent_loop(arg_info.callsite->num_pos == 1 ? get_int_arg(arg_info, 0) : 1000);
+#endif
+
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall afl_testcase_loop = {
+    .c_name = "afl-testcase-loop",
+    .implementation = afl_testcase_loop_impl,
+    .min_args = 0,
+    .max_args = 1,
+    .expected_kinds    = { MVM_CALLSITE_ARG_INT },
+    .expected_reprs    = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* afl-fork-here */
+static void afl_fork_here_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+#if __AFL_COMPILER
+    if (__afl_already_initialized_forkserver) {
+        MVM_args_set_result_int(tc, 0, MVM_RETURN_CURRENT_FRAME);
+        return;
+    }
+
+    MVMuint8 restart_spesh  = !!tc->instance->spesh_thread;
+
+    MVMInstance *instance = tc->instance;
+
+    /* Acquire the necessary locks. The event loop mutex will protect
+     * modification of the event loop. Nothing yet protects against the
+     * modification of the spesh worker, but this is currently the only code
+     * that it could conflict with. Maybe we need an explicit fork loop */
+    MVM_gc_mark_thread_blocked(tc);
+    uv_mutex_lock(&instance->mutex_event_loop);
+    MVM_gc_mark_thread_unblocked(tc);
+
+    /* Stop and join the system threads */
+    if (restart_spesh) {
+        MVM_spesh_worker_stop(tc);
+    }
+    MVM_io_eventloop_stop(tc);
+    if (restart_spesh) {
+        MVM_spesh_worker_join(tc);
+    }
+    MVM_io_eventloop_join(tc);
+    /* Allow MVM_io_eventloop_start to restart the thread if necessary */
+    instance->event_loop_thread = NULL;
+
+    /* Do not mark thread blocked as the GC also tries to acquire
+     * mutex_threads and it's held only briefly by all holders anyway */
+    uv_mutex_lock(&instance->mutex_threads);
+
+    /* Check if we are single threaded and if true, fork() */
+    if (MVM_thread_cleanup_threads_list(tc, &instance->threads) == 1) {
+
+        __AFL_INIT();
+
+    } else {
+        uv_mutex_unlock(&instance->mutex_event_loop);
+        uv_mutex_unlock(&instance->mutex_threads);
+        MVM_exception_throw_adhoc(tc, "will not start AFL forkserver: There are threads remaining!");
+    }
+
+    /* The parent process will not be running this code. */
+    if (instance->event_loop) {
+        /* Reinitialize uv_loop_t after fork in child */
+        uv_loop_fork(instance->event_loop);
+    }
+
+    /* Release the thread lock, otherwise we can't start them */
+    uv_mutex_unlock(&instance->mutex_threads);
+    /* Without the mutex_event_loop being held, this might race */
+    MVM_spesh_worker_start(tc);
+
+    /* However, locks are nonrecursive, so unlocking is needed prior to
+     * restarting the event loop */
+    uv_mutex_unlock(&instance->mutex_event_loop);
+    if (instance->event_loop)
+        MVM_io_eventloop_start(tc);
+
+    MVM_args_set_result_int(tc, 1, MVM_RETURN_CURRENT_FRAME);
+#endif
+
+    MVM_args_set_result_int(tc, 0, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall afl_fork_here = {
+    .c_name = "afl-fork-here",
+    .implementation = afl_fork_here_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds    = { },
+    .expected_reprs    = { },
+    .expected_concrete = { },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1751,6 +1895,9 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &telemetry_interval_annotate);
     add_to_hash(tc, &is_debugserver_running);
     add_to_hash(tc, &pty_resize);
+    add_to_hash(tc, &afl_testcase_to_string);
+    add_to_hash(tc, &afl_testcase_loop);
+    add_to_hash(tc, &afl_fork_here);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
