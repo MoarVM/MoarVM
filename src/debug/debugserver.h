@@ -69,6 +69,10 @@ struct MVMDebugServerBreakpointFileTable {
     MVMuint32 breakpoints_alloc;
     MVMuint32 breakpoints_used;
 
+    /* When set, will break on every possible break position.
+       I.e. line_no will be ignored. */
+    MVMDebugServerBreakpointInfo *any_break;
+
     /* When a breakpoint is added for a file that is not loaded yet, we create
      * an entry in the files table, but the filename is completely arbitrary
      * and is not guaranteed to ever show up.
@@ -148,10 +152,8 @@ struct MVMDebugServerData {
     /* If the user asked to watch new files showing up, this is the event ID
      * to send notifications for. */
     MVMuint64 loaded_file_event_id;
-    /* May also stop one or all threads when a new file is hit */
-    MVMuint8  stop_on_new_file : 2;
-    /* May send a backtrace along when that happens, for convenience. */
-    MVMuint8  backtrace_on_new_file : 1;
+    MVMuint8 new_file_shall_suspend : 1;
+    MVMuint8 new_file_send_backtrace : 1;
 
     void *messagepack_data;
 
@@ -170,5 +172,5 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
 
 MVM_PUBLIC MVMuint64 MVM_dump_all_backtraces(MVMThreadContext *dtc, MVMuint64 is_harmless);
 
-MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx);
+MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx, MVMuint8 lock_network);
 MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no);
