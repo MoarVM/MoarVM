@@ -52,7 +52,7 @@ Some things to keep in mind are:
 
 We use =make= for building, and =perl= for configuring the =Makefile=.
 MoarVM's =Makefile= should be highly parallelizable - the reader is
-adviced to take advantage of this. The author uses the following
+advised to take advantage of this. The author uses the following
 configuration:
 
 #+BEGIN_SRC sh
@@ -105,8 +105,8 @@ problem - you can start this as =raku-mc=.
 * Workflow
 
 Larger features are typically developed on separate branches. Such
-branches should be rebased to keep up to date with master. Bugfixes
-can go to master directly.
+branches should be rebased to keep up to date with main. Bugfixes
+can go to main directly.
 
 * Miscellaneous
 

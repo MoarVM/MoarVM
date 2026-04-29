@@ -124,7 +124,7 @@ but recreate it with the correct internal folder name so you can follow the rema
 19. Make sure both pages look alright, open `index.html` and `releases.html` with
     your browser and check markup highlighting.
 
-20. If both look good, push with `git push origin master`
+20. If both look good, push with `git push origin main`
 
 21. Merge the release Pull Request. DO NOT SQUASH.
 
