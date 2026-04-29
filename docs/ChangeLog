@@ -1,3 +1,7 @@
+New in 2026.05
++ Output JITDUMP format with MVM_JIT_PERF_DUMP
++ minor doc updates
+
 New in 2026.04
 
 + utf8-c8: don't write past end of result buffer (#1994) [ [c7365e733]
