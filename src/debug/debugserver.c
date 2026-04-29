@@ -2,7 +2,7 @@
 #include <string.h>
 
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
-#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 4
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 5
 
 #include <stdbool.h>
 
@@ -146,7 +146,7 @@ static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMTh
 static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
-void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_len);
+void notify_new_file(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *new_file, char *filename, MVMuint32 filename_len);
 
 /* Breakpoint stuff */
 static void normalize_filename(char *name) {
@@ -158,7 +158,7 @@ static void normalize_filename(char *name) {
         cur_bs = strchr(cur_bs + 1, '\\');
     }
 }
-MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
+MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx, MVMuint8 lock_network) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
     MVMDebugServerBreakpointFileTable *found = NULL;
@@ -172,6 +172,14 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         }
     }
 
+    /* The network send lock is only sometimes needed in notify_new_file. But
+     * the network and breakpoint locks are often both acquired in other code
+     * paths. We have to use the same locking order everywhere, otherwise we
+     * risk deadlocking. So always first the network lock, then the breakpoint
+     * lock. */
+    if (lock_network) {
+        uv_mutex_lock(&debugserver->mutex_network_send);
+    }
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
     if (*file_idx < table->files_used) {
@@ -219,18 +227,14 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
          * request, in which case we must not tell the client that a new file has been
          * loaded. */
         if (tc->instance->debugserver->thread_id != tc->thread_id) {
-            notify_new_file(tc, filename, filename_len);
             found->really_loaded = 1;
+            notify_new_file(tc, found, filename, filename_len);
         }
 
         found->lines_active_alloc = line_no + 32;
         found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
 
         *file_idx = table->files_used - 1;
-
-        found->breakpoints = NULL;
-        found->breakpoints_alloc = 0;
-        found->breakpoints_used = 0;
     }
     else {
         /* We might have had a not-really-loaded entry before, so update
@@ -239,7 +243,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         if (tc->instance->debugserver->thread_id != tc->thread_id) {
             if (!found->really_loaded) {
                 found->really_loaded = 1;
-                notify_new_file(tc, found->filename, found->filename_length);
+                notify_new_file(tc, found, found->filename, found->filename_length);
             }
         }
     }
@@ -255,6 +259,9 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
     }
 
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
+    if (lock_network) {
+        uv_mutex_unlock(&debugserver->mutex_network_send);
+    }
 }
 
 static void stop_point_hit(MVMThreadContext *tc) {
@@ -286,7 +293,7 @@ static void stop_point_hit(MVMThreadContext *tc) {
 
 static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
     cmp_ctx_t *ctx = NULL;
-    MVMDebugServerBreakpointInfo *info;
+    MVMDebugServerBreakpointInfo *info = NULL;
     MVMuint32 index;
     MVMuint8 must_suspend = 0;
 
@@ -294,32 +301,40 @@ static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFil
         ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
     }
 
-    for (index = 0; index < file->breakpoints_used; index++) {
-        info = &file->breakpoints[index];
+    if (file->lines_active[line_no]) {
+        for (index = 0; index < file->breakpoints_used; index++) {
+            if (file->breakpoints[index].line_no == line_no) {
+                info = &file->breakpoints[index];
+                break;
+            }
+        }
+    }
+    if (!info && file->any_break) {
+        info = file->any_break;
+    }
 
-        if (info->line_no == line_no) {
-            if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "hit a breakpoint\n");
-            if (ctx) {
-                uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
-                cmp_write_map(ctx, 4);
-                cmp_write_conststr(ctx, "id");
-                cmp_write_integer(ctx, info->breakpoint_id);
-                cmp_write_conststr(ctx, "type");
-                cmp_write_integer(ctx, MT_BreakpointNotification);
-                cmp_write_conststr(ctx, "thread");
-                cmp_write_integer(ctx, tc->thread_id);
-                cmp_write_conststr(ctx, "frames");
-                if (info->send_backtrace) {
-                    write_stacktrace_frames(tc, ctx, tc->thread_obj);
-                } else {
-                    cmp_write_nil(ctx);
-                }
-                uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+    if (info) {
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "hit a breakpoint\n");
+        if (ctx) {
+            uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+            cmp_write_map(ctx, 4);
+            cmp_write_conststr(ctx, "id");
+            cmp_write_integer(ctx, info->breakpoint_id);
+            cmp_write_conststr(ctx, "type");
+            cmp_write_integer(ctx, MT_BreakpointNotification);
+            cmp_write_conststr(ctx, "thread");
+            cmp_write_integer(ctx, tc->thread_id);
+            cmp_write_conststr(ctx, "frames");
+            if (info->send_backtrace) {
+                write_stacktrace_frames(tc, ctx, tc->thread_obj);
+            } else {
+                cmp_write_nil(ctx);
             }
-            if (info->shall_suspend) {
-                must_suspend = 1;
-            }
+            uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+        }
+        if (info->shall_suspend) {
+            must_suspend = 1;
         }
     }
 
@@ -352,7 +367,7 @@ MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMui
         MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
         MVMDebugServerBreakpointFileTable *found = &table->files[file_idx];
 
-        if (debugserver->any_breakpoints_at_all && found->breakpoints_used && found->lines_active[line_no]) {
+        if ((found->breakpoints_used && found->lines_active[line_no]) || found->any_break) {
             shall_suspend |= breakpoint_hit(tc, found, line_no);
         }
     }
@@ -640,7 +655,7 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
 
 static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread);
 
-void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_len) {
+void notify_new_file(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *new_file, char *filename, MVMuint32 filename_len) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     cmp_ctx_t *ctx = NULL;
 
@@ -653,15 +668,13 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
 
     if (ctx) {
         if (debugserver->loaded_file_event_id != 0) {
-            uv_mutex_lock(&debugserver->mutex_network_send);
+            MVMuint8 create_breakpoint = debugserver->new_file_shall_suspend || debugserver->new_file_send_backtrace;
 
-            cmp_write_map(ctx, 4 + (debugserver->backtrace_on_new_file ? 1 : 0));
+            cmp_write_map(ctx, 3 + (create_breakpoint ? 1 : 0));
             cmp_write_conststr(ctx, "id");
             cmp_write_integer(ctx, debugserver->loaded_file_event_id);
             cmp_write_conststr(ctx, "type");
             cmp_write_integer(ctx, MT_FileLoadedNotification);
-            cmp_write_conststr(ctx, "thread");
-            cmp_write_integer(ctx, tc->thread_id);
 
             cmp_write_conststr(ctx, "filenames");
 
@@ -671,7 +684,7 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
              * length than what the null byte tells us, then there's no
              * module name in the filename and then there is no point in
              * sending the "full name" on top. */
-	    if (strlen(filename) != filename_len) {
+            if (strlen(filename) != filename_len) {
                 cmp_write_map(ctx, 2);
 
                 cmp_write_conststr(ctx, "full_name");
@@ -680,46 +693,23 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
             else {
                 cmp_write_map(ctx, 1);
             }
+
             cmp_write_conststr(ctx, "path");
             cmp_write_str(ctx, filename, filename_len);
 
+            if (create_breakpoint && !new_file->any_break) {
+                new_file->any_break = MVM_calloc(1, sizeof(MVMDebugServerBreakpointInfo));
 
-            if (debugserver->backtrace_on_new_file) {
-                cmp_write_conststr(ctx, "frames");
-                write_stacktrace_frames(tc, ctx, tc->thread_obj);
-            }
+                new_file->any_break->breakpoint_id = debugserver->event_id;
+                debugserver->event_id += 2;
 
-            uv_mutex_unlock(&debugserver->mutex_network_send);
+                new_file->any_break->line_no = 0;
+                new_file->any_break->shall_suspend = debugserver->new_file_shall_suspend;
+                new_file->any_break->send_backtrace = debugserver->new_file_send_backtrace;
+                debugserver->any_breakpoints_at_all++;
 
-            if (debugserver->stop_on_new_file == 1) {
-                MVMint64 attempts = 10000;
-                while (attempts-- > 0) {
-                    if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST)
-                            == MVMGCStatus_NONE) {
-                        break;
-                    }
-                    /* If there is already a suspend request, we don't have to do anything. */
-                    if (MVM_load(&tc->gc_status) == (MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST)) {
-                        break;
-                    }
-                    /* Maybe we are already interrupted so that we join a GC run. */
-                    /* If we have the suspend request flag already set, do nothing. */
-                    if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
-                        break;
-                    }
-                    /* Store the suspend request flag. */
-                    if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                            == MVMGCStatus_INTERRUPT) {
-                        break;
-                    }
-                }
-                if (attempts == 0) {
-                    /* It's not a reason to panic or oops when this
-                     * doesn't succeed for some reason, but do log
-                     * if debugspam is on. */
-                    if (tc->instance->debugserver->debugspam_protocol)
-                        fprintf(stderr, "thread %u couldn't suspend to react to a new file being created.\n", tc->thread_id);
-                }
+                cmp_write_conststr(ctx, "breakpoint_id");
+                cmp_write_integer(ctx, new_file->any_break->breakpoint_id);
             }
         }
     }
@@ -1273,29 +1263,37 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "asked to set a breakpoint for file %s line %"PRIu32" to send id %"PRIu64"\n", argument->file, argument->line, argument->id);
 
-    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
+    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index, 0);
 
     uv_mutex_lock(&debugserver->mutex_breakpoints);
 
     found = &table->files[index];
 
-    /* Create breakpoint first so that if a thread breaks on the activated line
-     * the breakpoint information already exists */
-    if (found->breakpoints_alloc == 0) {
-        found->breakpoints_alloc = 4;
-        found->breakpoints = MVM_calloc(found->breakpoints_alloc, sizeof(MVMDebugServerBreakpointInfo));
-    }
-    if (found->breakpoints_used++ >= found->breakpoints_alloc) {
-        MVMuint32 old_alloc = found->breakpoints_alloc;
-        found->breakpoints_alloc *= 2;
-        found->breakpoints = MVM_realloc_at_safepoint(tc, found->breakpoints,
-                old_alloc * sizeof(MVMDebugServerBreakpointInfo),
-                found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
-        if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "table for breakpoints increased to %"PRIu32" slots\n", found->breakpoints_alloc);
-    }
 
-    bp_info = &found->breakpoints[found->breakpoints_used - 1];
+    if (argument->line == 0) {
+        found->any_break = MVM_calloc(1, sizeof(MVMDebugServerBreakpointInfo));
+        bp_info = found->any_break;
+    }
+    else {
+        /* Create breakpoint first so that if a thread breaks on the activated line
+         * the breakpoint information already exists */
+        if (found->breakpoints_alloc == 0) {
+            found->breakpoints_alloc = 4;
+            found->breakpoints = MVM_calloc(found->breakpoints_alloc, sizeof(MVMDebugServerBreakpointInfo));
+        }
+        if (found->breakpoints_used++ >= found->breakpoints_alloc) {
+            MVMuint32 old_alloc = found->breakpoints_alloc;
+            found->breakpoints_alloc *= 2;
+            found->breakpoints = MVM_realloc_at_safepoint(tc, found->breakpoints,
+                    old_alloc * sizeof(MVMDebugServerBreakpointInfo),
+                    found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "table for breakpoints increased to %"PRIu32" slots\n", found->breakpoints_alloc);
+        }
+
+        bp_info = &found->breakpoints[found->breakpoints_used - 1];
+        found->lines_active[argument->line] = 1;
+    }
 
     bp_info->breakpoint_id = argument->id;
     bp_info->line_no = argument->line;
@@ -1307,7 +1305,6 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "breakpoint settings: index %"PRIu32" bpid %"PRIu64" lineno %"PRIu32" suspend %"PRIu32" backtrace %"PRIu32"\n", found->breakpoints_used - 1, argument->id, argument->line, argument->suspend, argument->stacktrace);
 
-    found->lines_active[argument->line] = 1;
 
     cmp_write_map(ctx, 3);
     cmp_write_conststr(ctx, "id");
@@ -1352,7 +1349,7 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
     MVMuint32 bpidx = 0;
     MVMuint32 num_cleared = 0;
 
-    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index);
+    MVM_debugserver_register_line(tc, argument->file, strlen(argument->file), argument->line, &index, 0);
 
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "asked to clear breakpoints for file %s line %"PRIu32"\n", argument->file, argument->line);
@@ -1371,18 +1368,27 @@ void MVM_debugserver_clear_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, requ
 
     if (tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "trying to clear breakpoints\n\n");
-    for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
-        MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
-        if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "breakpoint index %"PRIu32" has id %"PRIu64", is at line %"PRIu32"\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
-
-        if (bp_info->line_no == argument->line) {
-            if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "breakpoint with id %"PRIu64" cleared\n", bp_info->breakpoint_id);
-            found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
+    if (argument->line == 0) {
+        if (found->any_break != NULL) {
+            found->any_break = NULL;
             num_cleared++;
-            bpidx--;
             debugserver->any_breakpoints_at_all--;
+        }
+    }
+    else {
+        for (bpidx = 0; bpidx < found->breakpoints_used; bpidx++) {
+            MVMDebugServerBreakpointInfo *bp_info = &found->breakpoints[bpidx];
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "breakpoint index %"PRIu32" has id %"PRIu64", is at line %"PRIu32"\n", bpidx, bp_info->breakpoint_id, bp_info->line_no);
+
+            if (bp_info->line_no == argument->line) {
+                if (tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "breakpoint with id %"PRIu64" cleared\n", bp_info->breakpoint_id);
+                found->breakpoints[bpidx] = found->breakpoints[--found->breakpoints_used];
+                num_cleared++;
+                bpidx--;
+                debugserver->any_breakpoints_at_all--;
+            }
         }
     }
 
@@ -1559,10 +1565,10 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
         debugserver->loaded_file_event_id = argument->start_watching ? argument->id : 0;
     }
     if (argument->fields_set & FS_stacktrace) {
-        debugserver->backtrace_on_new_file = argument->stacktrace;
+        debugserver->new_file_send_backtrace = argument->stacktrace;
     }
     if (argument->fields_set & FS_suspend) {
-        debugserver->stop_on_new_file = argument->suspend;
+        debugserver->new_file_shall_suspend = argument->suspend;
     }
 
     cmp_write_map(ctx, 3);
@@ -1572,6 +1578,7 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
     cmp_write_integer(ctx, MT_FileLoadedNotification);
     cmp_write_conststr(ctx, "filenames");
 
+    uv_mutex_lock(&debugserver->mutex_breakpoints);
     cmp_write_array(ctx, debugserver->breakpoints->files_used);
 
     for (MVMuint32 file_idx = 0; file_idx < debugserver->breakpoints->files_used; file_idx++) {
@@ -1585,6 +1592,7 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
             cmp_write_bool(ctx, 1);
         }
     }
+    uv_mutex_unlock(&debugserver->mutex_breakpoints);
 }
 
 static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
@@ -2075,9 +2083,13 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
     if (argument->type == MT_OuterContextRequest) {
         if ((frame = ((MVMContext *)this_ctx)->body.context->outer))
             this_ctx = MVM_context_from_frame(dtc, frame);
+        else
+            this_ctx = NULL;
     } else if (argument->type == MT_CallerContextRequest) {
         if ((frame = ((MVMContext *)this_ctx)->body.context->caller))
             this_ctx = MVM_context_from_frame(dtc, frame);
+        else
+            this_ctx = NULL;
     }
 
     allocate_and_send_handle(dtc, ctx, argument, this_ctx);
@@ -2088,7 +2100,14 @@ static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, con
         MVMuint16 lextype, MVMRegister *result) {
     cmp_write_str(ctx, c_key_name, strlen(c_key_name));
 
-    if (lextype == MVM_reg_obj) { /* Object */
+    if (result == NULL) {
+        cmp_write_map(ctx, 2);
+        cmp_write_conststr(ctx, "kind");
+        cmp_write_str(ctx, "???", 3);
+        cmp_write_conststr(ctx, "value");
+        cmp_write_nil(ctx);
+    }
+    else if (lextype == MVM_reg_obj) { /* Object */
         char *debugname;
 
         if (!result->o)
@@ -2177,7 +2196,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 MVMStaticFrameDebugLocal *debug_entry
                     = MVM_str_hash_current_nocheck(dtc, debug_locals, iterator);
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
-                if (idx != MVM_INDEX_HASH_NOT_FOUND)
+                if (idx == MVM_INDEX_HASH_NOT_FOUND)
                     lexcount++;
                 iterator = MVM_str_hash_next_nocheck(dtc, debug_locals, iterator);
             }
@@ -2213,7 +2232,12 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 ? MVM_str_hash_fetch_nocheck(dtc, debug_locals, name)
                 : NULL;
             if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
-                result = &frame->work[debug_entry->local_idx];
+                if (frame->work == NULL) {
+                    result = NULL;
+                }
+                else {
+                    result = &frame->work[debug_entry->local_idx];
+                }
                 was_from_local = 1;
             }
 
@@ -2234,8 +2258,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 MVMStaticFrameDebugLocal *debug_entry
                     = MVM_str_hash_current_nocheck(dtc, debug_locals, iterator);
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
-                if (idx != MVM_INDEX_HASH_NOT_FOUND) {
-                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, lexical_names_list[idx]);
+                if (idx == MVM_INDEX_HASH_NOT_FOUND) {
+                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->hash_handle.key);
                     MVMRegister *result = &frame->work[debug_entry->local_idx];
                     MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
                     write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
@@ -2378,9 +2402,54 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
                             switch (attr_storage_spec->boxed_primitive) {
                                 case MVM_STORAGE_SPEC_BP_INT:
-                                    cmp_write_conststr(ctx, "int");
-                                    cmp_write_conststr(ctx, "value");
-                                    cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                    if (attr_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                                        char *bodyc = (char *)data + offset;
+                                        MVMP6bigintBody *body = (MVMP6bigintBody *)bodyc;
+                                        if (MVM_BIGINT_IS_BIG(body)) {
+                                            mp_int *i = body->u.bigint;
+                                            const int bits = mp_count_bits(i);
+
+                                            /* For 64-bit 2's complement numbers the positive max is 2**63-1, which is 63 bits,
+                                             * but the negative max is -(2**63), which is 64 bits. */
+                                            if ((MP_NEG == i->sign && bits > 64) || (MP_NEG != i->sign && bits > 63)) {
+                                                cmp_write_conststr(ctx, "bigint");
+                                                cmp_write_conststr(ctx, "value");
+                                                mp_err err;
+                                                int len;
+                                                char *buf;
+                                                if ((err = mp_radix_size(i, 10, &len)) != MP_OKAY) {
+                                                    cmp_write_conststr(ctx, "Failed to render big integer (size calculation)");
+                                                }
+                                                else {
+                                                    buf = (char *)MVM_malloc(len);
+                                                    if ((err = mp_to_decimal(i, buf, len)) != MP_OKAY) {
+                                                        MVM_free(buf);
+                                                        cmp_write_conststr(ctx, "Failed to render big integer");
+                                                    }
+                                                    else {
+                                                        // Excluding terminating \0
+                                                        cmp_write_str(ctx, buf, len - 1);
+                                                        MVM_free(buf);
+                                                    }
+                                                }
+                                            }
+                                            else {
+                                                cmp_write_conststr(ctx, "int");
+                                                cmp_write_conststr(ctx, "value");
+                                                cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                            }
+                                        }
+                                        else {
+                                            cmp_write_conststr(ctx, "int");
+                                            cmp_write_conststr(ctx, "value");
+                                            cmp_write_integer(ctx, body->u.smallint.value);
+                                        }
+                                    }
+                                    else {
+                                        cmp_write_conststr(ctx, "int");
+                                        cmp_write_conststr(ctx, "value");
+                                        cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                    }
                                     break;
                                 case MVM_STORAGE_SPEC_BP_NUM:
                                     cmp_write_conststr(ctx, "num");

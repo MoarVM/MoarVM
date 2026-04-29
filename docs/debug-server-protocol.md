@@ -92,6 +92,12 @@ proceed.
 
 ### Changes
 
+#### Version 1.5
+
+ * Add support for any-break breakpoints.
+ * Changed the Loaded Files Request to create any-break breakpoints
+   when the `suspend` option was passed instead of instantly breaking.
+
 #### Version 1.4
 
  * Add Loaded Files Request (50) and File Loaded Notification (51).
@@ -381,7 +387,9 @@ stack trace of the location where the breakpoint was hit will be included.
 This can be used both with and without `suspend`; with `suspend` it can save
 an extra round-trip to reqeust the stack location, while without `suspend` it
 can be useful for features like "capture a stack trace every time foo is
-called".
+called". When a line number of "0" is passed, an "any-break" breakpoint is
+created. Such a breakpoint will break on every possible break position in the
+respective file.
 
     {
         "type": 15,
@@ -1099,6 +1107,12 @@ Creating a file by requesting a breakpoint does not cause a notification to
 be sent out, but the same file later being encountered will cause such a
 notification.
 
+When "suspend" or "stacktrace" has been requested, a new any-break breakpoint
+is automatically added for every newly seen file, but not for any of the files
+that are reported in the initial response. If such a breakpoint is created,
+the ID of that breakpoint is returned with the `breakpoint_id` key. The key is
+left out when no breakpoint was created.
+
 Initial response:
 
     {
@@ -1119,6 +1133,7 @@ Notification:
         "type": 51,
         "id": $id,
         "thread": 1,
+        "breakpoint_id": 7,
         "filenames": [
             { "path": "src/Perl6/Metamodel/PrivateMethodContainer.nqp" },
         ],

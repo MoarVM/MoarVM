@@ -58,7 +58,7 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
                 filename_buf = MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc, g->sf->body.cu, filename_string_index));
             }
 
-            MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx);
+            MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx, 1);
 
             breakpoint_ins->operands[0].lit_i32 = file_bp_idx;
             breakpoint_ins->operands[1].lit_i32 = line_number;
@@ -95,7 +95,7 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
                         filename_buf = MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc, g->sf->body.cu, filename_string_index));
                     }
 
-                    MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx);
+                    MVM_debugserver_register_line(tc, filename_buf, strlen(filename_buf), line_number, &file_bp_idx, 1);
 
                     /*breakpoint_ins->operands[0].lit_i32 = file_bp_idx;*/
                     /*breakpoint_ins->operands[1].lit_i32 = ann->data.lineno.line_number;*/

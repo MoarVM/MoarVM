@@ -335,7 +335,7 @@ void MVM_gc_mark_thread_blocked(MVMThreadContext *tc) {
             MVM_gc_enter_from_interrupt(tc);
         else
             MVM_panic(MVM_exitcode_gcorch,
-                "Invalid GC status observed while blocking thread; aborting");
+                "Invalid GC status observed \"%lu\" while blocking thread; aborting", MVM_load(&tc->gc_status));
     }
 }
 
