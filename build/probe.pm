@@ -969,12 +969,12 @@ EOT
 
 sub musttail {
     my ($config) = @_;
-    return compile_probe_first_of(config => $config,
-                                  probing => 'musttail return attribute',
-                                  key => 'musttail',
-                                  fallback => '(none found)',
-                                  options => [qw([[clang::musttail]] [[gnu::musttail]] [[musttail]] __attribute__((musttail)))],
-                                  code => <<'EOT');
+    compile_probe_first_of(config => $config,
+                           probing => 'musttail return attribute',
+                           key => 'musttail',
+                           fallback => '(none found)',
+                           options => [qw([[clang::musttail]] [[gnu::musttail]] [[musttail]] '__attribute__((musttail))')],
+                           code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -992,16 +992,20 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
+    # strip the '' that were just needed to not explode into shell syntax
+    if ($config->{'musttail'} eq "'__attribute__((musttail))'") {
+        $config->{'musttail'} = "__attribute__((musttail))";
+    }
 }
 
 sub preserve_none {
     my ($config) = @_;
-    return compile_probe_first_of(config => $config,
-                                  probing => 'preserve_none call convention attribute',
-                                  key => 'preserve_none',
-                                  fallback => '(none found)',
-                                  options => [qw(__attribute__((preserve_none)) __preserve_none)],
-                                  code => <<'EOT');
+    compile_probe_first_of(config => $config,
+                           probing => 'preserve_none call convention attribute',
+                           key => 'preserve_none',
+                           fallback => '(none found)',
+                           options => [qw('__attribute__((preserve_none))' __preserve_none)],
+                           code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -1019,6 +1023,10 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
+    # strip the '' that were just needed to not explode into shell syntax
+    if ($config->{'preserve_none'} eq "'__attribute__((preserve_none))'") {
+        $config->{'preserve_none'} = "__attribute__((preserve_none))";
+    }
 }
 
 sub check_fn_malloc_trim {
