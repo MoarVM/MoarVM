@@ -1,7 +1,7 @@
 New in 2026.05
 + Output JITDUMP format with MVM_JIT_PERF_DUMP
 + debugserver improvements
-+ minor doc updates
++ Bump mimalloc to v2.3.2
 
 New in 2026.04
 
