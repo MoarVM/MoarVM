@@ -20,7 +20,8 @@ CONFIG    = @config@
 ADDCONFIG =
 
 TRACING = 0
-CGOTO = @cancgoto@
+MUSTTAIL_INTERP = @use_musttail@
+CGOTO_INTERP = @use_cgoto@
 NOISY = 0
 
 MSG = @:
@@ -37,7 +38,7 @@ MASTDIR   = @mastdir@
 
 PKGCONFIGDIR = @prefix@/share/pkgconfig
 
-CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
+CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO_INTERP=$(CGOTO_INTERP) @ccdef@MVM_MUSTTAIL_INTERP=$(MUSTTAIL_INTERP)
 CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @mimalloc_include@ \
