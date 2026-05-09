@@ -116,10 +116,11 @@ MVMInstance * MVM_vm_create_instance(void) {
 #endif
 
 #ifdef HAVE_TELEMEH
-    if (getenv("MVM_TELEMETRY_LOG")) {
+    char *telemeh_log = getenv("MVM_TELEMETRY_LOG");
+    if (telemeh_log) {
         char path[256];
         FILE *fp;
-        snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
+        snprintf(path, 255, "%s.%d", telemeh_log,
 #ifdef _WIN32
              _getpid()
 #else
@@ -355,7 +356,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         if (jit_perf_jitdump && *jit_perf_jitdump) {
             char perf_dump_filename[1024];
             snprintf(perf_dump_filename, sizeof(perf_dump_filename),
-                     "%s/jit-%"PRIi64".dump", getenv("MVM_JIT_PERF_DUMP"), MVM_proc_getpid(NULL));
+                     "%s/jit-%"PRIi64".dump", jit_perf_jitdump, MVM_proc_getpid(NULL));
             instance->jit_perf_jitdump = MVM_platform_fopen(perf_dump_filename, "w+");
         }
     }
@@ -443,20 +444,24 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->cross_thread_write_logging = 0;
     }
 
-    if (getenv("MVM_COVERAGE_LOG")) {
-        char *coverage_log = getenv("MVM_COVERAGE_LOG");
+    char *coverage_log = getenv("MVM_COVERAGE_LOG");
+    if (coverage_log) {
         instance->coverage_logging = 1;
         instance->instrumentation_level++;
-        if (coverage_log[0])
+        if (coverage_log[0]) {
             instance->coverage_log_fh = fopen_perhaps_with_pid("MVM_COVERAGE_LOG", coverage_log, "a");
-        else
+        }
+        else {
             instance->coverage_log_fh = stderr;
+        }
 
-        instance->coverage_control = 0;
-        if (getenv("MVM_COVERAGE_CONTROL")) {
-            char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
-            if (coverage_control && coverage_control[0])
-                instance->coverage_control = atoi(coverage_control);
+        char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
+        if (coverage_control && coverage_control[0]) {
+            /* This is a pretty low-level feature, don't need any error handling for getting the numeric value. */
+            instance->coverage_control = atoi(coverage_control);
+        }
+        else {
+            instance->coverage_control = 0;
         }
     }
     else {
