@@ -697,9 +697,21 @@ TERM
 
 
 # Always define this default so that generating fuzzing.mk.in doesn't fail.
-$config{aflcc} = $ENV{AFLCC} if defined $ENV{AFLCC} && !defined $args{aflcc};
+$config{aflcc} = $ENV{AFL_CC} if defined $ENV{AFL_CC} && !defined $args{aflcc};
 $config{aflcc} = "afl-cc$config{exe}" unless defined $args{aflcc};
-$config{fuzzing} = $args{fuzzing};
+
+if ($args{fuzzing}) {
+    if (!defined $config{mkinclude} || $config{mkinclude} eq '') {
+        print("\n");
+        print dots("Fuzzing");
+        print "PROBLEM\n";
+        print "    Creating the necessary makefile contents for fuzzing not implemented for this platform?";
+        $config{fuzzing} = '';
+    }
+    else {
+        $config{fuzzing} = "$config{mkinclude} Fuzzing.mk";
+    }
+}
 
 if (defined $args{fuzzing}) {
     print("\n");
@@ -710,8 +722,8 @@ if (defined $args{fuzzing}) {
     if (!defined $afl_usage) {
         print "PROBLEM\n";
         print "    --fuzzing was specified, but $config{aflcc} doesn't seem to exist or work!\n";
-        print dots("    Trying to fuzz anyway; Set \$AFLCC!");
-        $config{aflcc} = '$AFLCC';
+        print dots("    Trying to fuzz anyway; Set \$AFL_CC!");
+        $config{aflcc} = '$AFL_CC';
     } elsif ($config{use_mimalloc}) {
         print "PROBLEM\n";
         print "    --fuzzing was specified along with mimalloc.\n";
