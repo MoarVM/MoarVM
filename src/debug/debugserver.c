@@ -216,7 +216,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         found = &table->files[table->files_used - 1];
 
         found->filename = MVM_calloc(filename_len + 1, sizeof(char));
-        strncpy(found->filename, filename, filename_len);
+        memcpy(found->filename, filename, filename_len);
 
         if (tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "created new file entry at %u for %s\n", table->files_used - 1, found->filename);
@@ -3590,6 +3590,18 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
         MVM_gc_mark_thread_blocked(tc);
         clientsocket = accept(listensocket, NULL, NULL);
+        /* Only allow the process owner to connect to the debug server */
+#if !defined(_WIN32) && defined(SO_PEERCRED)
+        {
+            struct ucred cr;
+            socklen_t cr_len = sizeof(cr);
+            if (getsockopt(clientsocket, SOL_SOCKET, SO_PEERCRED, &cr, &cr_len) == 0
+                    && cr.uid != getuid()) {
+                MVM_platform_close_socket(clientsocket);
+                continue;
+            }
+        }
+#endif
         MVM_gc_mark_thread_unblocked(tc);
 
         send_greeting(&clientsocket);
