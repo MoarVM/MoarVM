@@ -224,7 +224,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
         }
     }
 
-    char buf[25];
+    char buf[zmij_double_buffer_size];
     /* What we get back is 0e+00, 1e+00, 3.14e+00, 1e+02, ... Infinity.
      * What we'd like is the classic "fixed decimal" representation for
      * small values. So we do some
