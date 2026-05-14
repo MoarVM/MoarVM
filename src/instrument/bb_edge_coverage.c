@@ -151,8 +151,8 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         log_ins->info        = MVM_op_get_op(MVM_OP_bb_entered);
         log_ins->operands    = MVM_spesh_alloc(tc, g, 1 * sizeof(MVMSpeshOperand));
 
-        MVMuint64 bb_id = rapidhash_withSeed(&bb->idx, sizeof(bb->idx), frame_base_hash);
-        log_ins->operands[0].lit_i64 = bb_id;
+        MVMint32 bb_id = (MVMint32)rapidhash_withSeed(&bb->idx, sizeof(bb->idx), frame_base_hash);
+        log_ins->operands[0].lit_i32 = bb_id;
 
         if (should_dump) {
             cmp_write_map(&cmp_writer, 5 + !!bb->num_succ + !!bb->num_handler_succ + !!bb->num_pred);
@@ -348,7 +348,7 @@ got_a_lineno_for_this_bb:
 
                     cmplog_ins->operands[0] = look_for_cmp->operands[1];
                     cmplog_ins->operands[1] = look_for_cmp->operands[2];
-                    cmplog_ins->operands[2].lit_i64 = caller_id;
+                    cmplog_ins->operands[2].lit_i32 = (MVMint32)caller_id;
                     cmplog_ins->operands[3].lit_i16 = attr;
 
                     MVM_spesh_manipulate_insert_ins(tc, bb, look_for_cmp->prev,
@@ -366,7 +366,7 @@ got_a_lineno_for_this_bb:
 
                     cmplog_ins->operands[0] = look_for_cmp->operands[1];
                     cmplog_ins->operands[1] = look_for_cmp->operands[2];
-                    cmplog_ins->operands[2].lit_i64 = caller_id;
+                    cmplog_ins->operands[2].lit_i32 = (MVMint32)caller_id;
 
                     MVM_spesh_manipulate_insert_ins(tc, bb, look_for_cmp->prev,
                                                     cmplog_ins);
@@ -518,7 +518,7 @@ struct cmp_map {
 extern struct cmp_map *__afl_cmp_map;
 extern struct cmp_map *__afl_cmp_map_backup;
 
-void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint64_t caller_id, uint8_t attr) {
+void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr) {
 
   // fprintf(stderr, "hook8 arg0=%lx arg1=%lx attr=%u\n", arg1, arg2, attr);
 
@@ -560,7 +560,7 @@ void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint64_t caller_
   }*/
 }
 
-void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint64_t caller_id) {
+void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint32_t caller_id) {
 
   // fprintf(stderr, "RTN1 %p %p %u\n", ptr1, ptr2, len);
   if (MVM_LIKELY(!__afl_cmp_map)) return;
@@ -635,20 +635,51 @@ void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *has
 }
 
 #else
-void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint64_t caller_id, uint8_t attr) {
+void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr) {
 }
-void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint64_t caller_id) {
+void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint32_t caller_id) {
 }
 #endif
 
+void MVM_edge_coverage_report_bb_edge_hit_precomputed(MVMThreadContext *tc, MVMuint32 combined_id) {
+#if __MVM_AFL_COMPILER
+    MVMuint32 wrapped_pos = 0;
+    /* if (!tc->suppress_coverage) { */
+        if (__afl_cov_map_size == 65536) {
+            wrapped_pos = combined_id % __afl_cov_map_size;
+        } else if (__afl_cov_map_size == 2 * 65536) {
+            wrapped_pos = combined_id % __afl_cov_map_size;
+        } else if (__afl_cov_map_size == 4 * 65536) {
+            wrapped_pos = combined_id % __afl_cov_map_size;
+        } else {
+            wrapped_pos = combined_id % __afl_cov_map_size;
+        }
+        MVMuint8 *map_pos = &__afl_area_ptr[wrapped_pos];
+        *map_pos = *map_pos + 1 == 0 ? 1 : *map_pos + 1;
+    /* } */
+#endif
+}
 
-void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint64 bb_id) {
-#if __AFL_COMPILER
-    MVMuint64 combined_id = (tc->previous_bb_id >> 1) ^ bb_id;
-    MVMuint64 wrapped_pos;
+void MVM_edge_coverage_set_last_bb(MVMThreadContext *tc, MVMuint32 bb_id) {
+#if __MVM_AFL_COMPILER
+    /* if (!tc->suppress_coverage) { */
+        tc->previous_bb_id = bb_id;
+    /* } */
+#endif
+}
 
-    if (!tc->suppress_coverage) {
-        if (__afl_cov_map_size == 65536 || __afl_cov_map_size == 2 * 65536 || __afl_cov_map_size == 4 * 65536) {
+
+void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint32 bb_id) {
+#if __MVM_AFL_COMPILER
+    MVMuint32 combined_id = (tc->previous_bb_id >> 1) ^ bb_id;
+    MVMuint32 wrapped_pos;
+
+    /* if (!tc->suppress_coverage) { */
+        if (__afl_cov_map_size == 65536) {
+            wrapped_pos = combined_id % __afl_cov_map_size;
+        } else if (__afl_cov_map_size == 2 * 65536) {
+            wrapped_pos = combined_id % __afl_cov_map_size;
+        } else if (__afl_cov_map_size == 4 * 65536) {
             wrapped_pos = combined_id % __afl_cov_map_size;
         } else {
             wrapped_pos = combined_id % __afl_cov_map_size;
@@ -657,10 +688,10 @@ void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint64 bb_id)
         MVMuint8 is_new = 0;
         is_new = *map_pos == 0;
         *map_pos = *map_pos + 1 == 0 ? 1 : *map_pos + 1;
-        if (!is_new && __mvm_last_edge_seen && __mvm_last_edge_seen[wrapped_pos] != (MVMuint32)(combined_id << 32)) {
+        if (!is_new && __mvm_last_edge_seen && __mvm_last_edge_seen[wrapped_pos] != (MVMuint32)(combined_id << 16)) {
             is_new = 2;
         }
-        if (__mvm_last_edge_seen) __mvm_last_edge_seen[wrapped_pos] = (MVMuint32)(combined_id << 32);
+        if (__mvm_last_edge_seen) __mvm_last_edge_seen[wrapped_pos] = (MVMuint32)(combined_id << 16);
         if (MVM_UNLIKELY(is_new)) {
             MVMuint8 dumped = 0;
 
@@ -704,6 +735,6 @@ void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint64 bb_id)
             }
         }
         tc->previous_bb_id = bb_id;
-    }
+    /* } */
 #endif
 }

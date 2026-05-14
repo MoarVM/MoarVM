@@ -6,12 +6,14 @@
 
 void MVM_edge_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *static_frame);
 
-void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint64 bb_id);
-MVM_STATIC_INLINE void MVM_edge_coverage_report_bb_edge_hit_quickcheck(MVMThreadContext *tc, MVMuint64 bb_id) {
+void MVM_edge_coverage_report_bb_edge_hit(MVMThreadContext *tc, MVMuint32 bb_id);
+MVM_STATIC_INLINE void MVM_edge_coverage_report_bb_edge_hit_quickcheck(MVMThreadContext *tc, MVMuint32 bb_id) {
     if (!tc->suppress_coverage)
         MVM_edge_coverage_report_bb_edge_hit(tc, bb_id);
 }
 
+void MVM_edge_coverage_report_bb_edge_hit_precomputed(MVMThreadContext *tc, MVMuint32 combined_id);
+void MVM_edge_coverage_set_last_bb(MVMThreadContext *tc, MVMuint32 bb_id);
 
-void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint64_t caller_id);
-void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint64_t caller_id, uint8_t attr);
+void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint32_t caller_id);
+void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr);

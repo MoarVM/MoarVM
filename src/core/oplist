@@ -1170,8 +1170,12 @@ coverage_log     .s str int32 int32 int64
 breakpoint       .s int32 int32 :throwish :invokish
 
 # Coverage for BB edges
-bb_entered       .s int64
+bb_entered       .s int32
+# After spesh optimized code some, consecutive `bb_entered` ops are often
+# the result. We can pre-compute the ID of the edges and set the last bb id
+bb_sp_markedge   .s int32
+bb_sp_setlastbb  .s int32
 
 # Cmplog feature for coverage-guided fuzzing
-cmplog_i         .s r(int64) r(int64) int64 int16
-cmplog_atkey     .s r(obj) r(str) int64
+cmplog_i         .s r(int64) r(int64) int32 int16
+cmplog_atkey     .s r(obj) r(str) int32
