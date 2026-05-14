@@ -2,7 +2,7 @@
 
 #include "rapidhash/rapidhash.h"
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
 extern unsigned char *__afl_area_ptr;
 extern unsigned int   __afl_cov_map_size;
 #endif
@@ -597,7 +597,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
      * against this so we don't init for the empty string. */
     if (target->body.num_graphs) MVM_string_gi_cached_init(tc, &gic, target, 0);
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
     MVMuint8 do_afl_coverage_feedback = (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_NFA_FEEDBACK) && !tc->suppress_coverage;
     MVMuint64 nfa_object_base_edge_hash = 0;
 #endif
@@ -640,7 +640,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
              * access nfa->states, we have to use st - 1. */
             MVMint64 st = curst[--numcur];
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
             MVMint32 numnext_before = numnext;
 #endif
 
@@ -750,7 +750,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT_LL: {
                             const MVMGrapheme32 arg = edge_info[i].arg.g;
                             const MVMGrapheme32 gotten = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
-                            #if __AFL_COMPILER
+                            #if __MVM_AFL_COMPILER
                             if (do_afl_coverage_feedback) {
                                 if (nfa_object_base_edge_hash == 0) {
                                     // yolo, we just hash based on all the state's outgoing edge numbers
@@ -799,7 +799,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         case MVM_NFA_EDGE_CODEPOINT: {
                             const MVMGrapheme32 arg = edge_info[i].arg.g;
                             const MVMGrapheme32 gotten = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
-                            #if __AFL_COMPILER
+                            #if __MVM_AFL_COMPILER
                             if (do_afl_coverage_feedback) {
                                 if (nfa_object_base_edge_hash == 0) {
                                     // yolo, we just hash based on all the state's outgoing edge numbers
@@ -1051,7 +1051,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 }
             }
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
             if (do_afl_coverage_feedback && numnext_before < numnext) {
                 if (nfa_object_base_edge_hash == 0) {
                     // yolo, we just hash based on all the state's outgoing edge numbers

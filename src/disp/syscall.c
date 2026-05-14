@@ -3,7 +3,7 @@
 #include <unistd.h>
 #endif
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
 __AFL_FUZZ_INIT();
 
 int __afl_persistent_loop(int);
@@ -1665,7 +1665,7 @@ static MVMDispSysCall pty_resize = {
 static void afl_testcase_to_string_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMString *result = tc->instance->str_consts.empty;
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
     if (!__afl_already_initialized_forkserver) {
         __AFL_INIT();
     }
@@ -1700,7 +1700,7 @@ static MVMDispSysCall afl_testcase_to_string = {
  * the __AFL_LOOP macro into our binary. */
 static void afl_testcase_loop_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMuint8 result = 0;
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
     result = __afl_persistent_loop(arg_info.callsite->num_pos == 1 ? get_int_arg(arg_info, 0) : 1000);
 #endif
 
@@ -1718,7 +1718,7 @@ static MVMDispSysCall afl_testcase_loop = {
 
 /* afl-fork-here */
 static void afl_fork_here_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
     if (__afl_already_initialized_forkserver) {
         MVM_args_set_result_int(tc, 0, MVM_RETURN_CURRENT_FRAME);
         return;

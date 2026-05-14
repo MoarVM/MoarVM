@@ -440,7 +440,7 @@ MVMuint8 *__mvm_afl_trace_edges_pristine;
  * what actual edge was hit in a given slot. */
 MVMuint16 *__mvm_last_edge_seen;
 
-#if __AFL_COMPILER
+#if __MVM_AFL_COMPILER
 extern unsigned char *__afl_area_ptr;
 extern unsigned int   __afl_cov_map_size;
 
