@@ -222,9 +222,9 @@ stages:
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
         - script: |
-            brew install automake
+            brew install automake gcc
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
-          displayName: Install automake
+          displayName: Install automake and gcc
 
         - script: |
             sudo apt-get update
