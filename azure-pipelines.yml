@@ -223,7 +223,7 @@ stages:
 
         - script: |
             sudo apt-get update
-            sudo apt-get install libzstd-dev valgrind
+            sudo apt-get install libzstd-dev valgrind autoconf automake libtool texinfo
             # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
             for pkg in libc-bin glibc-tools
             do
