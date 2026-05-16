@@ -222,6 +222,11 @@ stages:
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
         - script: |
+            brew install automake
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
+          displayName: Install automake
+
+        - script: |
             sudo apt-get update
             sudo apt-get install libzstd-dev valgrind libltdl-dev
             # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
