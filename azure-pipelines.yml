@@ -222,7 +222,9 @@ stages:
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
         - script: |
-            brew install automake gcc
+            brew install automake
+            export CC=gcc-15
+            export CXX=g++-15
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
           displayName: Install automake and gcc
 
