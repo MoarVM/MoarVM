@@ -222,13 +222,6 @@ stages:
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
         - script: |
-            brew install automake
-            cd 3rdparty/libffi
-            python generate-darwin-source-and-headers.py --only-osx
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
-          displayName: Install automake and generate libffi darwin files
-
-        - script: |
             sudo apt-get update
             sudo apt-get install libzstd-dev valgrind libltdl-dev
             # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
@@ -246,6 +239,14 @@ stages:
         - script: perl selfrepo/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) $(MOAR_CHECKOUT_TYPE)
           workingDirectory: $(Pipeline.Workspace)
           displayName: Checkout repositories
+
+        - script: |
+            brew install automake
+            cd 3rdparty/libffi
+            python generate-darwin-source-and-headers.py --only-osx
+          workingDirectory: '$(Pipeline.Workspace)/MoarVM'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
+          displayName: Install automake and generate libffi darwin files
 
         # Build MoarVM
         - script: |
