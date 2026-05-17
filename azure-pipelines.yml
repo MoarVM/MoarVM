@@ -223,9 +223,10 @@ stages:
 
         - script: |
             brew install automake
+            cd 3rdparty/libffi
             python generate-darwin-source-and-headers.py --only-osx
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
-          displayName: Install automake and gcc
+          displayName: Install automake and generate libffi darwin files
 
         - script: |
             sudo apt-get update
