@@ -248,19 +248,19 @@ stages:
         # Build MoarVM
         - script: |
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
+            make -j2 install
+          workingDirectory: '$(Pipeline.Workspace)/MoarVM'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+          displayName: Build MoarVM (Linux)
+        - script: |
+            perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             cd 3rdparty/libffi
             python generate-darwin-source-and-headers.py --only-osx
             cd ../..
             make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
-          displayName: Build MoarVM
-        - script: |
-            perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
-            make -j2 install
-          workingDirectory: '$(Pipeline.Workspace)/MoarVM'
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
-          displayName: Build MoarVM
+          displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
