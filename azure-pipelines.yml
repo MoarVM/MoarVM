@@ -223,8 +223,7 @@ stages:
 
         - script: |
             brew install automake
-            export CC=gcc-15
-            export CXX=g++-15
+            python generate-darwin-source-and-headers.py --only-osx
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
           displayName: Install automake and gcc
 
