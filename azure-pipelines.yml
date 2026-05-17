@@ -222,6 +222,11 @@ stages:
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
         - script: |
+            brew install automake
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
+          displayName: Install automake
+
+        - script: |
             sudo apt-get update
             sudo apt-get install libzstd-dev valgrind libltdl-dev
             # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
@@ -240,20 +245,21 @@ stages:
           workingDirectory: $(Pipeline.Workspace)
           displayName: Checkout repositories
 
+        # Build MoarVM
         - script: |
-            brew install automake
+            perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             cd 3rdparty/libffi
             python generate-darwin-source-and-headers.py --only-osx
+            cd ../..
+            make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
-          displayName: Install automake and generate libffi darwin files
-
-        # Build MoarVM
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+          displayName: Build MoarVM
         - script: |
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
           displayName: Build MoarVM
         - pwsh: |
             ${{ variables.PWSH_DEV }}
