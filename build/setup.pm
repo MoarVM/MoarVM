@@ -51,7 +51,7 @@ my %TP_UV = (
 my %TP_LF = (
     name  => 'ffi/install/lib/libffi',
     path  => '3rdparty',
-    rule  => 'cd 3rdparty/libffi && ./autogen.sh && ./configure --disable-builddir --disable-docs --prefix=' . catdir(rel2abs(), '3rdparty', 'libffi', 'install') . ' CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -Wno-error=pointer-arith\' && $(MAKE) install',
+    rule  => 'cd 3rdparty/libffi && ./autogen.sh && python generate-darwin-source-and-headers.py --only-osx && ./configure --disable-builddir --disable-docs --prefix=' . catdir(rel2abs(), '3rdparty', 'libffi', 'install') . ' CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -Wno-error=pointer-arith\' && $(MAKE) install',
     clean => 'cd 3rdparty/libffi && $(MAKE) clean',
 );
 
