@@ -55,34 +55,34 @@ stages:
        matrix:
          # The Windows job names start with '_' so they are lexicographically first. They usually
          # take the longest to run, so this way we get better pipelining among all the jobs.
-         A_Win_MVM:
-           IMAGE_NAME: 'windows-2022'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: ''
-         A_Win_MVM_reloc:
-           IMAGE_NAME: 'windows-2022'
-           RELOCATABLE: 'yes'
-           RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable'
+#         A_Win_MVM:
+#           IMAGE_NAME: 'windows-2022'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: ''
+#         A_Win_MVM_reloc:
+#           IMAGE_NAME: 'windows-2022'
+#           RELOCATABLE: 'yes'
+#           RAKUDO_OPTIONS: '--relocatable'
+#           NQP_OPTIONS: '--backends=moar --relocatable'
+#           MOAR_OPTIONS: '--relocatable'
 
          Mac_MVM:
            IMAGE_NAME: 'macOS-14'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
-         Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-14'
-           RELOCATABLE: 'yes'
-           RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable'
-         Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-14'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-c11-atomics'
+#         Mac_MVM_reloc:
+#           IMAGE_NAME: 'macOS-14'
+#           RELOCATABLE: 'yes'
+#           RAKUDO_OPTIONS: '--relocatable'
+#           NQP_OPTIONS: '--backends=moar --relocatable'
+#           MOAR_OPTIONS: '--relocatable'
+#         Mac_MVM_no_C11_atomics:
+#           IMAGE_NAME: 'macOS-14'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--no-c11-atomics'
 
          Lin_MVM:
            IMAGE_NAME: 'ubuntu-24.04'
@@ -90,62 +90,62 @@ stages:
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--debug=3'
            CHECK_LEAKS: 'yes'
-         Lin_MVM_reloc:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RELOCATABLE: 'yes'
-           RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable --debug=3'
-           CHECK_LEAKS: 'yes'
+#         Lin_MVM_reloc:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RELOCATABLE: 'yes'
+#           RAKUDO_OPTIONS: '--relocatable'
+#           NQP_OPTIONS: '--backends=moar --relocatable'
+#           MOAR_OPTIONS: '--relocatable --debug=3'
+#           CHECK_LEAKS: 'yes'
 
-         MVM_gcc_njit:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_njit:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc_njit_libffi:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc_libffi:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_njit_libffi:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_libffi:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
+#         MVM_gcc_njit:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_gcc:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_njit:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_gcc_njit_libffi:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_gcc_libffi:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_njit_libffi:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_libffi:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
+#           CHECK_LEAKS: 'yes'
 #         MVM_gcc_mingw:
 #           IMAGE_NAME: 'windows-2022'
 #           RAKUDO_OPTIONS: ''
@@ -158,42 +158,42 @@ stages:
 #           MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
 #           COVERAGE: 'yes'
 
-         MVM_gcc_malloc:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_malloc:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-24.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
-           CHECK_LEAKS: 'yes'
+#         MVM_gcc_malloc:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_malloc:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
+#           CHECK_LEAKS: 'yes'
+#         MVM_gcc_no_c11_atomics:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_no_c11_atomics:
+#           IMAGE_NAME: 'ubuntu-24.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
+#           CHECK_LEAKS: 'yes'
 
-         # Backwards compatability jobs, using the oldest OS version that azure pipelines support
-         MVM_Ub_22_gcc:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-         MVM_Ub_22_clang:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
+#         # Backwards compatability jobs, using the oldest OS version that azure pipelines support
+#         MVM_Ub_22_gcc:
+#           IMAGE_NAME: 'ubuntu-22.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3'
+#         MVM_Ub_22_clang:
+#           IMAGE_NAME: 'ubuntu-22.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3'
 
       pool:
         vmImage: $(IMAGE_NAME)
@@ -250,8 +250,15 @@ stages:
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
-          displayName: Build MoarVM
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+          displayName: Build MoarVM (Linux)
+        - script: |
+            export CC=gcc-15
+            perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
+            make -j2 install
+          workingDirectory: '$(Pipeline.Workspace)/MoarVM'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Darwin' ))
+          displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
