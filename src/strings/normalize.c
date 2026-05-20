@@ -200,6 +200,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
+    ((MVMArray *)out)->body.ssize     = result_alloc;
 }
 
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of
