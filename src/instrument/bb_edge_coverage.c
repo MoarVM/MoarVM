@@ -6,6 +6,31 @@
 
 #include "cmp.h"
 
+#if __MVM_AFL_COMPILER
+#if !__AFL_COMPILER
+/* If we don't compile with the "official" afl compiler, but we still want
+ * coverage tracking, we have to define these symbols somewhere, and here's
+ * as good a spot as any I guess? */
+unsigned char *__afl_area_ptr;
+unsigned int   __afl_cov_map_size;
+
+struct cmp_map *__afl_cmp_map;
+struct cmp_map *__afl_cmp_map_backup;
+
+#else
+extern unsigned char *__afl_area_ptr;
+extern unsigned int   __afl_cov_map_size;
+
+extern struct cmp_map *__afl_cmp_map;
+extern struct cmp_map *__afl_cmp_map_backup;
+#endif
+#else
+#if !__AFL_COMPILER
+unsigned int   __afl_cov_map_size = 0;
+unsigned char *__afl_area_ptr = 0;
+#endif
+#endif
+
 typedef struct buffered_cmp_writer {
     MVMThreadContext *tc;
     char *buf;
@@ -76,6 +101,12 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMuint64 last_filename_cmp_strid = 0;
 
     MVMuint64 cmp_strid_for_cu_filename = 0;
+
+    // Odd place to do this, but whatever ...
+    if (__afl_cov_map_size == 0) {
+        __afl_cov_map_size = 1 << 16;
+        __afl_area_ptr = MVM_calloc(__afl_cov_map_size, 1);
+    }
 
     if (g->sf->body.cu->body.filename) {
         char *c_filename = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.filename);
@@ -441,9 +472,6 @@ MVMuint8 *__mvm_afl_trace_edges_pristine;
 MVMuint16 *__mvm_last_edge_seen;
 
 #if __MVM_AFL_COMPILER
-extern unsigned char *__afl_area_ptr;
-extern unsigned int   __afl_cov_map_size;
-
 MVMuint64 __instrumentation_active;
 
 typedef MVMuint8 u8;
@@ -515,8 +543,11 @@ struct cmp_map {
 
 /* Adapted from afl's afl-compiler-rt.o.c to work better with moar. */
 
+// Defined further up
+/*
 extern struct cmp_map *__afl_cmp_map;
 extern struct cmp_map *__afl_cmp_map_backup;
+*/
 
 void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr) {
 
