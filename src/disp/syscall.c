@@ -1781,6 +1781,7 @@ static void afl_fork_here_impl(MVMThreadContext *tc, MVMArgs arg_info) {
         MVM_io_eventloop_start(tc);
 
     MVM_args_set_result_int(tc, 1, MVM_RETURN_CURRENT_FRAME);
+    return;
 #endif
 
     MVM_args_set_result_int(tc, 0, MVM_RETURN_CURRENT_FRAME);
