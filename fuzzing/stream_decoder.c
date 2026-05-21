@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
 
     Data = __AFL_FUZZ_TESTCASE_BUF;  // this must be assigned before __AFL_LOOP!
 
-    while (__AFL_LOOP(100000)) {  // increase if you have good stability
+    while (__AFL_LOOP(4000)) {  // increase if you have good stability
         instance = NULL;
         times_jump_reached = 0;
 
@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
         while (nommed < Size) {
             if (Data[nommed] == '\n') {
                 if (list_of_numbers_parse_state == ',' || list_of_numbers_parse_state == '\0') {
-                    fprintf(stderr, "Expected an ascii number before first newline\n");
+                    // fprintf(stderr, "Expected an ascii number before first newline\n");
                     goto continue_afl_main_loop;
                 }
                 num_blocksizes++;
@@ -179,17 +179,17 @@ int main(int argc, char **argv) {
                 num_blocksizes++;
             }
             else {
-                fprintf(stderr, "At character %zu, failed to parse list of ascii numbers! Saw a %c (%d)\n", nommed, Data[nommed], Data[nommed]);
+                // fprintf(stderr, "At character %zu, failed to parse list of ascii numbers! Saw a %c (%d)\n", nommed, Data[nommed], Data[nommed]);
                 goto continue_afl_main_loop;
             }
             nommed++;
         }
         if (nommed == Size) {
-            fprintf(stderr, "expected to parse a line of ascii numbers as the first line, but reached the end of the file?\n");
+            // fprintf(stderr, "expected to parse a line of ascii numbers as the first line, but reached the end of the file?\n");
             goto continue_afl_main_loop;
         }
         if (list_of_numbers_parse_state != '1') {
-            fprintf(stderr, "At position %zu, expected at least one byte before the first newline of the input file... (at least one read-x-at-a-time value)\n", nommed);
+            // fprintf(stderr, "At position %zu, expected at least one byte before the first newline of the input file... (at least one read-x-at-a-time value)\n", nommed);
             goto continue_afl_main_loop;
         }
 
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
             if (Data[nommed] == ',' || Data[nommed] == '\n') {
                 /* Reject test cases with huge read-at-a-time values */
                 if (nommed - last_start_pos > 8) {
-                    fprintf(stderr, "i don't want a read-n-at-a-time longer than 8 chars (found value from %ld to %ld)\n", last_start_pos, nommed);
+                    // fprintf(stderr, "i don't want a read-n-at-a-time longer than 8 chars (found value from %ld to %ld)\n", last_start_pos, nommed);
                     goto continue_afl_main_loop;
                 }
                 read_at_a_time[blocksize_idx] = strtol((char *)Data + last_start_pos, NULL, 10);
