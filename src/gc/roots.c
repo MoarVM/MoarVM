@@ -151,7 +151,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
                 = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
             add_collectable(tc, worklist, snapshot, current->key,
                 "Coverage output interned string");
-            iterator = MVM_str_hash_next_nocheck(tc, weakhash, iterator);
+            iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
         }
     }
 
