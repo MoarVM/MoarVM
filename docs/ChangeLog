@@ -2,6 +2,10 @@ New in 2026.05
 + Output JITDUMP format with MVM_JIT_PERF_DUMP
 + debugserver improvements
 + Bump mimalloc to v2.3.2
++ Always check the return value of getenv()
++ Restore smallint optimization for nqp::mod_I
++ Check results of explicitly allocating from libc
++ Correctly populate dest array in nqp::strtocodes
 
 New in 2026.04
 
