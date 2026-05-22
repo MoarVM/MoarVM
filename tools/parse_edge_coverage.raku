@@ -160,7 +160,7 @@ for %intra_frame_paths.sort({ .key.split("[").head, +.key.split("[").tail.chop }
             @bb_list.push($((+.[2], "D"), .[2].Int.fmt("% 3s"), "      ", "<- ", $frame_with_name, "BB " ~ .[1]));
         }
     }
-    @bb_list.push(|.value.list.map({ $((+.[0], "M"), .[0].Int.fmt("% 3s"), " ->", .[1].fmt("% 3s")) }));
+    @bb_list.push(|.value.list.map({ $((+.[0], "M"), .[0].Int.fmt("% 3s"), " ->", .[1].Int.fmt("% 3s")) }));
     my $conns = .value;
     my @allconns;
     for %bb_to_succ{.key}.list -> $succpair {
