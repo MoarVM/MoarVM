@@ -633,6 +633,8 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     size_t offset = (intptr_t)bytecode_start - (intptr_t)block;
 
     MVMCompUnit      *cu = MVM_cu_map_from_file_handle(tc, fd, offset);
+    MVMString *filename_str = MVM_string_utf8_c8_decode(tc, tc->instance->boot_types.BOOTStr, filename, strlen(filename));
+    cu->body.filename = filename_str;
     char *dump = MVM_bytecode_dump(tc, cu);
     size_t dumplen = strlen(dump);
     size_t position = 0;
