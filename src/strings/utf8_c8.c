@@ -438,8 +438,8 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     if (did_mark_thread_blocked) {
         MVM_gc_mark_thread_unblocked(tc);
-        MVM_gc_root_temp_pop(tc);
     }
+    MVM_gc_root_temp_pop(tc);
 
     {
         MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
