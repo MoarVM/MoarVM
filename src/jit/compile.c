@@ -11,6 +11,8 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 #if linux
 #include <unistd.h>
 #include <time.h>
+#include <sys/syscall.h>
+#define gettid() syscall(SYS_gettid)
 
 struct jitdump_jit_load_record {
     uint32_t id;         // a value identifying the record type (see below)
