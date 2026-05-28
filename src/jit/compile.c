@@ -11,8 +11,7 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 #if linux
 #include <unistd.h>
 #include <time.h>
-#include <sys/syscall.h>
-#define gettid() syscall(SYS_gettid)
+#include <sys/syscall.h> // syscall, SYS_gettid
 
 struct jitdump_jit_load_record {
     uint32_t id;         // a value identifying the record type (see below)
@@ -199,7 +198,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             0, // JIT_CODE_LOAD
             sizeof(struct jitdump_jit_load_record) + strlen(symbol_name) + 1 + code->size,
             (creation_timestamp.tv_sec) * 1000000000 + (creation_timestamp.tv_nsec),
-            getpid(), gettid(),
+            getpid(), syscall(SYS_gettid),
             (uintptr_t)code->func_ptr, (uintptr_t)code->func_ptr, code->size,
             code->seq_nr
         };
