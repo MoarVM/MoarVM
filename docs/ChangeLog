@@ -1,3 +1,6 @@
+New in 2026.05.1
++ fix gettid on older glibc's
+
 New in 2026.05
 + Output JITDUMP format with MVM_JIT_PERF_DUMP
 + debugserver improvements
