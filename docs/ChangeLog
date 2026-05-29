@@ -1,7 +1,14 @@
+New in 2026.06
+
++ Allow GC to run while decoding large buffers of utf8/c8
++ Fix smallint branch of MVM_bigint_mod for values that wrap
+
 New in 2026.05.1
+
 + fix gettid on older glibc's
 
 New in 2026.05
+
 + Output JITDUMP format with MVM_JIT_PERF_DUMP
 + debugserver improvements
 + Bump mimalloc to v2.3.2
