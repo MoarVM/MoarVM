@@ -345,6 +345,18 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
     if (bytes == 0)
         return tc->instance->str_consts.empty;
 
+    MVMuint8 did_mark_thread_blocked = 0;
+
+    MVM_gc_root_temp_push_slow(tc, (MVMCollectable **)&result_type);
+
+    /* If we have to go through a lot of bytes, mark the thread as blocked so
+     * that GC can happen at the same time. Remember the decision so we unblock
+     * it after the main work is done. */
+    if (bytes > 10000) {
+        MVM_gc_mark_thread_blocked(tc);
+        did_mark_thread_blocked = 1;
+    }
+
     /* Decoding state, in a struct to easily pass to utility routines.
      * Result buffer is a maximum estimate to avoid realloc; we can shrink
      * it at the end. */
@@ -423,6 +435,11 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     MVM_free(state.orig_codes);
     MVM_unicode_normalizer_cleanup(tc, &(state.norm));
+
+    if (did_mark_thread_blocked) {
+        MVM_gc_mark_thread_unblocked(tc);
+    }
+    MVM_gc_root_temp_pop(tc);
 
     {
         MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
