@@ -558,8 +558,10 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
             store_bigint_result(bc, ic);
             adjust_nursery(tc, bc);
         } else {
-            /* % in C technically gives the remainder, but we want the modulus. */
-            store_int64_result(tc, bc, ((ba->u.smallint.value % bb->u.smallint.value) + bb->u.smallint.value) % bb->u.smallint.value);
+            /* % in C technically gives the remainder, but we want the modulus. Force everything to 64-bit so intermediate calculations don't overflow/wrap. */
+            MVMint64 a = ba->u.smallint.value;
+            MVMint64 b = bb->u.smallint.value;
+            store_int64_result(tc, bc, ((a % b) + b) % b);
         }
     }
 
