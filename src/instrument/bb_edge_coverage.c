@@ -480,6 +480,37 @@ typedef MVMuint64 u64;
 
 /* Stolen from afl's include/cmplog.h */
 
+/* Original license header from afl cmplog.h: */
+
+/*
+   american fuzzy lop++ - cmplog header
+   ------------------------------------
+
+   Originally written by Michal Zalewski
+
+   Forkserver design by Jann Horn <jannhorn@googlemail.com>
+
+   Now maintained by Marc Heuse <mh@mh-sec.de>,
+                     Heiko Eissfeldt <heiko.eissfeldt@hexco.de>,
+                     Andrea Fioraldi <andreafioraldi@gmail.com>,
+                     Dominik Maier <mail@dmnk.co>
+
+   Copyright 2016, 2017 Google Inc. All rights reserved.
+   Copyright 2019-2026 AFLplusplus Project. All rights reserved.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at:
+
+     https://www.apache.org/licenses/LICENSE-2.0
+
+   SPDX-License-Identifier: Apache-2.0
+
+   Shared code to handle the shared memory. This is used by the fuzzer
+   as well the other components like afl-tmin, afl-showmap, etc...
+
+ */
+
 #define CMPLOG_LVL_MAX 3
 
 #define CMP_MAP_W 65536
@@ -542,6 +573,24 @@ struct cmp_map {
 
 
 /* Adapted from afl's afl-compiler-rt.o.c to work better with moar. */
+
+/* Original license header for afl-compiler-rt.o.c: */
+/*
+   american fuzzy lop++ - instrumentation bootstrap
+   ------------------------------------------------
+
+   Copyright 2015, 2016 Google Inc. All rights reserved.
+   Copyright 2019-2026 AFLplusplus Project. All rights reserved.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at:
+
+     https://www.apache.org/licenses/LICENSE-2.0
+
+   SPDX-License-Identifier: Apache-2.0
+
+*/
 
 // Defined further up
 /*
@@ -664,6 +713,8 @@ void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *has
 
   MVM_free(encoded_key);
 }
+
+/* End of code adapted from afl-compmiler-rt.so.c */
 
 #else
 void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr) {
