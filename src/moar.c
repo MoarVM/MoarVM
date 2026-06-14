@@ -463,6 +463,50 @@ MVMInstance * MVM_vm_create_instance(void) {
         else {
             instance->coverage_control = 0;
         }
+
+        /* Parse coverage file filters. */
+        {
+            char *coverage_files = getenv("MVM_COVERAGE_FILES");
+
+            if (coverage_files && coverage_files[0]) {
+                /* Copy, so we can chop into substrings in place. */
+                char *buf = MVM_malloc(strlen(coverage_files) + 1);
+                char **filters;
+                char *p;
+                char *tok = buf;
+                MVMuint32 count = 1;
+                MVMuint32 i = 0;
+                int last;
+
+                strcpy(buf, coverage_files);
+
+                /* Count comma-delimited substrings. */
+                for (p = buf; *p; p++)
+                    if (*p == ',') count++;
+
+                filters = MVM_malloc(count * sizeof(char *));
+
+                /* Replace commas with \0 and store pointers to non-empty substrings. */
+                for (p = buf; ; p++) {
+                    if (*p == ',' || *p == '\0') {
+                        last = (*p == '\0');
+                        *p = '\0';
+
+                        if (tok[0])
+                            filters[i++] = tok;
+
+                        if (last) break;
+
+                        tok = p + 1;
+                    }
+                }
+
+                /* Assign filters.
+                 * buf and filters intentionally kept for the lifetime of the VM. */
+                instance->coverage_file_filters = filters;
+                instance->coverage_file_filter_count = i;
+            }
+        }
     }
     else {
         instance->coverage_logging = 0;

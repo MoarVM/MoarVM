@@ -4,6 +4,45 @@
 #define snprintf _snprintf
 #endif
 
+/* Returns 1 if no filter is configured or the static frame's source file
+ * passes the configured filter, 0 otherwise. */
+static int sf_passes_file_filter(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMInstance *inst = tc->instance;
+    MVMBytecodeAnnotation *ann;
+    MVMString *filename;
+    char *encoded;
+    int matched = 0;
+    MVMuint32 i;
+
+    if (inst->coverage_file_filter_count == 0)
+        return 1;
+
+    /* Get the static frame's primary filename: */
+    ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
+
+    /* Pass through, so we don't miss code. */
+    if (!ann)
+        return 1;
+
+    /* Look up the filename in the comp unit. */
+    filename = MVM_cu_string(tc, sf->body.cu, ann->filename_string_heap_index);
+    MVM_free(ann);
+
+    /* Encode so we can run strstr on it. */
+    encoded = MVM_string_utf8_encode_C_string(tc, filename);
+
+    /* Match if any one of the configured substrings is found. */
+    for (i = 0; i < inst->coverage_file_filter_count; i++) {
+        if (strstr(encoded, inst->coverage_file_filters[i])) {
+            matched = 1;
+            break;
+        }
+    }
+
+    MVM_free(encoded);
+    return matched;
+}
+
 static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
 
@@ -298,6 +337,32 @@ static void line_numbers_instrument(MVMThreadContext *tc, MVMStaticFrame *sf, MV
 
 /* Instruments code with per-line logging of code coverage */
 void MVM_line_coverage_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    if (!sf_passes_file_filter(tc, sf)) {
+        /* File didn't match the filter.
+         *
+         * We want to leave this frame's bytecode unchanged, but we still have
+         * to record "already handled" so we don't get called again on every
+         * future entry. (line_numbers_instrument skips re-entry when
+         * sf->body.bytecode == instrumented_bytecode.) */
+
+        /* Allocate the instrumentation struct if it doesn't exist yet. */
+        MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
+        if (!ins)
+            ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+
+        /* Point both bytecode pairs at the existing buffer so the above gating
+         * is satisfied next time. */
+        ins->instrumented_bytecode        = sf->body.bytecode;
+        ins->instrumented_handlers        = sf->body.handlers;
+        ins->instrumented_bytecode_size   = sf->body.bytecode_size;
+
+        ins->uninstrumented_bytecode      = sf->body.bytecode;
+        ins->uninstrumented_handlers      = sf->body.handlers;
+        ins->uninstrumented_bytecode_size = sf->body.bytecode_size;
+
+        sf->body.instrumentation = ins;
+        return;
+    }
     line_numbers_instrument(tc, sf, 1);
 }
 
