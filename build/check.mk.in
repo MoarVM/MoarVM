@@ -4,9 +4,7 @@ CINCLUDES := -Isrc \
              -isystem 3rdparty/libtommath \
              -isystem 3rdparty/sha1 \
              -isystem 3rdparty/dynasm \
-             -isystem 3rdparty/dyncall/dynload \
-             -isystem 3rdparty/dyncall/dyncall \
-             -isystem 3rdparty/dyncall/dyncallback \
+             -isystem 3rdparty/libffi/install/include \
              -isystem 3rdparty
 
 
