@@ -979,7 +979,7 @@ static const void * const LABELS[] = {
     &&OP_bb_sp_setlastbb,
     &&OP_cmplog_i,
     &&OP_cmplog_atkey,
-    NULL,
+    &&OP_cmplog_findcclass,
     NULL,
     NULL,
     NULL,

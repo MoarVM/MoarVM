@@ -41,6 +41,9 @@ typedef struct buffered_cmp_writer {
 static size_t cmp_buf_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     struct buffered_cmp_writer *buf = (struct buffered_cmp_writer*)ctx->buf;
 
+    if (!buf->buf)
+        return 0;
+
     if (buf->write_offs + limit > buf->size) {
         fprintf(stderr, "write offs %ld + limit %ld > size %ld\n", buf->write_offs, limit, buf->size);
         memset(buf->buf + buf->write_offs, 'X', buf->size - buf->write_offs);
@@ -82,7 +85,7 @@ stpncpy(char *restrict dst, const char *restrict src, size_t dsize)
     return memset(mempcpy(dst, src, dlen), 0, dsize - dlen);
 }
 
-static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
+static MVMint8 instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
     MVMuint8 should_dump = tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_IDS;
     MVMuint8 should_track_linenos = tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_LINENOS;
@@ -102,6 +105,12 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     MVMuint64 cmp_strid_for_cu_filename = 0;
 
+    MVMStrHashTable *sht = tc->instance->afl_edge_coverage_filenames_reported;
+    if (!sht) {
+        tc->instance->afl_edge_coverage_filenames_reported = sht = MVM_calloc(1, sizeof(MVMStrHashTable));
+        MVM_str_hash_build(tc, sht, sizeof(struct filename_id_entry), 4096);
+    }
+
     // Odd place to do this, but whatever ...
     if (__afl_cov_map_size == 0) {
         __afl_cov_map_size = 1 << 16;
@@ -112,18 +121,31 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         char *c_filename = MVM_string_utf8_encode_C_string(tc, g->sf->body.cu->body.filename);
         frame_base_hash = rapidhash(c_filename, strlen(c_filename));
 
+        if (getenv("MVM_COVERAGE_SKIP_CU_FILTER")) {
+            char *saveptr;
+            char *pattern;
+            char *patterns_orig = getenv("MVM_COVERAGE_SKIP_CU_FILTER");
+            char *patterns = MVM_malloc(strlen(patterns_orig) + 1);
+            strcpy(patterns, patterns_orig);
+            pattern = strtok_r(patterns, "|", &saveptr);
+            for (;;) {
+                if (!pattern) break;
+                if (strcasestr(c_filename, pattern) != NULL) {
+                    MVM_free(c_filename);
+                    MVM_free(patterns);
+                    return -1;
+                }
+                pattern = strtok_r(NULL, "|", &saveptr);
+            }
+            MVM_free(patterns);
+        }
+
         if (should_dump) {
             buffered_writer.buf = MVM_malloc(4096);
             buffered_writer.size = 4096;
             buffered_writer.write_offs = 0;
             buffered_writer.tc = tc;
             cmp_init(&cmp_writer, &buffered_writer, NULL, NULL, cmp_buf_writer);
-
-            MVMStrHashTable *sht = tc->instance->afl_edge_coverage_filenames_reported;
-            if (!sht) {
-                tc->instance->afl_edge_coverage_filenames_reported = sht = MVM_calloc(1, sizeof(MVMStrHashTable));
-                MVM_str_hash_build(tc, sht, sizeof(struct filename_id_entry), 4096);
-            }
 
             struct filename_id_entry *lv = MVM_str_hash_lvalue_fetch(tc, sht, g->sf->body.cu->body.filename);
             if (lv->hash_handle.key == NULL) {
@@ -145,9 +167,11 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_free(c_filename);
     }
     else {
-        /* We don't have something yet for code compiled at run
-         * time to get reliable / stable bb IDs generated for them */
-        return;
+        /* Skip over files that are likely dynamically compiled at run time;
+         * those can't be guaranteed to be stable, so could be worthless for
+         * coverage feedback when the target code or executable runs multiple
+         * times. */
+        return -1;
     }
 
     char *c_cuid = MVM_string_utf8_encode_C_string(tc, g->sf->body.cuuid);
@@ -167,10 +191,12 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             ins = ins->next;
         }
         if (!ins) ins = bb->last_ins;
+        /* If the bb is completely empty, skip. */
+        if (!bb->last_ins) goto skip_bb;
 
         /* Jumplists require the target BB to start in the goto op.
          * We must not break this, or we cause the interpreter to derail */
-        if (bb->last_ins->info->opcode == MVM_OP_jumplist) {
+        if (bb->last_ins && bb->last_ins->info->opcode == MVM_OP_jumplist) {
             MVMint16 to_skip = bb->num_succ;
             for (; to_skip > 0; to_skip--) {
                 bb = bb->linear_next;
@@ -298,33 +324,73 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         }
 
 got_a_lineno_for_this_bb:
-        if (found_annotation) {
+        if (found_annotation && should_dump) {
             /* If the filename hasn't changed, no need to look in the hash. */
             if (last_filename != fnshi) {
                 MVMString *fn = MVM_cu_string(tc, g->sf->body.cu, fnshi);
+                char *encoded = NULL;
+
+                if (getenv("MVM_COVERAGE_SKIP_FILE_FILTER")) {
+                    encoded = MVM_string_utf8_encode_C_string(tc, fn);
+                    char *saveptr;
+                    char *pattern;
+                    char *patterns_orig = getenv("MVM_COVERAGE_SKIP_FILE_FILTER");
+                    char *patterns = MVM_malloc(strlen(patterns_orig) + 1);
+                    strcpy(patterns, patterns_orig);
+                    pattern = strtok_r(patterns, "|", &saveptr);
+                    for (;;) {
+                        if (!pattern) break;
+                        if (strcasestr(encoded, pattern) != NULL) {
+                            if (should_dump) {
+                            cmp_write_map(&cmp_writer, 3);
+                            CMP_WRITE_TYPE("SKIP");
+                            cmp_write_str(&cmp_writer, "pattern", 7);
+                            cmp_write_str(&cmp_writer, pattern, strlen(pattern));
+                            cmp_write_str(&cmp_writer, "file", 4);
+                            cmp_write_str(&cmp_writer, encoded, strlen(encoded));
+                            flush_buf(&cmp_writer);
+                            if (buffered_writer.size)
+                                MVM_free(buffered_writer.buf);
+                            }
+                            MVM_free(encoded);
+                            MVM_free(patterns);
+
+                            return -1;
+                        }
+                        pattern = strtok_r(NULL, "|", &saveptr);
+                    }
+                    MVM_free(patterns);
+                }
 
                 MVMStrHashTable *sht = tc->instance->afl_edge_coverage_filenames_reported;
                 struct filename_id_entry *lv = MVM_str_hash_lvalue_fetch(tc, sht, fn);
                 if (lv->hash_handle.key == NULL) {
-                    char *encoded = MVM_string_utf8_encode_C_string(tc, fn);
+                    if (!encoded)
+                        encoded = MVM_string_utf8_encode_C_string(tc, fn);
 
                     lv->hash_handle.key = fn;
                     last_filename_cmp_strid = lv->id_for_filename = MVM_str_hash_count(tc, sht) + 0xcd000000;
-                    cmp_write_map(&cmp_writer, 3);
-                    CMP_WRITE_TYPE("STR");
-                    cmp_write_str(&cmp_writer, "id", 2);
-                    cmp_write_integer(&cmp_writer, last_filename_cmp_strid);
-                    cmp_write_str(&cmp_writer, "str", 3);
-                    cmp_write_str(&cmp_writer, encoded, strlen(encoded));
+
+                    if (should_dump) {
+                        cmp_write_map(&cmp_writer, 3);
+                        CMP_WRITE_TYPE("STR");
+                        cmp_write_str(&cmp_writer, "id", 2);
+                        cmp_write_integer(&cmp_writer, last_filename_cmp_strid);
+                        cmp_write_str(&cmp_writer, "str", 3);
+                        cmp_write_str(&cmp_writer, encoded, strlen(encoded));
+
+                        flush_buf(&cmp_writer);
+                    }
+
 
                     MVM_free(encoded);
-                    flush_buf(&cmp_writer);
                 }
                 else {
                     last_filename_cmp_strid = lv->id_for_filename;
                 }
             }
 
+            if (should_dump) {
             cmp_write_map(&cmp_writer, 4);
             CMP_WRITE_TYPE("LINE");
             cmp_write_str(&cmp_writer, "bbid", 4);
@@ -334,6 +400,7 @@ got_a_lineno_for_this_bb:
             cmp_write_str(&cmp_writer, "lnum", 4);
             cmp_write_uinteger(&cmp_writer, linenum);
             flush_buf(&cmp_writer);
+            }
 
             last_filename = fnshi;
             last_line_number = linenum;
@@ -402,9 +469,30 @@ got_a_lineno_for_this_bb:
                     MVM_spesh_manipulate_insert_ins(tc, bb, look_for_cmp->prev,
                                                     cmplog_ins);
                 }
+                /*else if (opcode == MVM_OP_findcclass || opcode == MVM_OP_findnotcclass) {
+                    caller_id =
+                        rapidhash_withSeed(&bb->idx, sizeof(bb->idx), caller_id);
+
+                    MVMSpeshIns *cmplog_ins =
+                        MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    cmplog_ins->info = MVM_op_get_op(MVM_OP_cmplog_findcclass);
+                    cmplog_ins->operands =
+                        MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
+
+                    cmplog_ins->operands[0] = look_for_cmp->operands[1];
+                    cmplog_ins->operands[1] = look_for_cmp->operands[2];
+                    cmplog_ins->operands[2] = look_for_cmp->operands[3];
+                    cmplog_ins->operands[3] = look_for_cmp->operands[4];
+                    cmplog_ins->operands[4].lit_i32 = caller_id;
+                    cmplog_ins->operands[5].lit_i16 = opcode == MVM_OP_findcclass;
+
+                    MVM_spesh_manipulate_insert_ins(tc, bb, look_for_cmp->prev,
+                                                    cmplog_ins);
+                }*/
                 look_for_cmp = look_for_cmp->next;
             }
         }
+skip_bb:
 
         bb = bb->linear_next;
     }
@@ -413,18 +501,31 @@ got_a_lineno_for_this_bb:
         MVM_free(buffered_writer.buf);
 
     MVM_free(c_cuid);
+
+    return 0;
 }
 
 /* Adds instrumented version of the unspecialized bytecode. */
 static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMSpeshCode  *sc;
     MVMStaticFrameInstrumentation *ins;
-    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 1, 0);
+    MVMSpeshGraph *sg = MVM_spesh_graph_create(tc, sf, 0, 0);
+
     /* If we don't dump the preds of BBs, we don't need to compute them here */
     if (tc->instance->afl_edge_coverage & MVM_BB_COVERAGE_DUMP_BB_IDS) {
+        MVM_spesh_facts_discover(tc, sg, NULL, 0);
+        MVM_spesh_eliminate_dead_bbs(tc, sg, 1);
         MVM_spesh_graph_recompute_dominance(tc, sg);
     }
-    instrument_graph(tc, sg);
+
+    /* If instrument_graph decided to skip this ... */
+    if (instrument_graph(tc, sg) == -1) {
+        /* Free up the spesh graph */
+        MVM_spesh_graph_destroy(tc, sg);
+        /* Re-create it fresh */
+        sg = MVM_spesh_graph_create(tc, sf, 0, 0);
+        /* Continue as if nothing had happened ... */
+    }
     sc = MVM_spesh_codegen(tc, sg);
     ins = sf->body.instrumentation;
     if (!ins)
@@ -598,6 +699,80 @@ extern struct cmp_map *__afl_cmp_map;
 extern struct cmp_map *__afl_cmp_map_backup;
 */
 
+void MVM_fuzzing_cmplog_ins_hook1(uint8_t arg1, uint8_t arg2, uint32_t caller_id, uint8_t attr) {
+
+  if (MVM_LIKELY(!__afl_cmp_map)) return;
+  if (MVM_UNLIKELY(arg1 == arg2)) return;
+
+  uintptr_t k = (uintptr_t)caller_id;
+  k = (uintptr_t)(k & (CMP_MAP_W - 1));
+
+  u32 hits;
+
+  if (__afl_cmp_map->headers[k].type != CMP_TYPE_INS) {
+
+    __afl_cmp_map->headers[k].type = CMP_TYPE_INS;
+    hits = 0;
+    __afl_cmp_map->headers[k].hits = 1;
+    __afl_cmp_map->headers[k].shape = 0;
+
+  } else {
+
+    hits = __afl_cmp_map->headers[k].hits++;
+
+  }
+
+  __afl_cmp_map->headers[k].attribute = attr;
+
+  hits &= CMP_MAP_H - 1;
+  __afl_cmp_map->log[k][hits].v0 = arg1;
+  __afl_cmp_map->log[k][hits].v1 = arg2;
+
+/*  if (hits == 0) {
+    fprintf(stderr, "cmplog: entry %lx latest entry: %lx == %lx\n", k, arg1, arg2);
+  }*/
+}
+
+void MVM_fuzzing_cmplog_ins_hook4(uint32_t arg1, uint32_t arg2, uint32_t caller_id, uint8_t attr) {
+
+  if (MVM_LIKELY(!__afl_cmp_map)) return;
+  if (MVM_UNLIKELY(arg1 == arg2)) return;
+
+  uintptr_t k = (uintptr_t)caller_id;
+  k = (uintptr_t)(k & (CMP_MAP_W - 1));
+
+  u32 hits;
+
+  if (__afl_cmp_map->headers[k].type != CMP_TYPE_INS) {
+
+    __afl_cmp_map->headers[k].type = CMP_TYPE_INS;
+    hits = 0;
+    __afl_cmp_map->headers[k].hits = 1;
+    __afl_cmp_map->headers[k].shape = 3;
+
+  } else {
+
+    if (__afl_cmp_map->headers[k].shape < 3) {
+
+      __afl_cmp_map->headers[k].shape = 3;
+
+    }
+
+    hits = __afl_cmp_map->headers[k].hits++;
+
+  }
+
+  __afl_cmp_map->headers[k].attribute = attr;
+
+  hits &= CMP_MAP_H - 1;
+  __afl_cmp_map->log[k][hits].v0 = arg1;
+  __afl_cmp_map->log[k][hits].v1 = arg2;
+
+/*  if (hits == 0) {
+    fprintf(stderr, "cmplog: entry %lx latest entry: %lx == %lx\n", k, arg1, arg2);
+  }*/
+}
+
 void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr) {
 
   // fprintf(stderr, "hook8 arg0=%lx arg1=%lx attr=%u\n", arg1, arg2, attr);
@@ -640,12 +815,169 @@ void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_
   }*/
 }
 
+void MVM_fuzzing_cmplog_findcclass_hook(MVMThreadContext *tc, uint64_t cclass, MVMString *arg1, uint64_t offset, uint64_t count, uint32_t caller_id, uint8_t negated) {
+
+  // fprintf(stderr, "hook8 arg0=%lx arg1=%lx attr=%u\n", arg1, arg2, attr);
+
+  if (MVM_LIKELY(!__afl_cmp_map)) return;
+  if (!arg1 || !IS_CONCRETE(arg1))
+      return;
+
+  MVMuint64 len = MVM_string_graphs(tc, arg1);
+  if (len == 0)
+      return;
+
+  MVMuint32 lower_comparison_example = 0;
+  MVMuint32 upper_comparison_example = 0;
+
+  switch (cclass) {
+      case MVM_CCLASS_ALPHABETIC:
+        lower_comparison_example = 'a';
+        upper_comparison_example = 'Z';
+        break;
+      case MVM_CCLASS_UPPERCASE:
+        lower_comparison_example = 'A';
+        upper_comparison_example = 'Z';
+        break;
+      case MVM_CCLASS_LOWERCASE:
+        lower_comparison_example = 'a';
+        upper_comparison_example = 'z';
+        break;
+      case MVM_CCLASS_NUMERIC:
+        lower_comparison_example = '0';
+        upper_comparison_example = '9';
+        break;
+      case MVM_CCLASS_WHITESPACE:
+        lower_comparison_example = ' ';
+        upper_comparison_example = '\t';
+        break;
+      case MVM_CCLASS_PUNCTUATION:
+        lower_comparison_example = '.';
+        upper_comparison_example = '!';
+        break;
+      case MVM_CCLASS_NEWLINE:
+        lower_comparison_example = '\n';
+        upper_comparison_example = 0;
+        break;
+      default:
+        return;
+  }
+
+  MVMint64 result = negated ? MVM_string_find_not_cclass(tc, cclass, arg1, offset, count)
+                            : MVM_string_find_cclass(tc, cclass, arg1, offset, count);
+
+  if (result < 0) return;
+
+  // fprintf(stderr, "cmplog cclass search result %ld len %ld\n", result, len);
+  MVMint32 grapheme_at_pos = MVM_string_get_grapheme_at_nocheck(tc, arg1, result >= len ? len - 1 : result);
+
+  /* Don't want to confuse the fuzzer with synthetics ... probably */
+  if (grapheme_at_pos < 0)
+      return;
+
+  /* GE is 3, LE is 5 */
+  /* LT is 2, GT is 4 */
+  /* So when we are negated cclass search, we want to lt the lower and gt the upper. */
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, lower_comparison_example, caller_id, 3 - !!negated);
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, upper_comparison_example, caller_id, 5 - !!negated);
+
+  /* If the position we went to in the search was anywhere else than the start
+   * we can also log a comparison of the start string, methinks. */
+  if (result <= offset || offset < 0)
+      return;
+
+  // fprintf(stderr, "cmplog cclass search offset %ld len %ld\n", offset, len);
+  grapheme_at_pos = MVM_string_get_grapheme_at_nocheck(tc, arg1, offset > len ? len - 1 : offset);
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, lower_comparison_example, caller_id, 3 - !!negated);
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, upper_comparison_example, caller_id, 5 - !!negated);
+  // fprintf(stderr, "done!\n");
+}
+
+void MVM_fuzzing_cmplog_findcclass_hook(MVMThreadContext *tc, uint64_t cclass, MVMString *arg1, uint64_t offset, uint64_t count, uint32_t caller_id, uint8_t negated) {
+
+  // fprintf(stderr, "hook8 arg0=%lx arg1=%lx attr=%u\n", arg1, arg2, attr);
+
+  if (MVM_LIKELY(!__afl_cmp_map)) return;
+  if (!arg1 || !IS_CONCRETE(arg1))
+      return;
+
+  MVMuint64 len = MVM_string_graphs(tc, arg1);
+  if (len == 0)
+      return;
+
+  MVMuint32 lower_comparison_example = 0;
+  MVMuint32 upper_comparison_example = 0;
+
+  switch (cclass) {
+      case MVM_CCLASS_ALPHABETIC:
+        lower_comparison_example = 'a';
+        upper_comparison_example = 'Z';
+        break;
+      case MVM_CCLASS_UPPERCASE:
+        lower_comparison_example = 'A';
+        upper_comparison_example = 'Z';
+        break;
+      case MVM_CCLASS_LOWERCASE:
+        lower_comparison_example = 'a';
+        upper_comparison_example = 'z';
+        break;
+      case MVM_CCLASS_NUMERIC:
+        lower_comparison_example = '0';
+        upper_comparison_example = '9';
+        break;
+      case MVM_CCLASS_WHITESPACE:
+        lower_comparison_example = ' ';
+        upper_comparison_example = '\t';
+        break;
+      case MVM_CCLASS_PUNCTUATION:
+        lower_comparison_example = '.';
+        upper_comparison_example = '!';
+        break;
+      case MVM_CCLASS_NEWLINE:
+        lower_comparison_example = '\n';
+        upper_comparison_example = 0;
+        break;
+      default:
+        return;
+  }
+
+  MVMint64 result = negated ? MVM_string_find_not_cclass(tc, cclass, arg1, offset, count)
+                            : MVM_string_find_cclass(tc, cclass, arg1, offset, count);
+
+  if (result < 0) return;
+
+  // fprintf(stderr, "cmplog cclass search result %ld len %ld\n", result, len);
+  MVMint32 grapheme_at_pos = MVM_string_get_grapheme_at_nocheck(tc, arg1, result >= len ? len - 1 : result);
+
+  /* Don't want to confuse the fuzzer with synthetics ... probably */
+  if (grapheme_at_pos < 0)
+      return;
+
+  /* GE is 3, LE is 5 */
+  /* LT is 2, GT is 4 */
+  /* So when we are negated cclass search, we want to lt the lower and gt the upper. */
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, lower_comparison_example, caller_id, 3 - !!negated);
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, upper_comparison_example, caller_id, 5 - !!negated);
+
+  /* If the position we went to in the search was anywhere else than the start
+   * we can also log a comparison of the start string, methinks. */
+  if (result <= offset || offset < 0)
+      return;
+
+  // fprintf(stderr, "cmplog cclass search offset %ld len %ld\n", offset, len);
+  grapheme_at_pos = MVM_string_get_grapheme_at_nocheck(tc, arg1, offset > len ? len - 1 : offset);
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, lower_comparison_example, caller_id, 3 - !!negated);
+  MVM_fuzzing_cmplog_ins_hook8(grapheme_at_pos, upper_comparison_example, caller_id, 5 - !!negated);
+  // fprintf(stderr, "done!\n");
+}
+
 void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint32_t caller_id) {
 
   // fprintf(stderr, "RTN1 %p %p %u\n", ptr1, ptr2, len);
   if (MVM_LIKELY(!__afl_cmp_map)) return;
 
   if (MVM_UNLIKELY(!hash)) return;
+  if (MVM_is_null(tc, hash) || !IS_CONCRETE(hash)) return;
 
   MVMuint64 len = MVM_string_graphs(tc, str);
   if (MVM_UNLIKELY(len < 2 || len > __afl_cmplog_max_len)) return;
@@ -720,6 +1052,8 @@ void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *has
 void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr) {
 }
 void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint32_t caller_id) {
+}
+void MVM_fuzzing_cmplog_findcclass_hook(MVMThreadContext *tc, uint64_t cclass, MVMString *arg1, uint64_t offset, uint64_t count, uint32_t caller_id, uint8_t negated) {
 }
 #endif
 

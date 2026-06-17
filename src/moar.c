@@ -483,6 +483,13 @@ MVMInstance * MVM_vm_create_instance(void) {
         else {
             instance->edge_coverage_fh = stderr;
         }
+
+        if (instance->afl_edge_coverage & MVM_BB_COVERAGE_NO_SUPPRESS_AT_START) {
+            instance->main_thread->suppress_coverage = 0;
+        }
+        else {
+            instance->main_thread->suppress_coverage = 1;
+        }
     }
 
     char *coverage_log = getenv("MVM_COVERAGE_LOG");

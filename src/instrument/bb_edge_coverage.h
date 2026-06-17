@@ -1,3 +1,4 @@
+#define MVM_BB_COVERAGE_NO_SUPPRESS_AT_START 2
 #define MVM_BB_COVERAGE_DUMP_FIRST_EDGE_HIT 4
 #define MVM_BB_COVERAGE_DUMP_BB_IDS 8
 #define MVM_BB_COVERAGE_DUMP_BB_LINENOS 32
@@ -16,4 +17,8 @@ void MVM_edge_coverage_report_bb_edge_hit_precomputed(MVMThreadContext *tc, MVMu
 void MVM_edge_coverage_set_last_bb(MVMThreadContext *tc, MVMuint32 bb_id);
 
 void MVM_fuzzing_cmplog_rtn_hook_atkey_hook(MVMThreadContext *tc, MVMObject *hash, MVMString *str, uint32_t caller_id);
+void MVM_fuzzing_cmplog_ins_hook1(uint8_t  arg1, uint8_t  arg2, uint32_t caller_id, uint8_t attr);
+void MVM_fuzzing_cmplog_ins_hook4(uint32_t arg1, uint32_t arg2, uint32_t caller_id, uint8_t attr);
 void MVM_fuzzing_cmplog_ins_hook8(uint64_t arg1, uint64_t arg2, uint32_t caller_id, uint8_t attr);
+
+void MVM_fuzzing_cmplog_findcclass_hook(MVMThreadContext *tc, uint64_t cclass, MVMString *arg1, uint64_t offset, uint64_t count, uint32_t caller_id, uint8_t negated);
