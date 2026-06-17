@@ -2778,7 +2778,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         }
 
         if (string->body.storage_type == MVM_STRING_STRAND) {
-            MVMuint16 num_strands = string->body.num_strands;
+            MVMuint16 num_strands = string->body.storage.num_strands;
             MVMuint16 strand_idx;
             cmp_write_conststr(ctx, "string_strand_count");
             cmp_write_int(ctx, num_strands);

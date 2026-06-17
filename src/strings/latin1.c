@@ -63,7 +63,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
     }
     else {
         MVMint8 *storage;
-        if (bytes <= 8) {
+        if (bytes <= MVM_STRING_IN_SITU_8_CAPACITY) {
             result->body.storage_type   = MVM_STRING_IN_SITU_8;
             storage = result->body.storage.in_situ_8;
         }

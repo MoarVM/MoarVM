@@ -200,7 +200,7 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
     MVMStringIndex i;
     MVMGrapheme8 *dest_buf = NULL;
     MVMStringIndex num_graphs = MVM_string_graphs_nocheck(tc, str);
-    if (num_graphs <= 8) {
+    if (num_graphs <= MVM_STRING_IN_SITU_8_CAPACITY) {
         str->body.storage_type   = MVM_STRING_IN_SITU_8;
         dest_buf = str->body.storage.in_situ_8;
     }
@@ -261,7 +261,7 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
 
     if (string_can_be_8bit(tc, gi, result_graphs)) {
         MVMStringIndex result_pos = 0;
-        if (result_graphs <= 8) {
+        if (result_graphs <= MVM_STRING_IN_SITU_8_CAPACITY) {
             result->body.storage_type = MVM_STRING_IN_SITU_8;
             result8 = result->body.storage.in_situ_8;
         }
@@ -399,7 +399,7 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
 }
 #define copy_strands_memcpy(BLOB_TYPE, SIZEOF_TYPE, STORAGE_TYPE) { \
     result->body.storage.BLOB_TYPE = MVM_malloc(sizeof(SIZEOF_TYPE) * MVM_string_graphs_nocheck(tc, orig)); \
-    for (i = 0; i < orig->body.num_strands; i++) { \
+    for (i = 0; i < orig->body.storage.num_strands; i++) { \
         size_t graphs_this_strand =  orig->body.storage.strands[i].end - orig->body.storage.strands[i].start; \
         /* If it's 8bit format and there's only one grapheme */ \
         if ((STORAGE_TYPE == MVM_STRING_GRAPHEME_ASCII || STORAGE_TYPE == MVM_STRING_GRAPHEME_8) && graphs_this_strand == 1) { \
@@ -445,7 +445,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
         MVMROOT(tc, orig) {
             result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
             result->body.num_graphs = MVM_string_graphs(tc, orig);
-            for (i = 1; i < orig->body.num_strands; i++) {
+            for (i = 1; i < orig->body.storage.num_strands; i++) {
                 if (common_storage_type != orig->body.storage.strands[i].blob_string->body.storage_type) {
                     common_storage_type = -1;
                     break;
@@ -564,7 +564,7 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
             break;
         case MVM_STRING_IN_SITU_8:
             if (b->body.storage_type == MVM_STRING_IN_SITU_8) {
-                assert(length <= 8);
+                assert(length <= MVM_STRING_IN_SITU_8_CAPACITY);
                 return 0 == memcmp(
                     a->body.storage.in_situ_8 + starta,
                     b->body.storage.in_situ_8 + startb,
@@ -840,24 +840,24 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
     MVMROOT(tc, a) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.num_graphs = end_pos - start_pos;
-        if (a->body.storage_type != MVM_STRING_STRAND && result->body.num_graphs > 8) {
+        if (a->body.storage_type != MVM_STRING_STRAND && result->body.num_graphs > MVM_STRING_IN_SITU_8_CAPACITY) {
             /* It's some kind of buffer. Construct a strand view into it. */
             result->body.storage_type    = MVM_STRING_STRAND;
             result->body.storage.strands = allocate_strands(tc, 1);
-            result->body.num_strands     = 1;
+            result->body.storage.num_strands     = 1;
             result->body.storage.strands[0].blob_string = a;
             MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)a);
             result->body.storage.strands[0].start       = start_pos;
             result->body.storage.strands[0].end         = end_pos;
             result->body.storage.strands[0].repetitions = 0;
         }
-        else if (a->body.num_strands == 1 && a->body.storage.strands[0].repetitions == 0 && result->body.num_graphs > 8) {
+        else if (a->body.storage.num_strands == 1 && a->body.storage.strands[0].repetitions == 0 && result->body.num_graphs > MVM_STRING_IN_SITU_8_CAPACITY) {
             /* Single strand string; quite possibly already a substring. We'll
              * just produce an updated view. */
             MVMStringStrand *orig_strand = &(a->body.storage.strands[0]);
             result->body.storage_type    = MVM_STRING_STRAND;
             result->body.storage.strands = allocate_strands(tc, 1);
-            result->body.num_strands     = 1;
+            result->body.storage.num_strands     = 1;
             result->body.storage.strands[0].blob_string = orig_strand->blob_string;
             MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)orig_strand->blob_string);
             result->body.storage.strands[0].start       = orig_strand->start + start_pos;
@@ -906,7 +906,7 @@ static MVMString * string_from_strand_at_index(MVMThreadContext *tc, MVMString *
 
 static MVMuint32 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.storage_type == MVM_STRING_STRAND) {
-        MVMStringStrand *sa = &(a->body.storage.strands[a->body.num_strands - 1]);
+        MVMStringStrand *sa = &(a->body.storage.strands[a->body.storage.num_strands - 1]);
         /* If the final strand of a eq b, we'll just increment the final strand of a's repetitions. */
         if (sa->end - sa->start == MVM_string_graphs_nocheck(tc, b)) {
             if (MVM_string_equal_at(tc, sa->blob_string, b, sa->start))
@@ -914,12 +914,12 @@ static MVMuint32 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
         }
         /* If the final strand of a eq the first (and only) strand of b, we'll just add b's repetitions
 	 * (plus 1 for the strand itself) to the final strand of a's repetitions. */
-        else if (b->body.storage_type == MVM_STRING_STRAND && b->body.num_strands == 1) {
+        else if (b->body.storage_type == MVM_STRING_STRAND && b->body.storage.num_strands == 1) {
             MVMStringStrand *sb = &(b->body.storage.strands[0]);
             if (sa->end - sa->start == sb->end - sb->start) {
                 MVMString *a_strand, *b_strand;
                 MVMROOT(tc, b) {
-                    a_strand = string_from_strand_at_index(tc, a, a->body.num_strands - 1);
+                    a_strand = string_from_strand_at_index(tc, a, a->body.storage.num_strands - 1);
                 }
                 MVMROOT(tc, a_strand) {
                     b_strand = string_from_strand_at_index(tc, b, 0);
@@ -956,7 +956,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     is_concat_stable = MVM_nfg_is_concat_stable(tc, a, b);
 
     /* If is_concat_stable equals 0 and a and b are not repetitions. */
-    if (is_concat_stable == 0 && !(a->body.storage_type == MVM_STRING_STRAND && a->body.storage.strands[a->body.num_strands - 1].repetitions)
+    if (is_concat_stable == 0 && !(a->body.storage_type == MVM_STRING_STRAND && a->body.storage.strands[a->body.storage.num_strands - 1].repetitions)
     && !(b->body.storage_type == MVM_STRING_STRAND && b->body.storage.strands[0].repetitions)) {
         MVMCodepoint last_a_first_b[2] = {
             MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
@@ -1019,15 +1019,15 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
         if (is_concat_stable == 1 && (matching_repetition_count = final_strand_match_with_repetition_count(tc, a, b))) {
             /* We have it; just copy the strands to a new string and bump the
              * repetitions count of the last one. */
-            result->body.storage.strands = allocate_strands(tc, a->body.num_strands);
-            copy_strands(tc, a, 0, result, 0, a->body.num_strands);
-            result->body.storage.strands[a->body.num_strands - 1].repetitions += matching_repetition_count;
-            result->body.num_strands = a->body.num_strands;
+            result->body.storage.strands = allocate_strands(tc, a->body.storage.num_strands);
+            copy_strands(tc, a, 0, result, 0, a->body.storage.num_strands);
+            result->body.storage.strands[a->body.storage.num_strands - 1].repetitions += matching_repetition_count;
+            result->body.storage.num_strands = a->body.storage.num_strands;
         }
 
         /* Fast path for the case when we have two IN_SITU_8 strings and the total size of the result would still fit
          * in an IN_SITU_8 (which happens pretty frequently when building Rakudo). */
-        else if (is_concat_stable == 1 && total_graphs <= 8 &&
+        else if (is_concat_stable == 1 && total_graphs <= MVM_STRING_IN_SITU_8_CAPACITY &&
                  a->body.storage_type == MVM_STRING_IN_SITU_8 && b->body.storage_type == MVM_STRING_IN_SITU_8)
         {
             result->body.storage_type = MVM_STRING_IN_SITU_8;
@@ -1048,10 +1048,10 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             /* See if we have too many strands between the two. If so, we will
              * collapse the biggest side. */
             MVMuint16 strands_a = a->body.storage_type == MVM_STRING_STRAND
-                ? a->body.num_strands
+                ? a->body.storage.num_strands
                 : 1;
             MVMuint16 strands_b = b->body.storage_type == MVM_STRING_STRAND
-                ? b->body.num_strands
+                ? b->body.storage.num_strands
                 : 1;
             MVMString *effective_a = a;
             MVMString *effective_b = b;
@@ -1072,8 +1072,8 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
                 }
             }
             /* Assemble the result. */
-            result->body.num_strands = strands_a + strands_b + (renormalized_section_graphs ? 1 : 0);
-            result->body.storage.strands = allocate_strands(tc, result->body.num_strands);
+            result->body.storage.num_strands = strands_a + strands_b + (renormalized_section_graphs ? 1 : 0);
+            result->body.storage.strands = allocate_strands(tc, result->body.storage.num_strands);
             /* START 1 */
             if (effective_a->body.storage_type == MVM_STRING_STRAND) {
                 copy_strands(tc, effective_a, 0, result, 0, strands_a);
@@ -1140,7 +1140,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             /* END 2 */
             /* Adjust result->num_strands */
                 if (lost_strands)
-                    result->body.num_strands -= lost_strands;
+                    result->body.storage.num_strands -= lost_strands;
                 /* Adjust result->num_graphs */
                 result->body.num_graphs += renormalized_section_graphs - consumed_b - consumed_a;
             }
@@ -1192,7 +1192,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         result->body.storage_type    = MVM_STRING_STRAND;
         result->body.storage.strands = allocate_strands(tc, 1);
         if (a->body.storage_type == MVM_STRING_STRAND) {
-            if (a->body.num_strands == 1 && a->body.storage.strands[0].repetitions == 0) {
+            if (a->body.storage.num_strands == 1 && a->body.storage.strands[0].repetitions == 0) {
                 copy_strands(tc, a, 0, result, 0, 1);
             }
             else {
@@ -1212,7 +1212,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
             result->body.storage.strands[0].end         = agraphs;
         }
         result->body.storage.strands[0].repetitions = count - 1;
-        result->body.num_strands = 1;
+        result->body.storage.num_strands = 1;
     }
     /* If string a is not stable under concatenation, we need to create a flat
      * string and ensure it is normalized */
@@ -2126,7 +2126,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     sgraphs  = MVM_string_graphs_nocheck(tc, separator);
     if (sgraphs)
         sstrands = separator->body.storage_type == MVM_STRING_STRAND
-            ? separator->body.num_strands
+            ? separator->body.storage.num_strands
             : 1;
     else
         sstrands = 1;
@@ -2157,7 +2157,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         piece_graphs = MVM_string_graphs(tc, piece);
         if (piece_graphs) {
             total_strands += piece->body.storage_type == MVM_STRING_STRAND
-                ? piece->body.num_strands
+                ? piece->body.storage.num_strands
                 : 1;
             total_graphs += piece_graphs;
         }
@@ -2184,7 +2184,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         MVMuint16 offset = 0;
         result->body.storage_type    = MVM_STRING_STRAND;
         result->body.storage.strands = allocate_strands(tc, total_strands);
-        result->body.num_strands     = total_strands;
+        result->body.storage.num_strands     = total_strands;
         for (i = 0; i < num_pieces; i++) {
             MVMString *piece = pieces[i];
             if (0 < i) {
@@ -2192,11 +2192,11 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                 if (concats_stable)
                     join_check_stability(tc, piece, separator, pieces,
                         &concats_stable, num_pieces, sgraphs, i);
-                copy_strands(tc, separator, 0, result, offset, separator->body.num_strands);
-                offset += separator->body.num_strands;
+                copy_strands(tc, separator, 0, result, offset, separator->body.storage.num_strands);
+                offset += separator->body.storage.num_strands;
             }
-            copy_strands(tc, piece, 0, result, offset, piece->body.num_strands);
-            offset += piece->body.num_strands;
+            copy_strands(tc, piece, 0, result, offset, piece->body.storage.num_strands);
+            offset += piece->body.storage.num_strands;
         }
     }
     /* Doing multiple concats is only faster if we have about 300 graphemes per

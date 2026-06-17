@@ -314,7 +314,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     /* If we're lucky, we can fit our string in 8 bits per grapheme. */
     if (MVM_string_buf32_can_fit_into_8bit(buffer, count)) {
         MVMGrapheme8 *storage;
-        if (count <= 8) {
+        if (count <= MVM_STRING_IN_SITU_8_CAPACITY) {
             storage = result->body.storage.in_situ_8;
             result->body.storage_type    = MVM_STRING_IN_SITU_8;
         } else {

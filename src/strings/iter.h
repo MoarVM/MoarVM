@@ -5,7 +5,7 @@ struct MVMGraphemeIter {
         MVMGrapheme32    *blob_32;
         MVMGraphemeASCII *blob_ascii;
         MVMGrapheme8     *blob_8;
-        MVMGrapheme8     in_situ_8[8];
+        MVMGrapheme8     in_situ_8[MVM_STRING_IN_SITU_8_CAPACITY];
         MVMGrapheme32    in_situ_32[2];
         MVMuint64        any;
         void             *any_ptr;
@@ -30,21 +30,25 @@ struct MVMGraphemeIter {
     MVMStringStrand *next_strand;
 };
 
+MVM_STATIC_INLINE void take_over_blob(MVMGraphemeIter *gi, MVMString *s) {
+    memcpy(&gi->active_blob.in_situ_8, s->body.storage.in_situ_8, MVM_STRING_IN_SITU_8_CAPACITY);
+}
+
 /* Initializes a grapheme iterator. */
 MVM_STATIC_INLINE void MVM_string_gi_init(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *s) {
     if (s->body.storage_type == MVM_STRING_STRAND) {
         MVMStringStrand *strands = s->body.storage.strands;
         MVMString       *first   = strands[0].blob_string;
-        gi->active_blob.any      = first->body.storage.any;
+        take_over_blob(gi, first);
         gi->blob_type            = first->body.storage_type;
-        gi->strands_remaining    = s->body.num_strands - 1;
+        gi->strands_remaining    = s->body.storage.num_strands - 1;
         gi->pos = gi->start      = strands[0].start;
         gi->end                  = strands[0].end;
         gi->repetitions          = strands[0].repetitions;
         gi->next_strand          = strands + 1;
     }
     else {
-        gi->active_blob.any   = s->body.storage.any;
+        take_over_blob(gi, s);
         gi->blob_type         = s->body.storage_type;
         gi->end               = s->body.num_graphs;
         gi->strands_remaining = gi->start = gi->pos = gi->repetitions = 0;
@@ -73,7 +77,7 @@ static void MVM_string_gi_next_strand_rep(MVMThreadContext *tc, MVMGraphemeIter 
     gi->end             = next->end;
     gi->repetitions     = next->repetitions;
     gi->blob_type       = next->blob_string->body.storage_type;
-    gi->active_blob.any = next->blob_string->body.storage.any;
+    take_over_blob(gi, next->blob_string);
     gi->strands_remaining--;
 }
 /* Sets the position of the iterator. (Can be optimized in many ways in the
@@ -96,7 +100,7 @@ MVM_STATIC_INLINE void MVM_string_gi_move_to(MVMThreadContext *tc, MVMGraphemeIt
     }
     if (next) {
         gi->blob_type       = next->blob_string->body.storage_type;
-        gi->active_blob.any = next->blob_string->body.storage.any;
+        take_over_blob(gi, next->blob_string);
     }
 
     /* Now look within the strand. */
@@ -184,7 +188,7 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
         }
         else if (gi->strands_remaining) {
             MVMStringStrand *next = gi->next_strand;
-            gi->active_blob.any = next->blob_string->body.storage.any;
+            take_over_blob(gi, next->blob_string);
             gi->blob_type       = next->blob_string->body.storage_type;
             gi->pos             = next->start;
             gi->end             = next->end;

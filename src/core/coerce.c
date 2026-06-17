@@ -148,7 +148,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     const int max_size = mag[msb] + is_negative + 1;
     char *buffer;
     MVMString *result;
-    if (max_size <= 8) {
+    if (max_size <= MVM_STRING_IN_SITU_8_CAPACITY) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.storage_type = MVM_STRING_IN_SITU_8;
         buffer = (char *)result->body.storage.in_situ_8;
@@ -158,7 +158,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     }
     const int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
-        if (max_size > 8)
+        if (max_size > MVM_STRING_IN_SITU_8_CAPACITY)
             result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
         else
             result->body.num_graphs = len;
@@ -167,7 +167,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
         return result;
     }
     else {
-        if (max_size > 8)
+        if (max_size > MVM_STRING_IN_SITU_8_CAPACITY)
             MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRId64")", i);
     }
@@ -186,7 +186,7 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
     const int max_size = mag[msb] + 1;
     char *buffer;
     MVMString *result;
-    if (max_size <= 8) {
+    if (max_size <= MVM_STRING_IN_SITU_8_CAPACITY) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.storage_type = MVM_STRING_IN_SITU_8;
         buffer = (char *)result->body.storage.in_situ_8;
@@ -196,7 +196,7 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
     }
     const int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
-        if (max_size > 8)
+        if (max_size > MVM_STRING_IN_SITU_8_CAPACITY)
             result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
         else
             result->body.num_graphs = len;
@@ -205,7 +205,7 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
         return result;
     }
     else {
-        if (max_size > 8)
+        if (max_size > MVM_STRING_IN_SITU_8_CAPACITY)
             MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRId64")", i);
     }
