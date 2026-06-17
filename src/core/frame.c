@@ -104,6 +104,8 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
                 MVM_line_coverage_instrument(tc, static_frame);
             else if (tc->instance->debugserver)
                 MVM_breakpoint_instrument(tc, static_frame);
+            else if (tc->instance->afl_edge_coverage)
+                MVM_edge_coverage_instrument(tc, static_frame);
             else
                 /* XXX uninstrumenting is currently turned off, due to multithreading
                  * woes. If you add an instrumentation that has to be "turned off"

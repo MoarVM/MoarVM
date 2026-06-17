@@ -138,6 +138,7 @@ my %TC_POSIX = (
 
     mkflags => '',
     mknoisy => '',
+    mkinclude => '',
 
     obj => '.o',
     lib => 'lib%s.a',
@@ -167,6 +168,8 @@ NOOUT = > @nul@
 NOERR = 2> @nul@
 endif
 TERM
+
+    mkinclude => 'include ',
 
     dllimport => '__attribute__ ((visibility ("default")))',
     dllexport => '__attribute__ ((visibility ("default")))',
@@ -244,6 +247,8 @@ NOOUT = > @nul@
 NOERR = 2> @nul@
 !ENDIF
 TERM
+
+    mkinclude => '!INCLUDE ',
 
     obj => '.obj',
     lib => '%s.lib',
