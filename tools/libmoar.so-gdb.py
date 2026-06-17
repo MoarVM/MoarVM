@@ -196,7 +196,7 @@ def mvmstr_to_str(val, start=0, strlen=None):
     elif stringtyp == "strands":
         data = val['body']['storage'][stringtyp]
         pieces = []
-        for p in range(val['body']['num_strands']):
+        for p in range(val['body']['storage']['num_strands']):
             strand = data[p]
             graphs_one = int(strand['end']) - int(strand['start'])
             graphs_all = graphs_one * int(strand['repetitions'])
