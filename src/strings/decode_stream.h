@@ -19,17 +19,17 @@ struct MVMDecodeStream {
     MVMint64 abs_byte_pos;
 
     /* How far we've eaten into the current head bytes buffer. */
-    MVMint32 bytes_head_pos;
+    MVMint64 bytes_head_pos;
 
     /* How far we've eaten into the current head char buffer. */
-    MVMint32 chars_head_pos;
+    MVMint64 chars_head_pos;
 
     /* The encoding we're using. */
     MVMint32 encoding;
 
     /* Suggestion for decoders of how many bytes to guess at when allocating
      * decoded result buffers. */
-    MVMint32 result_size_guess;
+    MVMint64 result_size_guess;
 
     /* Normalizer. */
     MVMNormalizer norm;
@@ -51,14 +51,14 @@ struct MVMDecodeStream {
  * one, if any. */
 struct MVMDecodeStreamBytes {
     MVMuint8             *bytes;
-    MVMint32              length;
+    MVMint64              length;
     MVMDecodeStreamBytes *next;
 };
 
 /* A bunch of characters already decoded, with a link to the next bunch. */
 struct MVMDecodeStreamChars {
     MVMGrapheme32        *chars;
-    MVMint32              length;
+    MVMint64              length;
     MVMDecodeStreamChars *next;
 };
 
@@ -92,9 +92,9 @@ struct MVMDecodeStreamSeparators {
  * see if we hit the final grapheme of any of the separators, which is all we
  * demand the actual encodings themselves work out (multi-grapheme separators
  * are handled in the decode stream logic itself). */
-MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMGrapheme32 g) {
+MVM_STATIC_INLINE MVMint64 MVM_string_decode_stream_maybe_sep(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMGrapheme32 g) {
     if (sep_spec && g <= sep_spec->max_final_grapheme) {
-        MVMint32 i;
+        MVMint64 i;
         for (i = 0; i < sep_spec->num_seps; i++)
             if (sep_spec->final_graphemes[i] == g)
                 return 1;
@@ -103,17 +103,17 @@ MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *
 }
 
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding, MVMint64 abs_byte_pos, MVMint32 translate_newlines);
-void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 *bytes, MVMint32 length);
-void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length);
-void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMDecodeStreamBytes *bytes, MVMint32 pos);
-MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars, MVMint64 eof);
+void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 *bytes, MVMint64 length);
+void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint64 length);
+void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMDecodeStreamBytes *bytes, MVMint64 pos);
+MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint64 chars, MVMint64 eof);
 MVMString * MVM_string_decodestream_get_until_sep(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStreamSeparators *seps, MVMint32 chomp);
 MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStreamSeparators *sep_spec, MVMint32 chomp);
 MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStream *ds);
 MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecodeStream *ds);
-MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 bytes);
+MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint64 bytes);
 MVMint64 MVM_string_decodestream_bytes_available(MVMThreadContext *tc, const MVMDecodeStream *ds);
-MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 **buf, MVMint32 bytes);
+MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 **buf, MVMint64 bytes);
 MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds);
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds);
 void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds);
