@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "platform/io.h"
+#include <stdio.h>
 
 #ifndef MVM_HEAPSNAPSHOT_FORMAT
 #define MVM_HEAPSNAPSHOT_FORMAT 3
@@ -39,13 +40,33 @@ MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc) {
 static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col);
 static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col);
 
-/* Start heap profiling. */
-void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
+static MVMHeapSnapshotCollection *create_heapsnapshot_collection(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = MVM_calloc(1, sizeof(MVMHeapSnapshotCollection));
-    char *path;
-    MVMString *path_str;
 
     col->start_time = uv_hrtime();
+
+    {
+#if MVM_HEAPSNAPSHOT_FORMAT == 2
+        col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
+        col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
+#endif
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
+        MVMHeapDumpTableOfContents *toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
+        col->toplevel_toc = toc;
+        toc->toc_entry_alloc = 8;
+        toc->toc_words = MVM_calloc(8, sizeof(char *));
+        toc->toc_positions = (MVMuint64 *)MVM_calloc(8, sizeof(MVMuint64) * 2);
+#endif
+    }
+
+    return col;
+}
+
+/* Start heap profiling. */
+void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
+    MVMHeapSnapshotCollection *col = create_heapsnapshot_collection(tc);
+    char *path;
+    MVMString *path_str;
 
     path_str = MVM_repr_get_str(tc,
         MVM_repr_at_key_o(tc, config, tc->instance->str_consts.path));
@@ -68,23 +89,11 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
     fprintf(col->fh, "MoarHeapDumpv00%d", MVM_HEAPSNAPSHOT_FORMAT);
 
-    {
-#if MVM_HEAPSNAPSHOT_FORMAT == 2
-        col->index = MVM_calloc(1, sizeof(MVMHeapDumpIndex));
-        col->index->snapshot_sizes = MVM_calloc(1, sizeof(MVMHeapDumpIndexSnapshotEntry));
-#endif
-#if MVM_HEAPSNAPSHOT_FORMAT == 3
-        MVMHeapDumpTableOfContents *toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
-        col->toplevel_toc = toc;
-        toc->toc_entry_alloc = 8;
-        toc->toc_words = MVM_calloc(8, sizeof(char *));
-        toc->toc_positions = (MVMuint64 *)MVM_calloc(8, sizeof(MVMuint64) * 2);
-
-        filemeta_to_filehandle_ver3(tc, col);
-#endif
-    }
-
     tc->instance->heap_snapshots = col;
+
+#if MVM_HEAPSNAPSHOT_FORMAT == 3
+    filemeta_to_filehandle_ver3(tc, col);
+#endif
 }
 
 /* Grows storage if it's full, zeroing the extension. Assumes it's only being
@@ -251,7 +260,7 @@ static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
  * seen it before or adding it if not. */
 static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
-    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, collectable);
+    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, ss->seen, collectable);
 
     if (entry->key) {
         return entry->value;
@@ -284,7 +293,7 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
  * it before or adding it if not. */
 static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMFrame *frame) {
-    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, frame);
+    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, ss->seen, frame);
 
     if (entry->key) {
         return entry->value;
@@ -647,22 +656,44 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 add_reference_const_cstr(tc, ss, "VM Instance Roots",
                     push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS, NULL));
 
+                char root_name_buff[64] = {0};
+                MVMuint64 root_name_str_idx;
+
                 cur_thread = tc->instance->threads;
                 while (cur_thread) {
                     if (cur_thread->body.tc) {
-                        add_reference_const_cstr(tc, ss, "C Stack Roots",
+                        snprintf(root_name_buff, 63, "Thread %d C Stack Roots", cur_thread->body.thread_id);
+                        root_name_str_idx = get_string_index(tc, ss, root_name_buff, STR_MODE_DUP);
+
+                        add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING,
+                            root_name_str_idx,
                             push_workitem(tc, ss,
                                 MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS,
                                 cur_thread->body.tc));
-                        add_reference_const_cstr(tc, ss, "Thread Roots",
+
+                        snprintf(root_name_buff, 63, "Thread %d Roots", cur_thread->body.thread_id);
+                        root_name_str_idx = get_string_index(tc, ss, root_name_buff, STR_MODE_DUP);
+
+                        add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING,
+                            root_name_str_idx,
                             push_workitem(tc, ss,
                                 MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS,
                                 cur_thread->body.tc));
-                        add_reference_const_cstr(tc, ss, "Inter-generational Roots",
+
+                        snprintf(root_name_buff, 63, "Thread %d Inter-generational Roots", cur_thread->body.thread_id);
+                        root_name_str_idx = get_string_index(tc, ss, root_name_buff, STR_MODE_DUP);
+
+                        add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING,
+                            root_name_str_idx,
                             push_workitem(tc, ss,
                                 MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS,
                                 cur_thread->body.tc));
-                        add_reference_const_cstr(tc, ss, "Thread Call Stack Roots",
+
+                        snprintf(root_name_buff, 63, "Thread %d Call Stack Roots", cur_thread->body.thread_id);
+                        root_name_str_idx = get_string_index(tc, ss, root_name_buff, STR_MODE_DUP);
+
+                        add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING,
+                            root_name_str_idx,
                             push_workitem(tc, ss,
                                 MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS,
                                 cur_thread->body.tc));
@@ -740,10 +771,11 @@ void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
 }
 
 /* Drives the overall process of recording a snapshot of the heap. */
-static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs) {
+static MVMPtrHashTable *record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *hs, MVMuint8 delete_seen_hash) {
     /* Initialize state for taking a snapshot. */
     MVMHeapSnapshotState ss;
     memset(&ss, 0, sizeof(MVMHeapSnapshotState));
+    ss.seen = MVM_calloc(1, sizeof(MVMPtrHashTable));
     ss.col = col;
     ss.hs = hs;
     ss.gcwl = MVM_gc_worklist_create(tc, 1);
@@ -755,8 +787,14 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
-    MVM_ptr_hash_demolish(tc, &ss.seen);
     MVM_gc_worklist_destroy(tc, ss.gcwl);
+    if (delete_seen_hash) {
+        MVM_ptr_hash_demolish(tc, ss.seen);
+        return NULL;
+    }
+    else {
+        return ss.seen;
+    }
 }
 
 static void destroy_current_heap_snapshot(MVMThreadContext *tc) {
@@ -1847,6 +1885,14 @@ static void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapsho
 #endif
 }
 
+static MVMHeapSnapshot *create_snapshot() {
+    MVMHeapSnapshot *snapshot;
+    snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
+    snapshot->stats = MVM_calloc(1, sizeof(MVMHeapSnapshotStats));
+    snapshot->record_time = uv_hrtime();
+    return snapshot;
+}
+
 /* Takes a snapshot of the heap, outputting it to the filehandle */
 void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
     if (MVM_profile_heap_profiling(tc)) {
@@ -1857,9 +1903,7 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
         }
 
         if (do_heapsnapshot) {
-            col->snapshot = MVM_calloc(1, sizeof(MVMHeapSnapshot));
-
-            col->snapshot->stats = MVM_calloc(1, sizeof(MVMHeapSnapshotStats));
+            col->snapshot = create_snapshot();
 
             col->total_heap_size = 0;
             col->total_objects = 0;
@@ -1867,9 +1911,7 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
             col->total_stables = 0;
             col->total_frames = 0;
 
-            col->snapshot->record_time = uv_hrtime();
-
-            record_snapshot(tc, col, col->snapshot);
+            record_snapshot(tc, col, col->snapshot, 1);
 
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
             snapshot_to_filehandle_ver3(tc, col);
@@ -1883,6 +1925,15 @@ void MVM_profile_heap_take_snapshot(MVMThreadContext *tc) {
 
         col->snapshot_idx++;
     }
+}
+
+MVMHeapSnapshotCollection *MVM_profile_heap_make_in_memory_snapshot(MVMThreadContext *tc, MVMPtrHashTable **out_seen_hash) {
+    MVMHeapSnapshotCollection *col = create_heapsnapshot_collection(tc);
+    col->snapshot = create_snapshot();
+
+    *out_seen_hash = record_snapshot(tc, col, col->snapshot, 0);
+
+    return col;
 }
 
 /* Finishes heap profiling, getting the data. */
