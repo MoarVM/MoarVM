@@ -563,6 +563,7 @@ terminate_seq:
 void MVM_validate_static_frame(MVMThreadContext *tc,
         MVMStaticFrame *static_frame) {
     MVMStaticFrameBody *fb = &static_frame->body;
+    MVMint32 is_calloced = 0;
     Validator val[1];
 
     val->tc        = tc;
@@ -573,7 +574,14 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->bc_size   = fb->bytecode_size;
     val->src_cur_op = fb->bytecode;
     val->src_bc_end = fb->bytecode + fb->bytecode_size;
-    val->labels    = MVM_calloc(1, fb->bytecode_size);
+    if (fb->bytecode_size > MAX_ALLOCA_SIZE) {
+        val->labels    = MVM_calloc(1, fb->bytecode_size);
+        is_calloced = 1;
+    }
+    else {
+        val->labels    = alloca(fb->bytecode_size);
+        memset(val->labels, 0, fb->bytecode_size);
+    }
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
     val->cur_instr = 0;
@@ -625,7 +633,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     validate_final_return(val);
 
     /* Validation successful. Clear up instruction offsets. */
-    MVM_free(val->labels);
+    if (is_calloced)
+        MVM_free(val->labels);
 
     /* Mark frame validated. */
     static_frame->body.validated = 1;
