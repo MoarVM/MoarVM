@@ -189,7 +189,7 @@ TERM
 my %TC_DARWIN = (
     %TC_GNU,
 
-    -compiler => 'clang',
+    -compiler => 'zig',
 
     dll => 'lib%s.dylib',
 
@@ -463,6 +463,35 @@ our %COMPILERS = (
         expect_likely => '(condition)',
         expect_unlikely => '(condition)',
         expect_condition => '(condition)'
+    },
+
+    zig => {
+        -toolchain => 'gnu',
+
+        cc => 'zig cc',
+        ld => undef,
+        as => 'as',
+
+        ccmiscflags  => '-optimize=ReleaseFast -fno-omit-frame-pointer -fno-optimize-sibling-calls -Werror=vla',
+        ccwarnflags  => '-Wno-logical-op-parentheses',
+        ccoptiflags  => '-O%s -DNDEBUG',
+        ccdebugflags => '-g%s',
+        cc_covflags => '-fprofile-instr-generate -fcoverage-mapping',
+        ccjitflags   => '',
+
+        ldmiscflags  => '',
+        ldoptiflags  => undef,
+        lddebugflags => undef,
+        ld_covflags => '-fprofile-instr-generate -fcoverage-mapping',
+
+        noreturnspecifier => '',
+        noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '',
+        formatattribute   => '__attribute__((format(X, Y, Z)))',
+        vectorizerspecifier => '_Pragma ("clang loop vectorize(enable)")',
+        expect_likely => '__builtin_expect(!!(condition), 1)',
+        expect_unlikely => '__builtin_expect(!!(condition), 0)',
+        expect_condition => '__builtin_expect((condition), (expection))'
     },
 );
 
