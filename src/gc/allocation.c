@@ -42,6 +42,9 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
         /* Allocate (just bump the pointer). */
         allocated = tc->nursery_alloc;
         tc->nursery_alloc = (char *)tc->nursery_alloc + size;
+        /*if (!((uintptr_t)(tc->nursery_alloc) >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)(tc->nursery_alloc) < (uintptr_t)MVM_NURSERY_ARENA_LIMIT)) {
+            MVM_oops(tc, "nursery alloc went outside of nursery memory area???");
+        }*/
     }
     else {
         MVM_panic(MVM_exitcode_gcalloc, "Cannot allocate 0 bytes of memory in the nursery");
