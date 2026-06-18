@@ -2864,16 +2864,16 @@
           (carg $2           int)
           (carg $3           int))))))
 
-(template: atkey_u!
-  (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
-    (arglist
-      (carg (tc) ptr)
-      (carg (^stable $1) ptr)
-      (carg $1 ptr)
-      (carg (^body $1) ptr)
-      (carg $2 ptr)
-      (carg \$0 ptr)
-      (carg (^reg_uint) int))))
+#(template: atkey_u!
+#  (callv (^getf (^repr $1) MVMREPROps ass_funcs.at_key)
+#    (arglist
+#      (carg (tc) ptr)
+#      (carg (^stable $1) ptr)
+#      (carg $1 ptr)
+#      (carg (^body $1) ptr)
+#      (carg $2 ptr)
+#      (carg \$0 ptr)
+#      (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
 
 (template: coerce_us
   (call (^func &MVM_coerce_u_s)
