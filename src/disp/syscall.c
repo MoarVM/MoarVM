@@ -1197,7 +1197,6 @@ static MVMDispSysCall set_cur_hll_config_key = {
     .expected_concrete = { 1, 0 },
 };
 
-
 /* code-bytecode-size */
 static void code_bytecode_size_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
@@ -1214,26 +1213,7 @@ static MVMDispSysCall code_bytecode_size = {
     .expected_concrete = { 1 },
 };
 
-/* set-compunit-resolver */
-static void set_compunit_resolver_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVMCompUnit *comp_unit    = (MVMCompUnit*)get_obj_arg(arg_info, 0);
-    MVMCode *resolver         = (MVMCode*)    get_obj_arg(arg_info, 1);
-    MVMCode *dynamic_resolver = (MVMCode*)    get_obj_arg(arg_info, 2);
-    MVM_ASSIGN_REF(tc, &comp_unit->common.header, comp_unit->body.resolver, resolver);
-    MVM_ASSIGN_REF(tc, &comp_unit->common.header, comp_unit->body.dynamic_resolver, dynamic_resolver);
-    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
-}
-static MVMDispSysCall set_compunit_resolver = {
-    .c_name = "set-compunit-resolver",
-    .implementation = set_compunit_resolver_impl,
-    .min_args = 3,
-    .max_args = 3,
-    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ },
-    .expected_reprs = { MVM_REPR_ID_MVMCompUnit, MVM_REPR_ID_MVMCode, MVM_REPR_ID_MVMCode },
-    .expected_concrete = { 1, 1, 1 },
-};
-
-/* async-linux-connect */
+/* async-unix-connect */
 static void async_unix_connect_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *queue      = get_obj_arg(arg_info, 0);
     MVMObject *schedulee  = get_obj_arg(arg_info, 1);
@@ -1545,18 +1525,20 @@ static void stat_is_executable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
             /* true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC */
             MVMint64 n = MVM_string_index_from_end(tc, stat_obj->body.filename, tc->instance->str_consts.dot, 0);
             if (n >= 0) {
-                MVMString *fileext = MVM_string_substring(tc, stat_obj->body.filename, n, -1);
-                char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
                 char *pext = getenv("PATHEXT");
-                int plen   = strlen(pext);
-                int i;
-                for (i = 0; i < plen; i++) {
-                    if (0 == stricmp(ext, pext++)) {
-                         r = 1;
-                         break;
+                if (pext) {
+                    MVMString *fileext = MVM_string_substring(tc, stat_obj->body.filename, n, -1);
+                    char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
+                    int plen   = strlen(pext);
+                    int i;
+                    for (i = 0; i < plen; i++) {
+                        if (0 == stricmp(ext, pext++)) {
+                             r = 1;
+                             break;
+                        }
                     }
+                    MVM_free(ext);
                 }
-                MVM_free(ext);
             }
         }
 #else
@@ -1687,6 +1669,28 @@ static MVMDispSysCall async_socket_udp = {
 
 
 
+/* pty-resize */
+static void pty_resize_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMOSHandle *handle  = (MVMOSHandle *)get_obj_arg(arg_info, 0);
+    MVMint32 cols = get_int_arg(arg_info, 1);
+    MVMint32 rows = get_int_arg(arg_info, 2);
+    char *error_str = MVM_proc_resize_pty(tc, handle, cols, rows);
+    if (error_str) {
+        char *waste[] = { error_str, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "%s", error_str);
+    }
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall pty_resize = {
+    .c_name = "pty-resize",
+    .implementation = pty_resize_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds    = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT },
+    .expected_reprs    = { MVM_REPR_ID_MVMOSHandle, 0, 0 },
+    .expected_concrete = { 1, 1, 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1773,7 +1777,6 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &code_is_stub);
     add_to_hash(tc, &set_cur_hll_config_key);
     add_to_hash(tc, &code_bytecode_size);
-    add_to_hash(tc, &set_compunit_resolver);
     add_to_hash(tc, &async_unix_connect);
     add_to_hash(tc, &async_unix_listen);
     add_to_hash(tc, &handle_open_mode);
@@ -1790,6 +1793,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &telemetry_interval_annotate);
     add_to_hash(tc, &is_debugserver_running);
     add_to_hash(tc, &async_socket_udp);
+    add_to_hash(tc, &pty_resize);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

@@ -454,9 +454,9 @@ alphabetized by subject category:
 
 ### MoarVM JIT
 
-* [MoarVM JIT documentation](https://github.com/MoarVM/MoarVM/tree/master/docs/jit)
-* [MoarVM JIT source](https://github.com/MoarVM/MoarVM/tree/master/src/jit)
-* [MoarVM JIT x64 specifics](https://github.com/MoarVM/MoarVM/tree/master/src/jit/x64)
+* [MoarVM JIT documentation](https://github.com/MoarVM/MoarVM/tree/main/docs/jit)
+* [MoarVM JIT source](https://github.com/MoarVM/MoarVM/tree/main/src/jit)
+* [MoarVM JIT x64 specifics](https://github.com/MoarVM/MoarVM/tree/main/src/jit/x64)
 
 
 ### Performance Limits

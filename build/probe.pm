@@ -938,7 +938,7 @@ EOT
     die "Unable to run probe, so something is badly wrong"
         unless defined $size;
     chomp $size;
-    die "Probe gave nonsensical answer '$size', so something it badly wrong"
+    die "Probe gave nonsensical answer '$size', so something is badly wrong"
         unless $size =~ /\A[0-9]+\z/;
     print "$size\n";
     $config->{ptr_size} = $size;

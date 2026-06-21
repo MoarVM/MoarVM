@@ -1,3 +1,258 @@
+New in 2026.06
+
++ Allow GC to run while decoding large buffers of utf8/c8
++ Fix smallint branch of MVM_bigint_mod for values that wrap
+
+New in 2026.05.1
+
++ fix gettid on older glibc's
+
+New in 2026.05
+
++ Output JITDUMP format with MVM_JIT_PERF_DUMP
++ debugserver improvements
++ Bump mimalloc to v2.3.2
++ Always check the return value of getenv()
++ Restore smallint optimization for nqp::mod_I
++ Check results of explicitly allocating from libc
++ Correctly populate dest array in nqp::strtocodes
+
+New in 2026.04
+
++ utf8-c8: don't write past end of result buffer (#1994) [ [c7365e733]
++ Clear gen2 default alloc flag when reporting erroneous bytecode (#1998) [6b1fbd6cc]
+
+New in 2026.03
+
++ Bump mimalloc to v2.2.7
++ Bump libtommath to 1.3.0
+
+New in 2026.02
+
+Core:
++ Use GCD implementation from Daniel Lemire [c80b587c]
++ MSVC doesn't have __builtin_ctz... [b509f046]
++ Fix a harmless CAS misusage [a4bac8e2]
++ A gc vs debugserver fix [42cb3592]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
+CI:
+
+New in 2026.01
+
+Core:
++ Fix building MoarVM with a system provided libuv [52a918c8]
++ Always align region allocator allocations to multiples of 8 [1aa273fd]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
++ Fewer unneeded prof allocated calls [5eb2ccf3]
+
+Strings:
+
+CI:
+
+New in 2025.12
+Unicode:
++ Update to Unicode 17, including:
+   + Fix synthetic codepoint breaks
+   + Speed up concats using CRLF
+   + Fix grapheme boundary searching
+   + Update unicode import scripts to work with new Unicode 17 rules
+   + Add more enumeration properties to ucd2c.pl
+   + Support new CJK Ideograph Extension
+   + Support all versions of emoji dirs
+NativeCall:
+   + Add vararg support (not supported in JIT yet)
+   + Don't read from outdated pointers
+Core:
+   + Add PTY support
+   + Switch to temp fork of libuv
+   + Update azure pipeline OS versions
+
+
+New in 2025.11
+Core:
++ Bump rapidhash to v3
++ Throw exception in known bad state
+
+New in 2025.10
+Core:
++ Fix https://github.com/rakudo/rakudo/issues/5954 [f7d6a0828]
+
+New in 2025.08
+
+Core:
++ Implement return prioritization [57093187]
++ Fix MVM_platform_lseek() on win32 [8233d287]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
+CI:
+
+New in 2025.06
+
+Core:
++ Bump mimalloc to v2.2.3 again [b06d3863]
++ Silence Clang/MSVC warning [b67b947b]
++ Fix two GCC compiler warnings [4091ba17][f9202736]
++ Update libuv to version 1.51.0 [c8bf28ad]
++ Offer full file path including module name in debug server protocol. [4419c711]
++ In bytecode validation, output name of register/operand type [bcfedbd0]
++ Less memory waste binslurp and normalizecodes (#1938) [78acd73d]
++ Bump mimalloc 2.2.4 [0d74aa14]
+
+Documentation:
++ First cut at doc for handling UNIDATA file formats [ae9009bb][66f31681]
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
++ Massive refactoring and cleanup of UCD-download.raku [4dc5409f]
++ Massive refactoring and cleanup of ucd2c.pl [a0f29ef7][97beef8b][d818a8ff]
+  [ed985655][7c27fbeb][7c5be29d][eb066c79][2bee37a0][e68d9893][e205f909]
+  [39d75a9e][df219376][3851f580][75cc865a][b4ac5708][6c9df473][1a8f536f]
+  [9a0890b7][a579e6c5][70536328][306bcaa7][7820347f][5ef14050][af364af6]
+  [cf90d4a3][5372758e][8c437b8e][d79302e5][ab4d3ba7][fa99f35a][e52bf832]
+  [81cbd006][0fe4f392][e894cbc4][2873c5b3][28b7d637][bcf6a849][e4526818]
+  [f2df765e][7d5e76a2][647a7be0][80bbaf15][1bd67c3f][6c2c0e8b][f2c781f9]
+  [7078d64b][143f4828][5cf8ecec][01a83dc9][18c88010][bb793f7c][b9de9c80]
+  [4eb78270][cea55745]
+
+CI:
++ Stop using Windows 2019 runner [58eda115]
+
+New in 2025.05
+
+Core:
+
+Documentation:
+
+GC:
++ Have to gc-mark unwind data's payload attribute
+
+JIT:
+
+Spesh:
+
+Strings:
+
+CI:
+
+New in 2025.04
+
+Core:
++ Add 32bit/64bit native int write support [14f4f2a93]
++ Bump mimalloc to v2.2.3 [03e4fee65]
++ Initialize variable before it is used [2352ae280]
++ Use right signedness for comparison [c7ca550e8]A
++ Only add bytes from a decoder if there are any [a68dddeda]
++ Cleanup some compiler warnings and one ubsan runtime errors [5f399c640]
++ Missing rooting in C[PP]Struct and MVMCompUnit.c [6d3fceeb9]
++ Remove a useless rooting [778b5d309]
++ Add/Avoid MVMROOT in C[PP]Struct and MVMCompUnit [d1661b98f]
++ Revert fallback resolver, this is not used anymore [b405e940e]
+
+New in 2025.03
+
+Core:
++ Safely handle filenameless CUs in throw_closure_serialization_error [3ecde0a0f]
++ In regular vm exit, stop and join eventloop (#1924) [4ae74411e]
++ Don't turn slurpies into huge amounts of code (#1921) [282254418]
++ Only look for lexicals in frames that have any [c153f9f70]
++ Save allocating a string in decodestream for empty string [3edbf6db7]
++ MVM_platform_sleep takes no tc argument (#1918) [0416a0974]
++ use GetSystemTimePreciseAsFileTime instead of GetSystemTimeAsFileTime [49b013ed8]
++ Pre-size bstack for exact amount getting added [597a8ba82]
+GC:
++ Avoid segfault in GC with nqp::objectid [ccfe7ebad]
+Spesh:
++ Avoid mis-spesh of routines with multiple slurpies of the same kind [455eae34f]
+
+New in 2025.02
+
+Core:
++ Optimize passing CPointer to nativecall ever so slightly [6f19ada9]
++ Turn off vla errors and bump libuv [05cc853e]
++ Counteract drift in timers with repeat [8bc35a9d]
++ Enable experimental c11 atomics on MSVC [7ff15b3e]
++ Debugserver loaded file notifications [fc2d31f3]
++ Convert old perl6 refs to Raku [21f32c03]
++ Add type specialized VMArray atpos implementations [d3e812e4]
++ gdb string pretty printer improvement [2dda0262]
+
+Documentation:
++ Update many Perl 6 -> Rakudo [2744dcc7]
+
+GC:
+
+JIT:
+
+Spesh:
++ Make accesses to spesh arg guard atomic [a70bc220]
+
+Strings:
++ Use rapidhash instead of siphash for string hashes [62765054]
++ Speedup MVM_string_find_cclass by adding cases... [a0b70918][21d96b37]
++ Maybe optimize MVM_string_latin1_decode() [16eecc4e]
++ Some simplifications to MVM_string_utf8_decode [9a1af71f][474faf87][aa11775c]
+  [c9eeb2a1]
+
+CI:
+
+New in 2025.01
+
+Core:
++ Fix MVM_setjmp on 32bit Windows [caf97bf0]
++ Micro-optimize P6opaque's get_attribute() (#1884) [df1715d6]
++ Remove temporary define for migrating Rakudo extops (#1671) [7d15fcab]
++ Fix OS-is-windows check that doesn't work in this file [4f183bc0]
++ Use correct fallthrough annotation (#1885) [9a1aebb3]
++ Port over "cache devshell dll location" from rakudo CI [fa5bfd92]
++ Install gdb extension (#1848) [1c2ea87e]
+
+Documentation:
++ beautify release_guide.md [8102c510]
+
+JIT:
++ Don't try to enable the JIT unless it's possible (#1887) [dd98cb2e]
+
+Spesh:
++ Guard against out-of-bounds jumps in spesh arg guard program. [52d3452e]
+
+CI:
++ Maybe the order jobs are started is alphabetical? [777294c4]
++ Fix format specifiers clang on OSX complains about [c1d1f60e]
++ GH Actions: Remove the deprecated macos-12 runner [1f5bf409]
++ Do not persist tokens in CI artifacts [afc8354b]
++ Change comment style because gcc complains [6f3f53c4]
+
 New in 2024.12
 
 Core:
@@ -387,7 +642,7 @@ Core:
 + Protect the two property code lookup hashes being set up with a mutex
   [9bc1beed]
 + Add fallback resolver [43e60db9][a6fbcf6b][35064bf9][c89c3ec8][5d0f92c6]
-+ Add definition of AI_NUMERICSERV, fixes build on MacOS 10.6 for ppc 
++ Add definition of AI_NUMERICSERV, fixes build on MacOS 10.6 for ppc
   [976c1168]
 + Add unsigned comparison ops (eq, ne, (l|g)(e|t)) [c77dc1d4]
 + Add chown op [c69534c6][a1cbb9c4]

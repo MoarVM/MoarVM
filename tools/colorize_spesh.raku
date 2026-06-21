@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 
 sub colorblock($num, $ver) {
     "\e[48;5;{ 0x10 + (($num + 1) * 31416) % 216 }m  "

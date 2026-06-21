@@ -276,7 +276,7 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
             if (additional_update_node != -1)
                 tree->nodes[additional_update_node].no = certain_fallback;
         }
-        
+
         /* Clean up. */
         for (i = 0; i < MVM_VECTOR_ELEMS(by_type); i++)
             MVM_VECTOR_DESTROY(by_type[i].cand_idxs);
@@ -307,7 +307,7 @@ static void add_nodes_for_callsite(MVMThreadContext *tc, MVMSpeshArgGuard *tree,
 
 /* Produce and install an updated set of guards, incorporating the new
  * candidate. */
-void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **guard_ptr,
+void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, AO_t *guard_ptr,
         MVMSpeshCandidate **candidates, MVMuint32 num_spesh_candidates) {
     MVMSpeshArgGuard *tree;
 
@@ -358,7 +358,7 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
         }
 
         /* Need a node for the result also. */
-        tree_size++; 
+        tree_size++;
     }
 
     /* Allocate the guards tree, and add a node for each callsite (we do it
@@ -383,12 +383,19 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
 
     /* Install the produced argument guard. */
     if (*guard_ptr) {
-        MVMSpeshArgGuard *prev = *guard_ptr;
-        *guard_ptr = tree;
+        /* Ensure that the tree is already fully out of our cache.
+         * This is not necessary on x86_64, which has
+         * Total Store Ordering, but architectures like ARM are weaker
+         * and other cores can observe older contents of the tree nodes
+         * array after seeing the new value of the pointer. */
+        MVM_barrier();
+        MVMSpeshArgGuard *prev = (MVMSpeshArgGuard *)MVM_load(guard_ptr);
+        MVM_store(guard_ptr, tree);
         MVM_spesh_arg_guard_destroy(tc, prev, 1);
     }
     else {
-        *guard_ptr = tree;
+        MVM_barrier();
+        MVM_store(guard_ptr, tree);
     }
 
     /* Clean up working state. */
@@ -647,7 +654,7 @@ void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVM
 void MVM_spesh_arg_guard_discard(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
     if (spesh && spesh->body.spesh_arg_guard) {
-        MVM_spesh_arg_guard_destroy(tc, spesh->body.spesh_arg_guard, 1);
-        spesh->body.spesh_arg_guard = NULL;
+        MVM_spesh_arg_guard_destroy(tc, (MVMSpeshArgGuard *)MVM_load(&spesh->body.spesh_arg_guard), 1);
+        MVM_store(&spesh->body.spesh_arg_guard, NULL);
     }
 }

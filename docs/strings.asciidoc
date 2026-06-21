@@ -70,7 +70,7 @@ link:../src/strings/nfg.h[src/strings/nfg.h].
 
 NOTE: Currently the maximum number of combiners in a synthetic is 1024. MoarVM
 will throw an exception if you attempt to create a grapheme with more than 1024
-codepoints in it. (https://github.com/MoarVM/MoarVM/blob/master/src/strings/nfg.h#L83[source])
+codepoints in it. (https://github.com/MoarVM/MoarVM/blob/main/src/strings/nfg.h#L83[source])
 
 Synthetic’s codepoints are stored in a single array, with the base character
 pointed to by storing the location of its index in the array. The reason

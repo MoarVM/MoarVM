@@ -18,6 +18,10 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
 
     MVMint32 mro_idx = MVM_repr_elems(tc, mro);
 
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
+
+    /* We're only ever called with tc->allocate_in_gen2 set, so no need to MVMROOT here. */
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
 
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
@@ -37,8 +41,13 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
         if (num_parents <= 1) {
             /* Get attributes and iterate over them. */
             MVMObject *attributes     = MVM_repr_at_pos_o(tc, type_info, 1);
-            MVMIter * const attr_iter = (MVMIter *)MVM_iter(tc, attributes);
             MVMObject *attr_map = NULL;
+            MVMIter   *attr_iter;
+
+            /* Add to class list firstly, so we can avoid a MVMROOT. */
+            MVM_repr_push_o(tc, class_list, current_class);
+
+            attr_iter = (MVMIter *)MVM_iter(tc, attributes);
 
             if (MVM_iter_istrue(tc, attr_iter)) {
                 attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
@@ -66,8 +75,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 MVM_repr_push_o(tc, flat_list, attr);
             }
 
-            /* Add to class list and map list. */
-            MVM_repr_push_o(tc, class_list, current_class);
+            /* Add to map list. */
             MVM_repr_push_o(tc, attr_map_list, attr_map);
         }
         else {
@@ -76,6 +84,8 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 "CPPStruct representation does not support multiple inheritance");
         }
     }
+
+    MVM_gc_root_temp_pop_n(tc, 2); /* mro, st */
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);

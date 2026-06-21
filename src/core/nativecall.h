@@ -90,6 +90,7 @@ struct MVMNativeCallbackCacheHead {
 /* Functions for working with native callsites. */
 MVMNativeCallBody * MVM_nativecall_get_nc_body(MVMThreadContext *tc, MVMObject *obj);
 MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_return);
+void MVM_nativecall_fill_var_arg_types(MVMThreadContext *tc, MVMArgs args, MVMuint64 variadic_rw_bitfield, MVMint16 *arg_types, MVMint16 i, MVMint16 num_args, unsigned int interval_id);
 MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     MVMString *sym, MVMString *conv, MVMObject *arg_spec, MVMObject *ret_spec);
 void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigned int interval_id);

@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 # This code generates encoding tables for single byte encodings.
 # Currently Windows-1252 and Windows-1251
 sub process-file (Str:D $filename, Str:D $encoding) {

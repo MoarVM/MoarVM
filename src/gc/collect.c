@@ -770,7 +770,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
                  * object case. */
                 if (!(col->flags1 & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME))) {
                     MVMObject *obj = (MVMObject *)col;
-                    if (REPR(obj)->gc_free)
+                    if (STABLE(obj) && REPR(obj)->gc_free)
                         REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
                     if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED)

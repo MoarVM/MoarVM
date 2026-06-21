@@ -563,6 +563,11 @@ static MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc,
                 (closure->body.sf)->body.name);
+        /* We may end up with a filename that's null, print an empty string
+         * instead of "chars requires a concrete string, but got null". */
+        if (file == NULL) {
+            file = tc->instance->str_consts.empty;
+        }
         char *c_file = MVM_string_utf8_encode_C_string(tc, file);
         char *waste[] = { c_name, c_file, NULL };
         MVM_gc_allocate_gen2_default_clear(tc);

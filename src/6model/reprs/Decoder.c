@@ -233,11 +233,13 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
             default:
                 MVM_exception_throw_adhoc(tc, "Can only add bytes from an int array to a decoder");
         }
-        copy = MVM_malloc(output_size);
-        memcpy(copy, output, output_size);
-        enter_single_user(tc, decoder);
-        MVM_string_decodestream_add_bytes(tc, ds, copy, output_size);
-        exit_single_user(tc, decoder);
+        if (output_size) {
+            copy = MVM_malloc(output_size);
+            memcpy(copy, output, output_size);
+            enter_single_user(tc, decoder);
+            MVM_string_decodestream_add_bytes(tc, ds, copy, output_size);
+            exit_single_user(tc, decoder);
+        }
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot add bytes to a decoder with a %s",

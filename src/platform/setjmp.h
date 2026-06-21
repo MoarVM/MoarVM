@@ -44,6 +44,8 @@
 #      define MVM_setjmp(BUF) do { setjmp((BUF)); tc->interp_jump[0] = 0; } while (0)
 #    elif defined _M_ARM64
 #      define MVM_setjmp(BUF) do { setjmp((BUF)); tc->interp_jump[0] = 0; } while (0)
+#    else
+#      define MVM_setjmp setjmp
 #    endif
 #  else
 #    define MVM_setjmp setjmp

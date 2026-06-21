@@ -1,5 +1,21 @@
 #include "moar.h"
 
+#define DECODE_BODY                                                          \
+    for (i = 0; i < bytes; i++) {                                            \
+        if (latin1[i] == '\r' && i + 1 < bytes && latin1[i + 1] == '\n') {   \
+            storage[result_graphs++] = MVM_nfg_crlf_grapheme(tc);            \
+            i++;                                                             \
+        }                                                                    \
+        else {                                                               \
+            storage[result_graphs++] = latin1[i];                            \
+        }                                                                    \
+    }                                                                        \
+
+#define DECODE_BODY_NO_CRLF                                                  \
+    for (i = 0; i < bytes; i++) {                                            \
+        storage[result_graphs++] = latin1[i];                                \
+    }                                                                        \
+
 /* Decodes the specified number of bytes of latin1 into an NFG string,
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
@@ -7,60 +23,65 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
                                      char *latin1_c, size_t bytes) {
     MVMuint8  *latin1 = (MVMuint8 *)latin1_c;
     MVMString *result;
-    size_t i, k, result_graphs;
-
-    MVMuint8 writing_32bit = 0;
+    size_t i, result_graphs;
 
     if (bytes == 0 && tc->instance->str_consts.empty) {
         return tc->instance->str_consts.empty;
     }
 
+    MVMuint8 writing_32bit = 0;
+    MVMuint8 has_crlf = 0;
+    MVM_VECTORIZE_LOOP
+    for (i = 0; i < bytes - 1; i++) {
+        writing_32bit |= (latin1[i] > 127);
+        has_crlf |= (latin1[i] == '\r' && latin1[i + 1] == '\n');
+    }
+    writing_32bit |= (latin1[i] > 127);
+    has_crlf |= (latin1[i - 1] == '\r' && latin1[i] == '\n');
+
     result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
 
-    result->body.storage_type   = MVM_STRING_GRAPHEME_8;
-    result->body.storage.blob_8 = MVM_malloc(sizeof(MVMint8) * bytes);
-
     result_graphs = 0;
-    for (i = 0; i < bytes; i++) {
-        if (latin1[i] == '\r' && i + 1 < bytes && latin1[i + 1] == '\n') {
-            if (writing_32bit)
-                result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-            else
-                result->body.storage.blob_8[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-            i++;
+    if (writing_32bit) {
+        MVMGrapheme32 *storage;
+        if (bytes <= 2) {
+            result->body.storage_type    = MVM_STRING_IN_SITU_32;
+            storage = result->body.storage.in_situ_32;
         }
         else {
-            if (latin1[i] > 127 && !writing_32bit) {
-                MVMGrapheme8 *old_storage = result->body.storage.blob_8;
-
-                result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
-                result->body.storage_type = MVM_STRING_GRAPHEME_32;
-                writing_32bit = 1;
-
-                for (k = 0; k < i; k++)
-                    result->body.storage.blob_32[k] = old_storage[k];
-                MVM_free(old_storage);
-            }
-            if (writing_32bit)
-                result->body.storage.blob_32[result_graphs++] = latin1[i];
-            else
-                result->body.storage.blob_8[result_graphs++] = latin1[i];
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+            result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+            storage = result->body.storage.blob_32;
+        }
+        if (has_crlf) {
+            DECODE_BODY
+        }
+        else {
+            MVM_VECTORIZE_LOOP
+            DECODE_BODY_NO_CRLF
         }
     }
-    result->body.num_graphs = result_graphs;
+    else {
+        MVMint8 *storage;
+        if (bytes <= 8) {
+            result->body.storage_type   = MVM_STRING_IN_SITU_8;
+            storage = result->body.storage.in_situ_8;
+        }
+        else {
+            result->body.storage_type   = MVM_STRING_GRAPHEME_8;
+            result->body.storage.blob_8 = MVM_malloc(sizeof(MVMint8) * bytes);
+            storage = result->body.storage.blob_8;
+        }
+        if (has_crlf) {
+            DECODE_BODY
+        }
+        else {
+            MVM_VECTORIZE_LOOP
+            DECODE_BODY_NO_CRLF
+        }
+    }
 
-    if (result->body.storage_type == MVM_STRING_GRAPHEME_8 && result_graphs <= 8) {
-        MVMGrapheme8 *old = result->body.storage.blob_8;
-        memcpy(result->body.storage.in_situ_8, old, result_graphs * sizeof(MVMGrapheme8));
-        result->body.storage_type = MVM_STRING_IN_SITU_8;
-        MVM_free(old);
-    }
-    else if (result->body.storage_type == MVM_STRING_GRAPHEME_32 && result_graphs <= 2) {
-        MVMGrapheme32 *old = result->body.storage.blob_32;
-        memcpy(result->body.storage.in_situ_32, old, result_graphs * sizeof(MVMGrapheme32));
-        result->body.storage_type = MVM_STRING_IN_SITU_32;
-        MVM_free(old);
-    }
+    result->body.num_graphs = result_graphs;
 
     return result;
 }

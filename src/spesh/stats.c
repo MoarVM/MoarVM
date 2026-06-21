@@ -641,8 +641,7 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
         MVMint64 i;
         for (i = 0; i < elems; i++) {
             MVMRegister sf_reg;
-            MVM_VMArray_at_pos(tc, check_frames_st, check_frames, check_frames_data,
-                    i, &sf_reg, MVM_reg_obj);
+            MVM_VMArray_at_pos_o(tc, check_frames_st, check_frames, check_frames_data, i, &sf_reg);
             MVMStaticFrame *sf = (MVMStaticFrame *)sf_reg.o;
             MVMROOT(tc, sf) {
                 MVMStaticFrameSpesh *spesh = sf->body.spesh;

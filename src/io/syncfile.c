@@ -140,7 +140,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     char *buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
-    MVMint32 bytes_read;
+    MVMint64 bytes_read;
 #ifdef _WIN32
     /* Can only perform relatively small reads from a Windows console;
      * trying to do larger ones gives back ENOMEM, most likely due to
@@ -160,8 +160,13 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             strerror(save_errno));
     }
-    *buf_out = buf;
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
+    if (bytes_read > 0 && (MVMint64)(bytes / 4) > bytes_read) {
+        /* If our number of bytes read is a lot less than we requested, we
+         * would waste a lot of space storing nothing, so realloc the buf. */
+         buf = MVM_realloc(buf, bytes_read);
+    }
+    *buf_out = buf;
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");
     data->byte_position += bytes_read;
     if (bytes_read == 0 && bytes != 0)

@@ -116,10 +116,11 @@ MVMInstance * MVM_vm_create_instance(void) {
 #endif
 
 #ifdef HAVE_TELEMEH
-    if (getenv("MVM_TELEMETRY_LOG")) {
+    char *telemeh_log = getenv("MVM_TELEMETRY_LOG");
+    if (telemeh_log) {
         char path[256];
         FILE *fp;
-        snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
+        snprintf(path, 255, "%s.%d", telemeh_log,
 #ifdef _WIN32
              _getpid()
 #else
@@ -144,14 +145,13 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->subscriptions.vm_startup_now = MVM_proc_time(instance->main_thread);
 
 #if MVM_HASH_RANDOMIZE
-    /* Get the 128-bit hashSecret */
-    MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
+    /* Get the 64-bit hashSeed */
+    MVM_getrandom(instance->main_thread, &instance->hashSeed, sizeof(MVMuint64));
     /* Just in case MVM_getrandom didn't work, XOR it with some (poorly) randomized data */
-    instance->hashSecrets[0] ^= ptr_hash_64_to_64((uintptr_t)instance);
-    instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
+    instance->hashSeed ^= ptr_hash_64_to_64((uintptr_t)instance);
+    instance->hashSeed ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
 #else
-    instance->hashSecrets[0] = 0;
-    instance->hashSecrets[1] = 0;
+    instance->hashSeed = RAPID_SEED;
 #endif
     instance->main_thread->thread_id = 1;
 
@@ -328,7 +328,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
-    if (!jit_disable || !jit_disable[0])
+    if (MVM_jit_support() && (!jit_disable || !jit_disable[0]))
         instance->jit_enabled = 1;
 
     jit_expr_enable = getenv("MVM_JIT_EXPR_ENABLE");
@@ -350,6 +350,14 @@ MVMInstance * MVM_vm_create_instance(void) {
             snprintf(perf_map_filename, sizeof(perf_map_filename),
                      "/tmp/perf-%"PRIi64".map", MVM_proc_getpid(NULL));
             instance->jit_perf_map = MVM_platform_fopen(perf_map_filename, "w");
+        }
+
+        char *jit_perf_jitdump = getenv("MVM_JIT_PERF_DUMP");
+        if (jit_perf_jitdump && *jit_perf_jitdump) {
+            char perf_dump_filename[1024];
+            snprintf(perf_dump_filename, sizeof(perf_dump_filename),
+                     "%s/jit-%"PRIi64".dump", jit_perf_jitdump, MVM_proc_getpid(NULL));
+            instance->jit_perf_jitdump = MVM_platform_fopen(perf_dump_filename, "w+");
         }
     }
 #endif
@@ -436,20 +444,24 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->cross_thread_write_logging = 0;
     }
 
-    if (getenv("MVM_COVERAGE_LOG")) {
-        char *coverage_log = getenv("MVM_COVERAGE_LOG");
+    char *coverage_log = getenv("MVM_COVERAGE_LOG");
+    if (coverage_log) {
         instance->coverage_logging = 1;
         instance->instrumentation_level++;
-        if (coverage_log[0])
+        if (coverage_log[0]) {
             instance->coverage_log_fh = fopen_perhaps_with_pid("MVM_COVERAGE_LOG", coverage_log, "a");
-        else
+        }
+        else {
             instance->coverage_log_fh = stderr;
+        }
 
-        instance->coverage_control = 0;
-        if (getenv("MVM_COVERAGE_CONTROL")) {
-            char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
-            if (coverage_control && coverage_control[0])
-                instance->coverage_control = atoi(coverage_control);
+        char *coverage_control = getenv("MVM_COVERAGE_CONTROL");
+        if (coverage_control && coverage_control[0]) {
+            /* This is a pretty low-level feature, don't need any error handling for getting the numeric value. */
+            instance->coverage_control = atoi(coverage_control);
+        }
+        else {
+            instance->coverage_control = 0;
         }
     }
     else {
@@ -608,6 +620,11 @@ void MVM_vm_exit(MVMInstance *instance) {
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
+
+    /* Make sure eventloop thread doesn't keep running, so cleanup inside of
+     * atexit handlers (like mimalloc has) won't interfere and cause a crash */
+    MVM_io_eventloop_stop(instance->main_thread);
+    MVM_io_eventloop_join(instance->main_thread);
 
     /* Close any spesh or jit log. */
     if (instance->spesh_log_fh) {

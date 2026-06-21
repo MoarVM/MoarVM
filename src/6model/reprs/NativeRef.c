@@ -296,7 +296,9 @@ MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
 static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMint16 kind) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+        MVMuint32 idx = cur_frame->static_info->body.num_lexicals
+            ? MVM_get_lexical_by_name(tc, cur_frame->static_info, name)
+            : MVM_INDEX_HASH_NOT_FOUND;
         if (idx != MVM_INDEX_HASH_NOT_FOUND) {
             MVMint16 lex_kind = cur_frame->static_info->body.lexical_types[idx];
             if (lex_kind == kind) {

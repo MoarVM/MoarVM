@@ -119,6 +119,123 @@ MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMi
     return result;
 }
 
+MVMint16 determine_type_from_arg(MVMThreadContext *tc, MVMArgs args, MVMint16 pos, unsigned int interval_id) {
+    if (args.callsite->arg_flags[pos + 1] & MVM_CALLSITE_ARG_OBJ) {
+        MVMObject *value = args.source[args.map[pos + 1]].o;
+        if (!value) {
+            MVM_telemetry_interval_stop(tc, interval_id, "nativecall dispatch failed");
+            MVM_exception_throw_adhoc(tc, "Internal error: missing object for argument %d in MVM_nativecall_dispatch",
+                pos);
+        }
+        else if (!IS_CONCRETE(value)) {
+            MVM_telemetry_interval_stop(tc, interval_id, "nativecall dispatch failed");
+            MVM_exception_throw_adhoc(tc, "Type object for argument %d is not allowed", pos);
+        }
+        switch (REPR(value)->ID) {
+            case MVM_REPR_ID_P6int:
+                if (MVMP6int_is_unsigned(STABLE(value))) {
+                    return MVM_NATIVECALL_ARG_ULONG;
+                }
+                else {
+                    return MVM_NATIVECALL_ARG_LONG;
+                }
+            case MVM_REPR_ID_P6num:
+                return MVM_NATIVECALL_ARG_DOUBLE;
+            case MVM_REPR_ID_P6str:
+                return MVM_NATIVECALL_ARG_UTF8STR;
+
+            case MVM_REPR_ID_NativeRef:
+                ; // Need that semicolon to not trip up the compiler which
+                  // doesn't like declarations after switch labels.
+                MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(value)->REPR_data;
+                switch (repr_data->primitive_type) {
+                    case MVM_STORAGE_SPEC_BP_INT8:
+                    case MVM_STORAGE_SPEC_BP_INT16:
+                    case MVM_STORAGE_SPEC_BP_INT32:
+                    case MVM_STORAGE_SPEC_BP_INT:
+                        return MVM_NATIVECALL_ARG_LONG;
+                    case MVM_STORAGE_SPEC_BP_UINT8:
+                    case MVM_STORAGE_SPEC_BP_UINT16:
+                    case MVM_STORAGE_SPEC_BP_UINT32:
+                    case MVM_STORAGE_SPEC_BP_UINT64:
+                        return MVM_NATIVECALL_ARG_ULONG;
+                    case MVM_STORAGE_SPEC_BP_NUM:
+                        return MVM_NATIVECALL_ARG_DOUBLE;
+                    case MVM_STORAGE_SPEC_BP_STR:
+                        return MVM_NATIVECALL_ARG_UTF8STR;
+                    default:
+                        MVM_telemetry_interval_stop(tc, interval_id, "nativecall dispatch failed");
+                        MVM_exception_throw_adhoc(tc, "Internal error: unexpected storage spec %d "
+                            " processing argument %d in MVM_nativecall_dispatch",
+                            repr_data->primitive_type, pos);
+                        break;
+                }
+            case MVM_REPR_ID_P6opaque:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall dispatch failed");
+                MVM_exception_throw_adhoc(tc, "Incompatible high level Raku object seen when processing argument %d",
+                    pos);
+                break;
+
+            case MVM_REPR_ID_MVMCArray:
+                return MVM_NATIVECALL_ARG_CARRAY;
+
+            case MVM_REPR_ID_MVMCStruct:
+                return MVM_NATIVECALL_ARG_CSTRUCT;
+
+            case MVM_REPR_ID_MVMCUnion:
+                return MVM_NATIVECALL_ARG_CUNION;
+
+            case MVM_REPR_ID_MVMString:
+            case MVM_REPR_ID_VMArray:
+            case MVM_REPR_ID_MVMCode:
+            case MVM_REPR_ID_MVMCPointer:
+            case MVM_REPR_ID_MVMCStr:
+            case MVM_REPR_ID_MVMNull:
+            case MVM_REPR_ID_MVMCPPStruct:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall dispatch failed");
+                MVM_exception_throw_adhoc(tc, "Internal error: NYI REPR type %d "
+                    " processing argument %d in MVM_nativecall_dispatch",
+                    REPR(value)->ID, pos);
+                break;
+            default:
+                MVM_telemetry_interval_stop(tc, interval_id, "nativecall dispatch failed");
+                MVM_exception_throw_adhoc(tc, "Internal error: unexpected REPR type %d "
+                    " processing argument %d in MVM_nativecall_dispatch",
+                    REPR(value)->ID, pos);
+                break;
+        }
+    }
+    else if (args.callsite->arg_flags[pos + 1] & MVM_CALLSITE_ARG_INT) {
+        return MVM_NATIVECALL_ARG_LONG;
+    }
+    else if (args.callsite->arg_flags[pos + 1] & MVM_CALLSITE_ARG_UINT) {
+        return MVM_NATIVECALL_ARG_ULONG;
+    }
+    else if (args.callsite->arg_flags[pos + 1] & MVM_CALLSITE_ARG_NUM) {
+        return MVM_NATIVECALL_ARG_DOUBLE;
+    }
+    else if (args.callsite->arg_flags[pos + 1] & MVM_CALLSITE_ARG_STR) {
+        return MVM_NATIVECALL_ARG_UTF8STR;
+    }
+    else {
+        MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
+        MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument flags %d "
+            " processing argument %d in MVM_nativecall_dispatch",
+            args.callsite->arg_flags[pos + 1], pos);
+    }
+
+    // Should never be reached.
+    return 0;
+}
+
+void MVM_nativecall_fill_var_arg_types(MVMThreadContext *tc, MVMArgs args, MVMuint64 variadic_rw_bitfield, MVMint16 *arg_types, MVMint16 i, MVMint16 num_args, unsigned int interval_id) {
+    for (; i < num_args; i++) {
+        arg_types[i] = determine_type_from_arg(tc, args, i, interval_id);
+        if (variadic_rw_bitfield & 1<<i)
+            arg_types[i] |= MVM_NATIVECALL_ARG_RW_MASK;
+    }
+}
+
 MVMObject * MVM_nativecall_make_int(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
     return type ? MVM_repr_box_int(tc, type, value) : NULL;
 }
@@ -464,6 +581,8 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
         tc->instance->str_consts.resolve_lib_name);
     MVMObject *resolve_lib_name_arg = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
         tc->instance->str_consts.resolve_lib_name_arg);
+    MVMint64 variadic = MVM_repr_exists_key(tc, ret_info,
+        tc->instance->str_consts.variadic);
 
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
@@ -522,6 +641,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     body->arg_info  = arg_info;
     MVM_barrier();
     body->num_args  = num_args; /* ensure we have properly populated arrays before setting num */
+    body->variadic = variadic;
 
     /* Transform return argument type info a flag. */
     body->ret_type     = MVM_nativecall_get_arg_type(tc, ret_info, 1);

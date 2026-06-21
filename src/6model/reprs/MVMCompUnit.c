@@ -63,8 +63,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Add various other referenced strings, etc. */
     MVM_gc_worklist_add(tc, worklist, &body->hll_name);
     MVM_gc_worklist_add(tc, worklist, &body->filename);
-    MVM_gc_worklist_add(tc, worklist, &body->resolver);
-    MVM_gc_worklist_add(tc, worklist, &body->dynamic_resolver);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

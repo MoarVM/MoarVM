@@ -69,7 +69,7 @@ libs=$libs
 static_libs=$static_libs
 
 Name:           MoarVM
-Description:    A virtual machine for Rakudo Perl 6 and NQP
+Description:    A virtual machine for Rakudo and NQP
 URL:            http://moarvm.org
 Version:        $version
 Libs:           $ldflags

@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 # This script processes the op list into a C header file that contains
 # info about the opcodes.
 

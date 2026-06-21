@@ -21,18 +21,18 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMObject *methods, *attributes, *BOOTArray;
     MVMObject * const BOOTHash  = tc->instance->boot_types.BOOTHash;
+    MVMKnowHOWREPRBody *body = (MVMKnowHOWREPRBody *)data;
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&root);
 
     methods = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&methods);
-    MVM_ASSIGN_REF(tc, &(root->header), ((MVMKnowHOWREPR *)root)->body.methods, methods);
+    MVM_ASSIGN_REF(tc, &(root->header), body->methods, methods);
 
     BOOTArray  = tc->instance->boot_types.BOOTArray;
     attributes = REPR(BOOTArray)->allocate(tc, STABLE(BOOTArray));
-    MVM_ASSIGN_REF(tc, &(root->header), ((MVMKnowHOWREPR *)root)->body.attributes, attributes);
+    MVM_ASSIGN_REF(tc, &(root->header), body->attributes, attributes);
 
-    MVM_gc_root_temp_pop_n(tc, 2);
+    MVM_gc_root_temp_pop(tc);
 }
 
 /* Copies the body of one object to another. */

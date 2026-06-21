@@ -55,7 +55,7 @@ struct MVMJitTileList {
 
 
 MVMJitTile     * MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler, void *emit,
-                                   MVMint32 num_args, MVMint32 num_values, ...);
+                                   MVMuint32 num_args, MVMuint32 num_values, ...);
 MVMJitTile     * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                                  const MVMJitTileTemplate *template,
                                                  MVMJitExprTree *tree, MVMint32 node);

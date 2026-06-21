@@ -2,26 +2,26 @@
  *
  * Empty
  * -----
- * 
+ *
  * When the kind of request is set to empty, the debugserver is
  * ready to initiate a new request from the client.
- * 
+ *
  * Invoke
  * ------
- * 
+ *
  * The Debugserver requests that a thread invokes a given
  * code object. The debugserver sets up as much as it can
  * on its own, then notifies the thread to wake up and do
  * the rest.
- * 
+ *
  * The thread will hold the ID of the request in Special Return Data,
  * so that returning from the code or unwinding with an exception or
  * taking a continuation can be handled properly.
- * 
+ *
  * Since we want the thread to function normally with respect to break
  * points and stepping, the thread will behave essentially as if
  * fully resumed.
- * 
+ *
  */
 
 typedef enum {
@@ -68,6 +68,17 @@ struct MVMDebugServerBreakpointFileTable {
     MVMDebugServerBreakpointInfo *breakpoints;
     MVMuint32 breakpoints_alloc;
     MVMuint32 breakpoints_used;
+
+    /* When set, will break on every possible break position.
+       I.e. line_no will be ignored. */
+    MVMDebugServerBreakpointInfo *any_break;
+
+    /* When a breakpoint is added for a file that is not loaded yet, we create
+     * an entry in the files table, but the filename is completely arbitrary
+     * and is not guaranteed to ever show up.
+     * Therefore, we put a flag here to store if we actually saw the file for
+     * real, or were only asked to include it. */
+    MVMuint8 really_loaded;
 };
 
 struct MVMDebugServerBreakpointTable {
@@ -78,7 +89,7 @@ struct MVMDebugServerBreakpointTable {
 
 /* This struct holds all data used for communication between
  * the Debugserver and a thread.
- * 
+ *
  * * Invoke a code object
  */
 struct MVMDebugServerRequestData {
@@ -138,6 +149,12 @@ struct MVMDebugServerData {
     MVMuint32 breakpoints_used;
     uv_mutex_t mutex_breakpoints;
 
+    /* If the user asked to watch new files showing up, this is the event ID
+     * to send notifications for. */
+    MVMuint64 loaded_file_event_id;
+    MVMuint8 new_file_shall_suspend : 1;
+    MVMuint8 new_file_send_backtrace : 1;
+
     void *messagepack_data;
 
     MVMuint8 debugspam_network;
@@ -155,5 +172,5 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
 
 MVM_PUBLIC MVMuint64 MVM_dump_all_backtraces(MVMThreadContext *dtc, MVMuint64 is_harmless);
 
-MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx);
+MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx, MVMuint8 lock_network);
 MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no);

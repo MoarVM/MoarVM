@@ -9,9 +9,9 @@
  * the profiler should start profiling (if it isn't already profiling), and
  * for configuring when the heap snapshot profiler should take a snapshot
  *
- * There is a Perl 6 module that offers a confprog compiler named
+ * There is a Rakudo module that offers a confprog compiler named
  * App::MoarVM::ConfprogCompiler, and nqp's src/vm/moar/HLL/Backend.nqp
- * has a corresponding loader. The nqp and perl6 commandline programs
+ * has a corresponding loader. The nqp and raku commandline programs
  * recognize a --confprog flag.
  */
 

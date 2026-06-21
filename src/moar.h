@@ -275,7 +275,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "strings/unicode_ops.h"
 #include "strings/gb2312.h"
 #include "strings/gb18030.h"
-#include "strings/siphash/csiphash.h"
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"

@@ -453,17 +453,51 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
             store_bigint_result(bc, ic);
             adjust_nursery(tc, bc);
         } else {
-            MVMint32 sa = ba->u.smallint.value;
-            MVMint32 sb = bb->u.smallint.value;
-            MVMint32 t;
-            sa = abs(sa);
-            sb = abs(sb);
-            while (sb != 0) {
-                t  = sb;
-                sb = sa % sb;
-                sa = t;
+            /* Implementation from Daniel Lemire's blogs and code (placed in the public domain)), very slightly modified for MoarVM:
+             *   https://lemire.me/blog/2013/12/26/fastest-way-to-compute-the-greatest-common-divisor/
+             *   https://lemire.me/blog/2024/04/13/greatest-common-divisor-the-extended-euclidean-algorithm-and-speed/
+             *   https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2013/12/26/gcd.cpp
+             * While some of the other variants were faster when running his benchmark program, this was actually
+             * the fastest when added to MoarVM and tested with some Raku code. Notice that because we're assured of the values
+             * being not greater than 32-bit, we can use __builtin_ctz instead of __builtin_ctzll.
+             */
+
+            MVMuint32 u = abs(ba->u.smallint.value), v = abs(bb->u.smallint.value);
+
+            MVMint32 shift, uz, vz, ret;
+            if (u == 0) {
+                ret = v;
             }
-            store_int64_result(tc, bc, sa);
+            else if (v == 0) {
+                ret = u;
+            }
+            else {
+#ifdef _WIN32
+                uz = _tzcnt_u32(u);
+                vz = _tzcnt_u32(v);
+#else
+                uz = __builtin_ctz(u);
+                vz = __builtin_ctz(v);
+#endif
+                shift = uz > vz ? vz : uz;
+                u >>= uz;
+                do {
+                    v >>= vz;
+                    MVMint32 diff = v;
+                    diff -= u;
+#ifdef _WIN32
+                    vz = _tzcnt_u32(diff);
+#else
+                    vz = __builtin_ctz(diff);
+#endif
+                    if (diff == 0) break;
+                    if (v < u) u = v;
+                    v = abs(diff);
+                } while (1);
+                ret = u << shift;
+            }
+
+            store_int64_result(tc, bc, ret);
         }
     }
 
@@ -504,10 +538,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
         MVMP6bigintBody *bc;
         bc = get_bigint_body(tc, result);
 
-        /* XXX the behavior of C's mod operator is not correct
-         * for our purposes. So we rely on mp_mod for all our modulus
-         * calculations for now. */
-        if (1 || MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
             mp_int *ia = force_bigint(tc, ba, 0);
             mp_int *ib = force_bigint(tc, bb, 1);
             mp_int *ic = MVM_malloc(sizeof(mp_int));
@@ -527,7 +558,10 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
             store_bigint_result(bc, ic);
             adjust_nursery(tc, bc);
         } else {
-            store_int64_result(tc, bc, ba->u.smallint.value % bb->u.smallint.value);
+            /* % in C technically gives the remainder, but we want the modulus. Force everything to 64-bit so intermediate calculations don't overflow/wrap. */
+            MVMint64 a = ba->u.smallint.value;
+            MVMint64 b = bb->u.smallint.value;
+            store_int64_result(tc, bc, ((a % b) + b) % b);
         }
     }
 
@@ -682,10 +716,10 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
                 MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
             }
             MVM_gc_mark_thread_blocked(tc);
-            if ((err = mp_expt_u32(base, exponent_d, ic)) != MP_OKAY) {
+            if ((err = mp_expt_n(base, exponent_d, ic)) != MP_OKAY) {
                 mp_clear(ic);
                 MVM_free(ic);
-                MVM_exception_throw_adhoc(tc, "Error in mp_expt_u32: %s", mp_error_to_string(err));
+                MVM_exception_throw_adhoc(tc, "Error in mp_expt_n: %s", mp_error_to_string(err));
             }
             MVM_gc_mark_thread_unblocked(tc);
             r = MVM_repr_alloc_init(tc, int_type);

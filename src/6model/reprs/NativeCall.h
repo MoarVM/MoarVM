@@ -17,6 +17,7 @@ struct MVMNativeCallBody {
     MVMObject **arg_info;
     MVMCode    *resolve_lib_name;
     MVMObject  *resolve_lib_name_arg;
+    MVMint8     variadic;
 };
 
 struct MVMNativeCall {

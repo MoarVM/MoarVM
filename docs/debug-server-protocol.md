@@ -92,6 +92,16 @@ proceed.
 
 ### Changes
 
+#### Version 1.5
+
+ * Add support for any-break breakpoints.
+ * Changed the Loaded Files Request to create any-break breakpoints
+   when the `suspend` option was passed instead of instantly breaking.
+
+#### Version 1.4
+
+ * Add Loaded Files Request (50) and File Loaded Notification (51).
+
 #### Version 1.3 ERRATA
 
  * **No behavior changes**, only the following errata fixes in this doc.
@@ -377,7 +387,9 @@ stack trace of the location where the breakpoint was hit will be included.
 This can be used both with and without `suspend`; with `suspend` it can save
 an extra round-trip to reqeust the stack location, while without `suspend` it
 can be useful for features like "capture a stack trace every time foo is
-called".
+called". When a line number of "0" is passed, an "any-break" breakpoint is
+created. Such a breakpoint will break on every possible break position in the
+respective file.
 
     {
         "type": 15,
@@ -1045,5 +1057,87 @@ Response will be emitted.
         "keys": [
             "one",
             "two",
+        ]
+    }
+
+### Loaded Files Request (50)
+
+In order to reliably set breakpoints, the filename supplied to the breakpoint
+command needs to match what is in the annotation exactly.
+
+This command allows a debug client to ask what file names have been
+seen so far.
+
+With the "start_watching" key set to True, notifications when a new
+filename is seen will be sent with File Loaded Notification type and the
+id of this request.
+
+With "suspend", the thread that first encounters the new filename will
+suspend itself.
+
+With "stacktrace", the notifications will also immediately send a stacktrace
+along for the thread that encounters the new file.
+
+    {
+        "type": 50,
+        "id": $id,
+        "start_watching": True,
+        "suspend": False,
+        "stacktrace": False,
+    }
+
+### File Loaded Notification (51)
+
+Response to a Loaded Files Request, as well as notification when new files
+show up later on.
+
+Filename entries that were created not from a corresponding annotation being
+encountered but from requesting a breakpoint to be installed will have the
+"pending" key in addition to the "path" key.
+
+In the notification, there may be a `full_path` key in the objects in the
+filenames array. This happens for files from a module where moarvm will strip
+off anything starting at the space and parenthesis for the purposes of what
+filename you need to pass to set a breakpoint. The `full_path` key will give
+the path including the parenthesised part, so that it can be displayed to the
+user, but setting a breakpoint on the `full_path` will not result in the
+breakpoint being hit.
+
+Creating a file by requesting a breakpoint does not cause a notification to
+be sent out, but the same file later being encountered will cause such a
+notification.
+
+When "suspend" or "stacktrace" has been requested, a new any-break breakpoint
+is automatically added for every newly seen file, but not for any of the files
+that are reported in the initial response. If such a breakpoint is created,
+the ID of that breakpoint is returned with the `breakpoint_id` key. The key is
+left out when no breakpoint was created.
+
+Initial response:
+
+    {
+        "type": 51,
+        "id": $id,
+        "filenames": [
+            { "path": "src/vm/moar/ModuleLoader.nqp" },
+            { "path": "gen/moar/CORE.c.setting" },
+            { "path": "NQP::src/how/Archetypes.nqp" },
+            { "path": "SETTING::src/core.c/List.rakumod" },
+            { "path": "lib/ACME/Foobar.rakumod", "pending": True },
+        ]
+    }
+
+Notification:
+
+    {
+        "type": 51,
+        "id": $id,
+        "thread": 1,
+        "breakpoint_id": 7,
+        "filenames": [
+            { "path": "src/Perl6/Metamodel/PrivateMethodContainer.nqp" },
+        ],
+        "frames": [
+            ...
         ]
     }

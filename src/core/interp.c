@@ -426,40 +426,33 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(getlex_ni): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+            OP(getlex_ni):
+                GET_REG(cur_op, 0).i64 = MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_int64)->i64;
                 cur_op += 6;
-                MVM_frame_find_lexical_by_name(tc, name, MVM_reg_int64, r);
                 goto NEXT;
-            }
-            OP(getlex_nn): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+            OP(getlex_nn):
+                GET_REG(cur_op, 0).n64 = MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_num64)->n64;
                 cur_op += 6;
-                MVM_frame_find_lexical_by_name(tc, name, MVM_reg_num64, r);
                 goto NEXT;
-            }
-            OP(getlex_ns): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+            OP(getlex_ns):
+                GET_REG(cur_op, 0).s = MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_str)->s;
                 cur_op += 6;
-                MVM_frame_find_lexical_by_name(tc, name, MVM_reg_str, r);
                 goto NEXT;
-            }
             OP(getlex_no): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
-                MVMuint8 *prev_op = cur_op;
-                cur_op += 6;
-                if (MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj, r)) {
-                    if (MVM_spesh_log_is_logging(tc)) {
-                        MVM_spesh_log_type_at(tc, r->o, prev_op);
-                    }
+                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_obj);
+                if (found) {
+                    GET_REG(cur_op, 0).o = found->o;
+                    if (MVM_spesh_log_is_logging(tc))
+                        MVM_spesh_log_type(tc, found->o);
                 }
-                else
-                    r->o = tc->instance->VMNull;
-
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
+                cur_op += 6;
                 goto NEXT;
             }
             OP(bindlex_ni):
@@ -493,10 +486,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_UNLIKELY(tc->cur_frame->caller == 0)) {
                     MVM_exception_throw_adhoc(tc, "cannot call getdynlex without a caller frame");
                 }
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = GET_REG(cur_op, 2).s;
+                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
+                        tc->cur_frame->caller);
                 cur_op += 4;
-                MVM_frame_getdynlex(tc, name, tc->cur_frame->caller, r);
                 goto NEXT;
             }
             OP(binddynlex): {
@@ -773,11 +765,51 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(gcd_i): {
-                MVMint64 a = labs(GET_REG(cur_op, 2).i64), b = labs(GET_REG(cur_op, 4).i64), c;
-                while ( b != 0 ) {
-                    c = a % b; a = b; b = c;
+                /* Implementation from Daniel Lemire's blogs and code (placed in the public domain)), very slightly modified for MoarVM:
+                 *   https://lemire.me/blog/2013/12/26/fastest-way-to-compute-the-greatest-common-divisor/
+                 *   https://lemire.me/blog/2024/04/13/greatest-common-divisor-the-extended-euclidean-algorithm-and-speed/
+                 *   https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2013/12/26/gcd.cpp
+                 * While some of the other variants were faster when running his benchmark program, this was actually
+                 * the fastest when added to MoarVM and tested with some Raku code. Notice that because the values are 64-bit
+                 * we must use __builtin_ctzll instead of __builtin_ctz.
+                 */
+
+                MVMuint64 u = labs(GET_REG(cur_op, 2).i64), v = labs(GET_REG(cur_op, 4).i64), ret;
+
+                MVMint64 shift, uz, vz;
+                if (u == 0) {
+                    ret = v;
                 }
-                GET_REG(cur_op, 0).i64 = a;
+                else if (v == 0) {
+                    ret = u;
+                }
+                else {
+#ifdef _WIN32
+                    uz = _tzcnt_u64(u);
+                    vz = _tzcnt_u64(v);
+#else
+                    uz = __builtin_ctzll(u);
+                    vz = __builtin_ctzll(v);
+#endif
+                    shift = uz > vz ? vz : uz;
+                    u >>= uz;
+                    do {
+                        v >>= vz;
+                        MVMint64 diff = v;
+                        diff -= u;
+#ifdef _WIN32
+                        vz = _tzcnt_u64(diff);
+#else
+                        vz = __builtin_ctzll(diff);
+#endif
+                        if (diff == 0) break;
+                        if (v < u) u = v;
+                        v = labs(diff);
+                    } while (1);
+                    ret = u << shift;
+                }
+
+                GET_REG(cur_op, 0).i64 = ret;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -3584,10 +3616,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(getlexouter): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = GET_REG(cur_op, 2).s;
+                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_outer(tc,
+                    GET_REG(cur_op, 2).s);
                 cur_op += 4;
-                MVM_frame_find_lexical_by_name_outer(tc, name, r);
                 goto NEXT;
             }
             OP(getlexrel): {
@@ -3607,10 +3638,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc,
                         "getlexreldyn requires a concrete object with REPR MVMContext, got %s (%s)",
                         REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = GET_REG(cur_op, 4).s;
+                GET_REG(cur_op, 0).o = MVM_context_dynamic_lookup(tc, (MVMContext *)ctx,
+                        GET_REG(cur_op, 4).s);
                 cur_op += 6;
-                MVM_context_dynamic_lookup(tc, (MVMContext *)ctx, name, r);
                 goto NEXT;
             }
             OP(getlexrelcaller): {
@@ -4019,26 +4049,26 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(getlexstatic_o): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = GET_REG(cur_op, 2).s;
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
+                MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
+                        GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).o = found;
                 cur_op += 4;
-                if (!(*ice_ptr)->run_getlexstatic(tc, ice_ptr, name, r))
-                    r->o = tc->instance->VMNull;
                 goto NEXT;
             }
             OP(getlexperinvtype_o): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = GET_REG(cur_op, 2).s;
-                MVMuint8 *prev_op = cur_op;
-                cur_op += 4;
-                if (MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj, r)) {
+                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
+                    GET_REG(cur_op, 2).s, MVM_reg_obj);
+                if (found) {
+                    GET_REG(cur_op, 0).o = found->o;
                     if (MVM_spesh_log_is_logging(tc))
-                        MVM_spesh_log_type_at(tc, r->o, prev_op);
+                        MVM_spesh_log_type(tc, found->o);
                 }
-                else
-                    r->o = tc->instance->VMNull;
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
+                cur_op += 4;
                 goto NEXT;
             }
             OP(execname):
@@ -5742,11 +5772,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_getlex_no): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)), MVM_reg_obj);
+                GET_REG(cur_op, 0).o = found ? found->o : tc->instance->VMNull;
                 cur_op += 6;
-                if (!MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj, r))
-                    r->o = tc->instance->VMNull;
                 goto NEXT;
             }
             OP(sp_bindlex_in): {
@@ -5780,15 +5809,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_getlexstatic_o): {
-                MVMRegister *r = &GET_REG(cur_op, 0);
-                MVMString *name = GET_REG(cur_op, 2).s;
                 MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
                         ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
                         GET_UI32(cur_op, 6));
+                MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
+                        GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).o = found;
                 cur_op += 10;
-                if (!(*ice_ptr)->run_getlexstatic(tc, ice_ptr, name, r))
-                    r->o = tc->instance->VMNull;
                 goto NEXT;
             }
             OP(sp_assertparamcheck): {

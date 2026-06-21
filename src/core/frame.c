@@ -468,14 +468,14 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
 
         /* Run the specialization argument guard to see if we can use one. */
         spesh = static_frame->body.spesh;
-        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+        spesh_cand = MVM_spesh_arg_guard_run(tc, (MVMSpeshArgGuard *)MVM_load(&spesh->body.spesh_arg_guard),
             args, NULL);
     }
     else {
         spesh = static_frame->body.spesh;
 #if MVM_SPESH_CHECK_PRESELECTION
         MVMint32 certain = -1;
-        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, (MVMSpeshArgGuard *)MVM_load(&spesh->body.spesh_arg_guard),
             args, &certain);
         if (spesh_cand != correct && spesh_cand != certain) {
             fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
@@ -954,22 +954,72 @@ typedef struct {
     MVMuint32  rel_addr;
     void      *jit_return_label;
     MVMObject *payload;
+    MVMuint8   exceptional;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
     MVM_gc_worklist_add(tc, worklist, &(ud->frame));
+    MVM_gc_worklist_add(tc, worklist, &(ud->payload));
 }
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
     MVMFrame *frame    = ud->frame;
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
+    MVMuint32 ex       = ud->exceptional;
     void *jit_return_label = ud->jit_return_label;
     tc->last_payload = ud->payload;
-    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
+    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label, ex);
 }
+
+MVMint8 MVM_frame_continue_conflicting_unwind(MVMThreadContext *tc, MVMFrame *up_to,
+        MVMuint8 exceptional) {
+    /* A conflicting unwind is one where the unwind continuation data is higher
+     * in the call stack than the other unwinds target frame (i.e. one unwind
+     * wound skip over the continuation data of the other). If that's the case
+     * we need to find out which unwind would unwind more of the stack, that's
+     * the winning unwind that should continue. */
+    MVMCallStackIterator iter;
+    MVM_callstack_iter_frame_or_special_init(tc, &iter, tc->stack_top);
+    MVMUnwindData *data = 0;
+
+    while (MVM_callstack_iter_move_next(tc, &iter)) {
+        MVMCallStackRecord *record = MVM_callstack_iter_current(tc, &iter);
+        if (!data) {
+            if (record->kind == MVM_CALLSTACK_RECORD_SPECIAL_RETURN) {
+                data = MVM_callstack_get_special_return_data(tc,
+                        record, &continue_unwind);
+                if (data && data->exceptional != exceptional) {
+                    // Not a conflicting unwind.
+                    return 0;
+                }
+            }
+            else if (MVM_callstack_iter_current_frame(tc, &iter) == up_to) {
+                // No conflicting unwind found.
+                return 0;
+            }
+        }
+        else {
+            MVMFrame *f = MVM_callstack_iter_current_frame(tc, &iter);
+            if (f == up_to) {
+                /* We've seen the other unwind target first, so ours will
+                 * unwind more. */
+                continue_unwind(tc, data);
+                return 1;
+            }
+            else if (f == data->frame) {
+                /* We've seen our unwind's target first, so the other will
+                 * unwind more. */
+                return 0;
+            }
+        }
+    }
+    MVM_panic(1, "Did not find expected unwind target frame.");
+}
+
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                         MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
+                         MVMuint32 rel_addr, MVMObject *return_value,
+                         void *jit_return_label, MVMuint8 exceptional) {
     /* Lazy deopt means that we might have located an exception handler in
      * optimized code, but then at the point we call MVM_callstack_unwind_frame we'll
      * end up deoptimizing it. That means the address here will be out of date.
@@ -1022,6 +1072,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
                 ud->payload = tc->last_payload;
+                ud->exceptional = exceptional;
                 cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
                 MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                         MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
@@ -1108,7 +1159,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, captured);
 }
 
-/* This is used for situations in Perl 6 like:
+/* This is used for situations in Rakudo like:
  * supply {
  *     my $x = something();
  *     whenever $supply {
@@ -1243,31 +1294,19 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
  * if it does not exist. Incorrect type always throws. */
-int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *r) {
+MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init_for_outers(tc, &fw, tc->cur_frame);
     MVMRegister *res = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, type);
 
-    if (res == NULL) {
-        MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.resolver;
-        if (resolver) {
-            MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
-                    MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
-            args_record->args.source[0].s = name;
-            MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
-        }
-        else if (MVM_UNLIKELY(type != MVM_reg_obj)) {
-            char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-            char *waste[] = { c_name, NULL };
-            MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
-                c_name);
-        }
-        return 0;
+    if (res == NULL && MVM_UNLIKELY(type != MVM_reg_obj)) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+            c_name);
     }
-    else {
-        *r = *res;
-        return 1;
-    }
+
+    return res;
 }
 
 /* Binds the specified value to the given lexical, finding it along the static
@@ -1308,12 +1347,14 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
-void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMRegister *result) {
-    int found;
+MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
+    MVMRegister *r;
     MVMROOT(tc, name) {
-        found = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer, result);
-    }
-    if (MVM_UNLIKELY(!found)) {
+        r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+    };
+    if (MVM_LIKELY(r != NULL))
+        return r->o;
+    else {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
@@ -1323,7 +1364,7 @@ void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name,
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. Only works if it's an object lexical.  */
-int MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *r) {
+MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
             MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
@@ -1332,8 +1373,7 @@ int MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MV
                     MVMRegister *result = &cur_frame->env[idx];
                     if (!result->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, idx);
-                    *r = *result;
-                    return 1;
+                    return result;
                 }
                 else {
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1346,15 +1386,7 @@ int MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MV
         }
         cur_frame = cur_frame->outer;
     }
-    MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.resolver;
-    if (resolver) {
-        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
-                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
-        args_record->args.source[0].s = name;
-        MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
-        return 1;
-    }
-    return 0;
+    return NULL;
 }
 
 /* Performs some kind of lexical lookup using the frame walker. The exact walk
@@ -1529,8 +1561,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             vivify, found_frame);
 }
 
-void MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
-                                                  MVMString *name, MVMRegister *r) {
+MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+                                                  MVMString *name) {
     MVMuint16 type;
     MVMFrame *found_frame;
     MVMRegister *lex_reg = MVM_frame_find_dynamic_using_frame_walker(tc, fw, name, &type,
@@ -1593,26 +1625,12 @@ void MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWa
                 MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex: %d", type);
         }
     }
-    if (result) {
-        r->o = result;
-    }
-    else {
-        MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.dynamic_resolver;
-        if (resolver) {
-            MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
-                    MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
-            args_record->args.source[0].s = name;
-            MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
-        }
-        else {
-            r->o = tc->instance->VMNull;
-        }
-    }
+    return result ? result : tc->instance->VMNull;
 }
-void MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *r) {
+MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
-    MVM_frame_getdynlex_with_frame_walker(tc, &fw, name, r);
+    return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {

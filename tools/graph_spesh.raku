@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 
 =begin pod
 
@@ -13,9 +13,9 @@
     it display the result "interactively" in a window:
 
     =code
-        perl6 graph_spesh.raku a_nice_excerpt.txt | dot -Tsvg > helpful_graph.svg
-        perl6 graph_spesh.raku a_nice_excerpt.txt | dot -Tpng > huge_image.png
-        perl6 graph_spesh.raku a_nice_excerpt.txt | dot -Tx11
+        raku graph_spesh.raku a_nice_excerpt.txt | dot -Tsvg > helpful_graph.svg
+        raku graph_spesh.raku a_nice_excerpt.txt | dot -Tpng > huge_image.png
+        raku graph_spesh.raku a_nice_excerpt.txt | dot -Tx11
 
     The -T flag for dot selects the output format. Using K<-Tx11> will open a
     window in which you can pan and zoom around in.

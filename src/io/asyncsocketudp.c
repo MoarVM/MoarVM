@@ -84,8 +84,14 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
      * This is an artifact of the underlying implementation and we shouldn't
      * pass it through to the user. */
 
-    if (nread == 0 && addr == NULL)
+    if (nread == 0 && addr == NULL) {
+        /* libuv still handed us the buffer on_alloc allocated; free it or we
+         * leak one buffer per received datagram (a large UDP memory leak for
+         * e.g. async DNS scanning). */
+        if (buf && buf->base)
+            MVM_free(buf->base);
         return;
+    }
 
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     t = MVM_io_eventloop_get_active_work(tc, ri->work_idx);

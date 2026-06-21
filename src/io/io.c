@@ -126,11 +126,19 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     else
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
 
+    MVMArrayBody *result_body = &((MVMArray *)result)->body;
+
+    /* Free any existing data first. */
+    if (result_body->slots.any)
+        MVM_free(result_body->slots.any);
+
     /* Stash the data in the VMArray. */
-    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
-    ((MVMArray *)result)->body.start    = 0;
-    ((MVMArray *)result)->body.ssize    = bytes_read;
-    ((MVMArray *)result)->body.elems    = bytes_read;
+    result_body->slots.i8 = (MVMint8 *)buf;
+    result_body->start    = 0;
+    /* Note that the actual size of the allocated buffer may be
+     * bigger than bytes_read. It's not the end of the world, though. */
+     result_body->ssize    = bytes_read;
+     result_body->elems    = bytes_read;
 }
 
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
@@ -151,8 +159,18 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
         output_size = ((MVMArray *)buffer)->body.elems * sizeof(MVMuint16);
         output = (char *)(((MVMArray *)buffer)->body.slots.i16 + ((MVMArray *)buffer)->body.start);
     }
+    else if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_U32
+        || ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_I32) {
+        output_size = ((MVMArray *)buffer)->body.elems * sizeof(MVMuint32);
+        output = (char *)(((MVMArray *)buffer)->body.slots.i32 + ((MVMArray *)buffer)->body.start);
+    }
+    else if (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_U64
+        || ((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type == MVM_ARRAY_I64) {
+        output_size = ((MVMArray *)buffer)->body.elems * sizeof(MVMuint64);
+        output = (char *)(((MVMArray *)buffer)->body.slots.i64 + ((MVMArray *)buffer)->body.start);
+    }
     else
-        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8, int8, uint16 or int16");
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of (u)int8/16/32/64");
 
     if (handle->body.ops->sync_writable) {
         MVMROOT(tc, handle) {
@@ -443,9 +461,9 @@ char* MVM_platform_path(MVMThreadContext *tc, MVMString *path) {
     /* Add prefix if:
        * It is an absolute path
        * It doesn't already start with \\?\
-       * It is at least MAX_PATH in length
+       * It is at least MAX_PATH in length, strlen excludes \0, MAX_PATH includes \0, thus >=
     */
-    if (is_absolute_path(original_path) == 1 && strlen(original_path) > MAX_PATH && strncmp(original_path, "\\\\?\\", 4) != 0) {
+    if (is_absolute_path(original_path) == 1 && strlen(original_path) >= MAX_PATH && strncmp(original_path, "\\\\?\\", 4) != 0) {
 
         // Allocate memory for the new path. Add extra space for "\\?\" and the null terminator.
         size_t new_length = strlen(original_path) + 4 + 1;

@@ -220,7 +220,7 @@ char * MVM_string_ascii_encode_any(MVMThreadContext *tc, MVMString *str) {
     return MVM_string_ascii_encode(tc, str, NULL, 0);
 }
 
-/* Encodes the specified string to ASCII using libc malloc.  */
+/* Encodes the specified string to ASCII using libc malloc/realloc.  */
 char * MVM_string_ascii_encode_malloc(MVMThreadContext *tc, MVMString *str) {
     /* ASCII is a single byte encoding, but \r\n is a 2-byte grapheme, so we
      * may have to resize as we go. */
@@ -228,7 +228,10 @@ char * MVM_string_ascii_encode_malloc(MVMThreadContext *tc, MVMString *str) {
 
     size_t         result_alloc = lengthu;
     MVMuint8      *result = malloc(result_alloc + 1);
-    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+    if (!result) {
+        MVM_exception_throw_adhoc(tc, "Error encoding ASCII string: could not allocate %ld bytes", result_alloc + 1);
+    }
+    else if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
         memcpy(result, str->body.storage.blob_ascii, lengthu);
         result[lengthu] = 0;
@@ -241,16 +244,19 @@ char * MVM_string_ascii_encode_malloc(MVMThreadContext *tc, MVMString *str) {
             MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
             if (i == result_alloc) {
                 result_alloc += 8;
-                result = realloc(result, result_alloc + 1);
+                MVMuint8 *new_result = realloc(result, result_alloc + 1);
+                if (!new_result) {
+                    free(result);
+                    MVM_exception_throw_adhoc(tc, "Error encoding ASCII string: could not reallocate to %ld bytes", result_alloc + 1);
+                }
+                result = new_result;
             }
             if (0 <= ord && ord <= 127) {
                 result[i++] = (MVMuint8)ord;
             }
             else {
                 free(result);
-                MVM_exception_throw_adhoc(tc,
-                    "Error encoding ASCII string: could not encode codepoint %d",
-                    ord);
+                MVM_exception_throw_adhoc(tc, "Error encoding ASCII string: could not encode codepoint %d", ord);
             }
         }
         result[i] = 0;

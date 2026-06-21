@@ -9,21 +9,20 @@ static MVMuint32 try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCache
  * Inline caching of getlexstatic_o
  **/
 
-static int getlexstatic_initial(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *name, MVMRegister *r);
-static int getlexstatic_resolved(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *name, MVMRegister *r);
+static MVMObject * getlexstatic_initial(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *name);
+static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *name);
 
 /* Unlinked node. */
 static MVMDispInlineCacheEntry unlinked_getlexstatic = { getlexstatic_initial };
 
 /* Initial unlinked handler. */
-static int getlexstatic_initial(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *name, MVMRegister *r) {
+static MVMObject * getlexstatic_initial(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *name) {
     /* Do the lookup. */
-    int found = MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj, r);
-    MVMObject *result = found > 0 ? r->o : tc->instance->VMNull;
-    // FIXME if the fallback resolver is used we must not cace the VMNull
+    MVMRegister *found = MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj);
+    MVMObject *result = found ? found->o : tc->instance->VMNull;
 
     /* Set up result node and try to install it. */
     MVMStaticFrame *sf = tc->cur_frame->static_info;
@@ -32,17 +31,16 @@ static int getlexstatic_initial(MVMThreadContext *tc,
     MVM_ASSIGN_REF(tc, &(sf->common.header), new_entry->result, result);
     try_update_cache_entry(tc, entry_ptr, &unlinked_getlexstatic, &(new_entry->base));
 
-    return found;
+    return result;
 }
 
 /* Once resolved, just hand back the result. */
-static int getlexstatic_resolved(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *name, MVMRegister *r) {
+static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *name) {
     MVMDispInlineCacheEntryResolvedGetLexStatic *resolved =
         (MVMDispInlineCacheEntryResolvedGetLexStatic *)*entry_ptr;
     MVM_ASSERT_NOT_FROMSPACE(tc, resolved->result);
-    r->o = resolved->result;
-    return 1;
+    return resolved->result;
 }
 
 /**

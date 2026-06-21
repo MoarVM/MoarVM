@@ -22,6 +22,25 @@ MVM_STATIC_INLINE MVMuint32 GET_UI32(const MVMuint8 *pc, MVMint32 idx) {
     ", instruction %" PRIu32 ":\n" msg, \
     (MVMuint32)((val)->cur_op - (val)->bc_start), (val)->cur_instr
 
+MVM_STATIC_INLINE const char *operand_type_name(MVMuint8 op) {
+    switch (op) {
+        case MVM_operand_int8:     return "int8";
+        case MVM_operand_int16:    return "int16";
+        case MVM_operand_int32:    return "int32";
+        case MVM_operand_int64:    return "int64";
+        case MVM_operand_num32:    return "num32";
+        case MVM_operand_num64:    return "num64";
+        case MVM_operand_callsite: return "callsite";
+        case MVM_operand_coderef:  return "coderef";
+        case MVM_operand_str:      return "str";
+        case MVM_operand_ins:      return "instruction";
+
+        case MVM_operand_obj:      return "obj";
+        case MVM_operand_type_var: return "typevar";
+        default: return "?";
+    }
+}
+
 enum {
     MARK_regular  = ' ',
     MARK_special  = '.',
@@ -291,9 +310,10 @@ static void validate_reg_operand(Validator *val, MVMuint32 flags) {
         operand_type = val->reg_type_var;
     }
 
-    if (reg_type != operand_type)
-        fail(val, MSG(val, "operand type %" PRIu32 " does not match register type %" PRIu32 " for op %s in frame %s"),
-                operand_type, reg_type, val->cur_info->name, MVM_string_utf8_maybe_encode_C_string(val->tc, val->frame->body.name));
+    if (reg_type != operand_type) {
+        fail(val, MSG(val, "operand type %" PRIu32 " (%s) does not match register type %" PRIu32 " (%s) for op %s in frame %s"),
+                operand_type, operand_type_name(operand_type), reg_type, operand_type_name(reg_type), val->cur_info->name, MVM_string_utf8_maybe_encode_C_string(val->tc, val->frame->body.name));
+    }
 
 next_operand:
     val->cur_op += 2;
