@@ -1629,6 +1629,46 @@ static MVMDispSysCall is_debugserver_running = {
     .expected_concrete = { 0 },
 };
 
+/* async_socket_udp */
+
+static void async_socket_udp_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    /* Flags: 0b0001 : broadcast
+              0b0010 : multicast
+              0b0100 : source specific multicast
+              0b1000 : multicast loopback */
+    MVMObject *queue      = get_obj_arg(arg_info, 0);
+    MVMObject *schedulee  = get_obj_arg(arg_info, 1);
+    MVMString *host       = get_str_arg(arg_info, 2);
+    MVMint64 port         = get_int_arg(arg_info, 3);
+    MVMint64 flags        = get_int_arg(arg_info, 4);
+    MVMObject *async_type = get_obj_arg(arg_info, 5);
+    MVMObject *result = NULL;
+
+    if (flags & 0b10) {
+        MVMint64 iface = 0;
+        MVMString * ssm_host = NULL;
+        if (arg_info.callsite->num_pos > 6)
+            iface = get_int_arg(arg_info, 6);
+        if (arg_info.callsite->num_pos > 7)
+            ssm_host = get_str_arg(arg_info, 7);
+        result = MVM_io_socket_udp_async_multicast(tc, queue, schedulee, host, port, flags, iface, ssm_host, async_type);
+    } else {
+        result = MVM_io_socket_udp_async(tc, queue, schedulee, host, port, flags, async_type);
+    }
+    MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall async_socket_udp = {
+    .c_name = "async-socket-udp",
+    .implementation = async_socket_udp_impl,
+    .min_args = 6,
+    .max_args = 8,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_STR },
+    .expected_reprs = { MVM_REPR_ID_ConcBlockingQueue, 0, 0, 0, 0, MVM_REPR_ID_MVMAsyncTask, 0, 0 },
+    .expected_concrete = { 1, 1, 1, 1, 1, 0, 1, 1 },
+};
+
+
+
 /* pty-resize */
 static void pty_resize_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMOSHandle *handle  = (MVMOSHandle *)get_obj_arg(arg_info, 0);
@@ -1752,6 +1792,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &telemetry_interval_stop);
     add_to_hash(tc, &telemetry_interval_annotate);
     add_to_hash(tc, &is_debugserver_running);
+    add_to_hash(tc, &async_socket_udp);
     add_to_hash(tc, &pty_resize);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
@@ -1760,3 +1801,4 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
 MVMDispSysCall * MVM_disp_syscall_find(MVMThreadContext *tc, MVMString *name) {
     return MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->syscalls, name);
 }
+
