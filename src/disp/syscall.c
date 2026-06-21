@@ -1660,7 +1660,6 @@ static void async_socket_udp_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMint64 port         = get_int_arg(arg_info, 3);
     MVMint64 flags        = get_int_arg(arg_info, 4);
     MVMObject *async_type = get_obj_arg(arg_info, 5);
-    MVMint64 iface        = 0;
     MVMObject *result = NULL;
 
     if (flags & 0b10) {
@@ -1672,7 +1671,7 @@ static void async_socket_udp_impl(MVMThreadContext *tc, MVMArgs arg_info) {
             ssm_host = get_str_arg(arg_info, 7);
         result = MVM_io_socket_udp_async_multicast(tc, queue, schedulee, host, port, flags, iface, ssm_host, async_type);
     } else {
-        MVM_io_socket_udp_async(tc, queue, schedulee, host, port, flags, async_type);
+        result = MVM_io_socket_udp_async(tc, queue, schedulee, host, port, flags, async_type);
     }
     MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
 }

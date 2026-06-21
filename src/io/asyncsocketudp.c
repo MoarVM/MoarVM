@@ -572,18 +572,18 @@ static void setup_multi_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *
     if (strchr(msi->host,'.') == NULL) {
         unsigned int iface_idx = 0;
         struct sockaddr *iface_addr = NULL;
-        size_t iface_len = UV_IF_NAMESIZE;
 
+        /* Creates a binary representation of IPv6's unspecified address */
         bind_addr = MVM_calloc(1, sizeof(struct sockaddr_in6));
         uv_ip6_addr("::",(int) msi->port,(struct sockaddr_in6*) bind_addr);
 
         /* Interface address is only accepted as char[], calculate from multicast host */
-        iface_str = MVM_calloc(1, sizeof(char) * (UV_IF_NAMESIZE + 4));
-        strcpy(iface_str,"::%0\0");
+        iface_str = MVM_calloc(UV_IF_NAMESIZE + 4, sizeof(char));
+        strcpy(iface_str,"::%0");
         uv_interface_address_t *info;
     	int count,i;
         uv_interface_addresses(&info, &count);
-        /* XXX Should we bomb on a bad interface or just go default? */
+        /* XXX Should bomb on a bad interface */
 		for(i=0; i<count; i++) {
 			if (info[i].address.address6.sin6_family == AF_INET6
 			&& info[i].address.address6.sin6_scope_id == msi->iface) {
@@ -602,9 +602,9 @@ static void setup_multi_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *
     int r;
 
     if ((r = uv_udp_init(loop, udp_handle)) >= 0) {
-        if (bind_addr)
-            /* UV_UDP_REUSEADDR as multiple subscribers is common/expected */
-            r = uv_udp_bind(udp_handle, bind_addr, UV_UDP_REUSEADDR);
+        /* UV_UDP_REUSEADDR as multiple subscribers is common/expected */
+        r = uv_udp_bind(udp_handle, bind_addr, UV_UDP_REUSEADDR);
+
         if (r >= 0) {
             if (msi->flags & 0b100) {
                 r = uv_udp_set_source_membership(udp_handle, msi->host, iface_str, msi->ssm_host, UV_JOIN_GROUP);
@@ -616,10 +616,9 @@ static void setup_multi_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *
             r = uv_udp_set_multicast_loop(udp_handle, (msi->flags & 0b100) ? 1 : 0);
     }
 
+    MVM_free(bind_addr);
     if (iface_str)
         MVM_free(iface_str);
-    if (bind_addr)
-        MVM_free(bind_addr);
 
     if (r >= 0) {
         /* UDP handle initialized; wrap it up in an I/O handle and send. */
@@ -784,8 +783,8 @@ MVMObject * MVM_io_socket_udp_async_multicast(MVMThreadContext *tc, MVMObject *q
 
             /* Convert the addresses. Multicast routines in libuv require char[] */
             /* XXX Handle case if host_addr.sin6_scope_id != 0 && host_addr.sin6_scope_id != iface */
-            host_str = (char*) MVM_calloc(1, sizeof(char) * UV_MAXHOSTNAMESIZE);
-            uv_ip_name((const struct sockaddr*) host_addr, host_str, UV_MAXHOSTNAMESIZE - 1);
+            host_str = (char*) MVM_calloc(UV_MAXHOSTNAMESIZE, sizeof(char));
+            uv_ip_name((const struct sockaddr*) host_addr, host_str, UV_MAXHOSTNAMESIZE);
             MVM_free(host_addr);
         }
     }
@@ -795,8 +794,8 @@ MVMObject * MVM_io_socket_udp_async_multicast(MVMThreadContext *tc, MVMObject *q
         MVMROOT3(tc, queue, schedulee, async_type) {
             /* XXX Handle case if ssm_addr.sin6_scope_id != 0 && ssm_addr.sin6_scope_id != iface */
             ssm_addr  = MVM_io_resolve_host_name(tc, ssm_host, port, MVM_SOCKET_FAMILY_UNSPEC, MVM_SOCKET_TYPE_DGRAM, MVM_SOCKET_PROTOCOL_ANY, 1);
-            ssm_str = (char*) MVM_calloc(1, sizeof(char) * UV_MAXHOSTNAMESIZE);
-            uv_ip_name((const struct sockaddr*) ssm_addr, ssm_str, UV_MAXHOSTNAMESIZE - 1);
+            ssm_str = (char*) MVM_calloc(UV_MAXHOSTNAMESIZE, sizeof(char));
+            uv_ip_name((const struct sockaddr*) ssm_addr, ssm_str, UV_MAXHOSTNAMESIZE);
             MVM_free(ssm_addr);
         }
     }
