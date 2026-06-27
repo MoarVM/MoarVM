@@ -1399,6 +1399,12 @@ def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
             deduct(100)
         if int(tc["cur_frame"]) != 0 and not can_read_path(tc, "cur_frame", "static_info"):
             deduct(150)
+        if int(tc["num_finalize"]) > int(tc["alloc_finalize"]):
+            deduct(50)
+        if int(tc["num_temproots"]) > int(tc["alloc_temproots"]):
+            deduct(50)
+        if not (1024 < int(tc["nursery_fromspace_size"]) <= 4 * 4194304):
+            deduct(50)
 
     except EarlyAbortException:
         return -math.inf
@@ -1725,10 +1731,93 @@ class MoarBtCommands(gdb.Command):
             cur_frame = cur_frame.caller
             stack_idx += 1
 
+
+def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
+    fn, ln = cur_frame.resolve_annotation()
+    infoparts = extract_moar_stack_frame_args(cur_frame)
+
+    name = cur_frame.name
+    name = "''" if name == "" else name
+
+    loc = ""
+
+    if fn is None or ln is None:
+        loc = f"{fn} : {ln}"
+    else:
+        loc = f"<unknown>:1"
+
+    if stack_idx is not None:
+        print(f"Stack Frame #{stack_idx}")
+
+    print(cur_frame.ptr)
+    print(f"Name: {name} {loc}")
+    print("Arguments:")
+    for info in infoparts:
+        print(f"  {info}")
+    print("")
+
+    csinfo = parse_callsite(cur_frame.params["arg_info"]["callsite"])
+    param_vals = cur_frame.param_vals
+
+    prev_margs_cnt = 0
+    unset_val = None
+    try:
+        prev_margs_cnt_val = gdb.parse_and_eval("$margs_cnt")
+        if prev_margs_cnt_val.type.name != "void":
+            prev_margs_cnt = int(prev_margs_cnt_val)
+        unset_val = gdb.parse_and_eval("$okay_so_hear_me_out_i_need_a_gdb_value_that_is_void_but_not_a_void_pointer_or_anything_and_i_dont_know_how_to_create_it_from_python_so_please_dont_put_anything_in_this_variable_thank_you")
+    except:
+        print("could not unset obsolete margs convenience vars")
+
+    gdb.set_convenience_variable("mframe", cur_frame.ptr)
+    print(f"var $mframe set to {cur_frame.ptr}")
+
+    gdb.set_convenience_variable("margs_cnt", len(csinfo))
+    print(f"var $margs_cnt set to {len(csinfo)}")
+    for i, csi in enumerate(csinfo):
+        # info = csinfo[i][0]
+        subpart  = csi[1](param_vals[i])
+
+        typename = csi[2][1]
+
+        if typename == "obj":
+            is_obj = False
+            is_concrete = False
+            flags1 = int(subpart["header"]["flags1"])
+            if flags1 & 2: # MVM_CF_STABLE
+                is_obj = False
+            elif flags1 & 1: # MVM_CF_TYPE_OBJECT
+                is_obj = True
+                is_concrete = False
+            elif flags1 & 4: # MVM_CF_FRAME
+                is_obj = False
+            else:
+                is_obj = True
+                is_concrete = True
+
+            if is_obj and is_concrete:
+                reprname = subpart["st"]["REPR"]["name"].string()
+                if reprname in repr_infos:
+                    typ = repr_infos[reprname]["struct"].pointer()
+                    subpart = subpart.cast(typ)
+
+        varname = f"margs_{i}"
+        gdb.set_convenience_variable(varname, subpart)
+        print(f"var ${varname} set to ({subpart.type}) {subpart}")
+
+    try:
+        for i in range(len(csinfo), prev_margs_cnt):
+            varname = f"margs_{i}"
+            gdb.set_convenience_variable(varname, unset_val)
+            print(f"var ${varname} unset")
+    except:
+        print("could not unset obsolete margs convenience vars")
+
+
 class MoarBtFrameCommand(gdb.Command):
     """Get all details of one stack frame on the moarvm stack"""
     def __init__(self):
-        super(MoarBtFrameCommand, self).__init__("moar bt frame", gdb.COMMAND_STACK)
+        super(MoarBtFrameCommand, self).__init__("moar bt frame", gdb.COMMAND_STACK, prefix=True)
 
     def invoke(self, argument, from_tty):
         stack_idx = None
@@ -1747,85 +1836,61 @@ class MoarBtFrameCommand(gdb.Command):
             if cur_frame is None:
                 print(f"Frame with index {evaled} could not be found; stack exhausted after {stack_idx} steps!")
 
-        fn, ln = cur_frame.resolve_annotation()
-        infoparts = extract_moar_stack_frame_args(cur_frame)
+        do_single_frame_command_stuff(cur_frame, stack_idx)
 
-        name = cur_frame.name
-        name = "''" if name == "" else name
 
-        loc = ""
+class MoarBtFrameUpCommand(gdb.Command):
+    """Get all details of the current moar stack frame's caller."""
+    def __init__(self):
+        super(MoarBtFrameUpCommand, self).__init__("moar bt frame up", gdb.COMMAND_STACK)
 
-        if fn is None or ln is None:
-            loc = f"{fn} : {ln}"
+    def invoke(self, argument, from_tty):
+        frame = gdb.parse_and_eval("$mframe")
+        if int(frame) != 0:
+            last_frame = MoarStackFrame(frame, frame, MoarStackFrame.Relation.MANUAL)
+            if last_frame.caller is None:
+                print("Last frame on the stack reached!")
+                self.dont_repeat()
+                return
+
+            do_single_frame_command_stuff(last_frame.caller)
         else:
-            loc = f"<unknown>:1"
+            raise ValueError("Convenience Variable $mframe doesn't seem to exist?")
 
-        if stack_idx is not None:
-            print(f"Stack Frame #{stack_idx}")
+class MoarBtFrameOutCommand(gdb.Command):
+    """Get all details of the current moar stack frame's outer."""
+    def __init__(self):
+        super(MoarBtFrameOutCommand, self).__init__("moar bt frame out", gdb.COMMAND_STACK)
 
-        print(cur_frame.ptr)
-        print(f"Name: {name} {loc}")
-        print("Arguments:")
-        for info in infoparts:
-            print(f"  {info}")
-        print("")
+    def invoke(self, argument, from_tty):
+        frame = gdb.parse_and_eval("$mframe")
+        if int(frame) != 0:
+            last_frame = MoarStackFrame(frame, frame, MoarStackFrame.Relation.MANUAL)
+            if last_frame.outer is None:
+                print("This frame has no more outers!")
+                self.dont_repeat()
+                return
 
-        csinfo = parse_callsite(cur_frame.params["arg_info"]["callsite"])
-        param_vals = cur_frame.param_vals
+            do_single_frame_command_stuff(last_frame.outer)
+        else:
+            raise ValueError("Convenience Variable $mframe doesn't seem to exist?")
 
-        prev_margs_cnt = 0
-        unset_val = None
-        try:
-            prev_margs_cnt_val = gdb.parse_and_eval("$margs_cnt")
-            if prev_margs_cnt_val.type.name != "void":
-                prev_margs_cnt = int(prev_margs_cnt_val)
-            unset_val = gdb.parse_and_eval("$okay_so_hear_me_out_i_need_a_gdb_value_that_is_void_but_not_a_void_pointer_or_anything_and_i_dont_know_how_to_create_it_from_python_so_please_dont_put_anything_in_this_variable_thank_you")
-        except:
-            print("could not unset obsolete margs convenience vars")
+class MoarTCCommand(gdb.Command):
+    """More-or-less reliably get the currently active thread's MVMThreadContext"""
+    def __init__(self):
+        super(MoarTCCommand, self).__init__("moar tc", gdb.COMMAND_STACK)
 
-        gdb.set_convenience_variable("mframe", cur_frame.ptr)
-        print(f"var $mframe set to {cur_frame.ptr}")
-
-        gdb.set_convenience_variable("margs_cnt", len(csinfo))
-        print(f"var $margs_cnt set to {len(csinfo)}")
-        for i, csi in enumerate(csinfo):
-            # info = csinfo[i][0]
-            subpart  = csi[1](param_vals[i])
-
-            typename = csi[2][1]
-
-            if typename == "obj":
-                is_obj = False
-                is_concrete = False
-                flags1 = int(subpart["header"]["flags1"])
-                if flags1 & 2: # MVM_CF_STABLE
-                    is_obj = False
-                elif flags1 & 1: # MVM_CF_TYPE_OBJECT
-                    is_obj = True
-                    is_concrete = False
-                elif flags1 & 4: # MVM_CF_FRAME
-                    is_obj = False
-                else:
-                    is_obj = True
-                    is_concrete = True
-
-                if is_obj and is_concrete:
-                    reprname = subpart["st"]["REPR"]["name"].string()
-                    if reprname in repr_infos:
-                        typ = repr_infos[reprname]["struct"].pointer()
-                        subpart = subpart.cast(typ)
-
-            varname = f"margs_{i}"
-            gdb.set_convenience_variable(varname, subpart)
-            print(f"var ${varname} set to ({subpart.type}) {subpart}")
+    def invoke(self, argument, from_tty):
+        tc = find_tc()
+        histval = gdb.add_history(tc)
 
         try:
-            for i in range(len(csinfo), prev_margs_cnt):
-                varname = f"margs_{i}"
-                gdb.set_convenience_variable(varname, unset_val)
-                print(f"var ${varname} unset")
+            gdb.execute(f"print ${histval}")
         except:
-            print("could not unset obsolete margs convenience vars")
+            pass
+
+        gdb.set_convenience_variable("TC", tc)
+        print(f"var $TC set to ({tc.type}) {tc}")
 
 #                  _   _                   _     _
 #     _ __ _ _ ___| |_| |_ _  _   _ __ _ _(_)_ _| |_ ___ _ _ ___
@@ -1878,7 +1943,12 @@ def register_commands(objfile):
 
     commands.append(MoarBtCommands())
     commands.append(MoarBtFrameCommand())
+    commands.append(MoarBtFrameUpCommand())
+    commands.append(MoarBtFrameOutCommand())
     print("moar bt commands registered")
+
+    commands.append(MoarTCCommand())
+    print("moar TC commands registered")
 
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
