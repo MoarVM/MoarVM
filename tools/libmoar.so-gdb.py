@@ -1395,6 +1395,9 @@ def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
     # mangled when they are not explicitly stored in a way the debug
     # symbols tell us ...
 
+    if str(tc.type) != "MVMThreadContext *":
+        return -math.inf
+
     def deduct(n):
         nonlocal score
         score -= n
@@ -1423,11 +1426,11 @@ def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
             deduct(100)
         if int(tc["cur_frame"]) != 0 and not can_read_path(tc, "cur_frame", "static_info"):
             deduct(150)
-        if int(tc["num_finalize"]) > int(tc["alloc_finalize"]):
+        if int(tc["num_finalize"]) >= int(tc["alloc_finalize"]):
             deduct(50)
-        if int(tc["num_temproots"]) > int(tc["alloc_temproots"]):
+        if int(tc["num_temproots"]) >= int(tc["alloc_temproots"]):
             deduct(50)
-        if not (1024 < int(tc["nursery_fromspace_size"]) <= 4 * 4194304):
+        if not (1024 <= int(tc["nursery_fromspace_size"]) <= 4 * 4194304):
             deduct(50)
 
     except EarlyAbortException:
@@ -1462,7 +1465,7 @@ def find_tc():
 
         frame = frame.older()
 
-    tcs_by_score = sorted(found_tcs, lambda ts: is_tc_plausible(ts))
+    tcs_by_score = sorted(found_tcs, key = lambda ts: is_tc_plausible(ts))
     for tc in found_tcs:
        print(" found a TC with value ", hex(tc), " with score ", is_tc_plausible(tc))
 
