@@ -2,6 +2,7 @@ New in 2026.06
 
 + Allow GC to run while decoding large buffers of utf8/c8
 + Fix smallint branch of MVM_bigint_mod for values that wrap
++ Fix memory leak in async UDP reads
 
 New in 2026.05.1
 
