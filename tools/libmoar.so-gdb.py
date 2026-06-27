@@ -1649,6 +1649,14 @@ class MoarStackFrame:
                 self.params["arg_info"]["map"][i]
             ] for i in range(len(csinfo))]
 
+    @property
+    def cuuid(self):
+        return mvmstr_to_str(self.ptr["static_info"]["body"]["cuuid"])
+
+    @property
+    def cufile(self):
+        return mvmstr_to_str(self.ptr["static_info"]["body"]["cu"]["body"]["filename"])
+
     def resolve_annotation(self, offs : int | None = None):
         if offs is None:
             offs = self.bytecode_offs
@@ -1775,6 +1783,13 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
 
     print(cur_frame.ptr)
     print(f"Name: {name} {loc}")
+    print(f"Bytecode file: {cur_frame.cufile} ; cuuid {cur_frame.cuuid}")
+    print("")
+    if cur_frame.caller is not None:
+        print(f"Caller: {cur_frame.caller.ptr}")
+    if cur_frame.outer is not None:
+        print(f"Outer: {cur_frame.outer.ptr}")
+
     print("Arguments:")
     for info in infoparts:
         print(f"  {info}")
