@@ -46,6 +46,7 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+from collections.abc import Mapping, Sequence, Set
 from enum import Enum
 import gdb
 from collections import defaultdict
@@ -1039,15 +1040,16 @@ class ArrayEntryRecordingBreakpoint(AutoResumingBreakpoint):
         return self
 
 class SQLRecordingBreakpoint(AutoResumingBreakpoint):
-    def __init__(self, medbc, table_name, exprs, *args):
+    def __init__(self, medbc, table_name : str, column_names : str, exprs : Sequence, *args):
         super(SQLRecordingBreakpoint, self).__init__(*args)
         self._medbc = medbc # MakeExecutionDatabaseCommand
         self._table_name = table_name
         self._exprs = exprs
         self._extras = None
+        self._column_expr = ', '.join([":" + n for n in column_names.split(" ")])
 
     def _hit_breakpoint_action(self):
-        created_event = self._medbc._register_event_sql(self._table_name, self._exprs)
+        created_event = self._medbc._register_event_sql(self._table_name, self._column_expr, self._exprs)
         if self._extras is not None:
             self._extras(created_event)
 
@@ -1068,7 +1070,15 @@ execution_db = None
 class MakeExecutionDatabaseCommand(gdb.Command):
     """Run execution from beginning to end, creating a database with interesting events.
 
-    Only makes sense to run inside a "rr replay" session."""
+    Only makes sense to run inside a "rr replay" session.
+
+    Possible arguments:
+
+      - notrackgc      Don't record every object's old and new addresses when doing GC
+    """
+
+    flags : Set[str]
+
     def __init__(self):
         super(MakeExecutionDatabaseCommand, self).__init__("moar rrdb", gdb.COMMAND_DATA)
 
@@ -1085,24 +1095,27 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _prev_thread = None
     _prev_thread_str = None
 
-    def _register_event_sql(self, table_name, exprs):
+    def _register_event_sql(self, table_name, column_expr, exprs):
         rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
         rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
         rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
 
         row = {}
         for expr in exprs:
-            if isinstance(expr, list):
-                key, value = expr
-            elif isinstance(expr, typing.Callable):
-                key, value = expr()
-            row[key] = value
+            try:
+                if isinstance(expr, list):
+                    key, value = expr
+                elif isinstance(expr, typing.Callable):
+                    key, value = expr()
+                row[key] = value
+            except Exception:
+                print("when evaluating expr ", expr, " for table ", table_name)
+                raise
         row["rr_tick"] = rr_tick
         row["rr_event"] = rr_event
         row["rr_time"] = rr_time
 
-        colnames = ', '.join([":" + n for n in row.keys()])
-        query = f"INSERT INTO {table_name} VALUES ({colnames});"
+        query = f"INSERT INTO {table_name} VALUES ({column_expr});"
         self._db_cur.execute(query, row)
         self._db_conn.commit()
 
@@ -1128,7 +1141,9 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             #    self._object_movements[self._gc_seq_num] = array.array("Q")
 
             if prev is not None and prev // 20 != self._gc_seq_num // 20:
-                print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num)
+                rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
+                rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
+                print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num, " - time ", rr_time, " ticks: ", rr_tick)
                 #for s in self._db["subjects"]:
                 #    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
                 #if self._gc_seq_num == 60:
@@ -1240,18 +1255,18 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 bp.enabled = False
                 self._disabled_breakpoints.append(bp)
 
-        cbp.append(SQLRecordingBreakpoint(self, "gcs", [
+        cbp.append(SQLRecordingBreakpoint(self, "gcs", "tc rr_tick rr_event rr_time gc_seq_number is_full", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("gc_seq_number", "tc->instance->gc_seq_number", int),
             EXP.gdb_eval("is_full", "tc->instance->gc_full_collect", int),
             ], "run_gc"))
 
-        cbp.append(SQLRecordingBreakpoint(self, "compunits", [
+        cbp.append(SQLRecordingBreakpoint(self, "compunits", "tc rr_tick rr_event rr_time data_addr", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("data_addr", "cu->body.data_start", int),
             ], "run_comp_unit"))
 
-        cbp.append(SQLRecordingBreakpoint(self, "worklist_runs", [
+        cbp.append(SQLRecordingBreakpoint(self, "worklist_runs", "tc rr_tick rr_event rr_time nursery_alloc nursery_alloc_limit nursery_tospace nursery_fromspace", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("nursery_alloc", "tc->nursery_alloc", int),
             EXP.gdb_eval("nursery_alloc_limit", "tc->nursery_alloc_limit", int),
@@ -1259,10 +1274,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             EXP.gdb_eval("nursery_tospace", "tc->nursery_tospace", int),
             ], "process_worklist")._extra(store_seq_num))
 
-        gdb.execute("list process_worklist", False, True)
-        forwarder_update_lineno = gdb.execute("search item->sc_forward_u.forwarder = new_addr;", False, True).split("\t")[0]
+        if "notrackgc" not in self.flags:
+            gdb.execute("list process_worklist", False, True)
+            forwarder_update_lineno = gdb.execute("search item->sc_forward_u.forwarder = new_addr;", False, True).split("\t")[0]
 
-        cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:" + forwarder_update_lineno))
+            cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:" + forwarder_update_lineno))
+        else:
+            print("notrackgc passed. Will not record every object's old and new address.")
 
         #gdb.execute("list MVM_frame_dispatch", False, True)
         #dispatch_trampoline_lineno = gdb.execute("search MVM_jit_code_trampoline(tc);", False, True).split("\t")[0]
@@ -1281,13 +1299,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         gdb.execute("list MVM_spesh_candidate_add", False, True)
         free_speshcode_lineno = gdb.execute("search MVM_free.sc.;", False, True).split("\t")[0]
 
-        cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", [
+        cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", "rr_tick rr_event rr_time sf_addr bytecode_addr size", [
             EXP.gdb_eval("sf_addr", "p->sf", int),
-            EXP.gdb_eval("bytecode_addr", "sc->bytecode", int),
-            EXP.gdb_eval("size", "sc->bytecode_size", int),
+            EXP.gdb_eval("bytecode_addr", "candidate->body.bytecode", int),
+            EXP.gdb_eval("size", "candidate->body.bytecode_size", int),
             ], "src/6model/reprs/MVMSpeshCandidate.c:" + free_speshcode_lineno))
 
-        cbp.append(SQLRecordingBreakpoint(self, "staticframes", [
+        cbp.append(SQLRecordingBreakpoint(self, "staticframes", "rr_tick rr_event rr_time bytecode compunit_data_addr sf_addr cuuid name", [
             EXP.gdb_eval("bytecode", "static_frame->body.bytecode", int),
             EXP.gdb_eval("compunit_data_addr", "static_frame->body.cu->body.data_start", int),
             EXP.gdb_eval("sf_addr", "static_frame", int),
@@ -1318,6 +1336,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         #    ], "callstack.c:exit_frame"))
 
     def teardown(self):
+        print("Moar RRDB: Finished running. Tearing down breakpoints.")
         for bp in self._disabled_breakpoints:
             bp.enabled = True
         for bp in self._created_breakpoints:
@@ -1325,13 +1344,18 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
 
     def run(self):
+        print("Moar RRDB: Starting the run: Going back to the start ...")
         gdb.execute("start")
         # run to the temporary breakpoint that "start" creates
+        print("Moar RRDB: Running to temporary start breakpoint")
         gdb.execute("c")
         # run the program actually
+        print("Moar RRDB: Running the program for real ...")
         gdb.execute("c")
 
-    def invoke(self, arg, from_tty):
+    def invoke(self, argument, from_tty):
+        self.flags = set(argument.split(" "))
+        self.dont_repeat()
         self.setup()
         try:
             self.run()
