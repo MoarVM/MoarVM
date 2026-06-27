@@ -1382,7 +1382,8 @@ def can_read_path(val: gdb.Value, *path: str):
             try:
                 val.cast(uint32p_t).dereference()
             except gdb.error as ex:
-                print("harmless gdb error: ", ex)
+                # print("harmless gdb error: ", ex)
+                pass
         except gdb.MemoryError:
             return False
     return True
@@ -1466,8 +1467,8 @@ def find_tc():
         frame = frame.older()
 
     tcs_by_score = sorted(found_tcs, key = lambda ts: is_tc_plausible(ts))
-    for tc in found_tcs:
-       print(" found a TC with value ", hex(tc), " with score ", is_tc_plausible(tc))
+    # for tc in found_tcs:
+       # print(" found a TC with value ", hex(tc), " with score ", is_tc_plausible(tc))
 
     return found_tcs[0]
 
