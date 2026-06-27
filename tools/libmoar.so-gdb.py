@@ -46,6 +46,7 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+from enum import Enum
 import gdb
 from collections import defaultdict
 from itertools import chain
@@ -1309,7 +1310,6 @@ def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
 
     return score
 
-
 def find_tc():
     frame = gdb.selected_frame()
     found_tcs = []
@@ -1371,7 +1371,7 @@ def string_from_cu(cu, index):
         data = (strheap + 4).string("utf-8", "backslashreplace", entrysize)
         return data
     else:
-        return gdb.printing.make_visualizer(strp.dereference()).to_string()
+        return mvmstr_to_str(strp.dereference())
 
 def resolve_annotation(sfb, offset):
     if not (sfb["num_annotations"] > 0 and offset > 0 and offset < sfb["bytecode_size"]):
@@ -1439,115 +1439,264 @@ def parse_callsite(cs):
 
     return args
 
+class MoarStackFrame:
+    """Representation of a frame on moarvm's stack, based on a pointer to
+    the MVMFrame struct"""
+
+    class Relation(Enum):
+        CALLER = "caller"
+        CALLEE = "callee"
+        OUTER = "outer"
+        INNER = "inner"
+        CUR_FRAME = "cur_frame"
+        MANUAL = "manual"
+
+    ptr : gdb.Value
+    related : MoarStackFrame | gdb.Value | None
+    relation : Relation | None
+
+    def __init__(self, ptr : gdb.Value, related : MoarStackFrame | gdb.Value | None = None, relation : Relation| None = None):
+        if relation is MoarStackFrame.Relation.CUR_FRAME or relation is MoarStackFrame.Relation.MANUAL:
+            assert isinstance(related, gdb.Value)
+        elif related is not None:
+            assert isinstance(related, MoarStackFrame)
+
+        self.ptr = ptr
+        self.related = related
+        self.relation = relation
+
+    @classmethod
+    def from_tc(cls, tc : gdb.Value | None = None):
+        if tc is None:
+            tc = find_tc()
+
+        if int(tc["cur_frame"]) == 0:
+            return None
+
+        return MoarStackFrame(tc["cur_frame"], tc, MoarStackFrame.Relation.CUR_FRAME)
+
+    @property
+    def caller(self):
+        caller = self.ptr["caller"]
+        if int(caller) != 0:
+            return MoarStackFrame(caller, self, MoarStackFrame.Relation.CALLEE)
+        else:
+            return None
+
+    @property
+    def outer(self):
+        outer = self.ptr["outer"]
+        if int(outer) != 0:
+            return MoarStackFrame(outer, self, MoarStackFrame.Relation.INNER)
+        else:
+            return None
+
+    @property
+    def name(self):
+        sfb = self.ptr["static_info"]["body"]
+        return mvmstr_to_str(sfb["name"].dereference())
+
+    @property
+    def cur_op(self):
+        if self.relation == MoarStackFrame.Relation.CUR_FRAME:
+            assert isinstance(self.related, gdb.Value)
+            return self.related["interp_cur_op"].dereference()
+        else:
+            return self.ptr["return_address"]
+
+    @property
+    def bytecode_offs(self):
+        sfb = self.ptr["static_info"]["body"]
+        bc = frame_effective_bytecode(self.ptr)
+        return int(self.cur_op) - int(bc)
+
+    @property
+    def params(self):
+        return self.ptr["params"]
+
+    @property
+    def param_vals(self):
+        callsite = self.params["arg_info"]["callsite"]
+        csinfo = parse_callsite(callsite)
+
+        return [
+            self.params["arg_info"]["source"][
+                self.params["arg_info"]["map"][i]
+            ] for i in range(len(csinfo))]
+
+    def resolve_annotation(self, offs : int | None = None):
+        if offs is None:
+            offs = self.bytecode_offs
+
+        sfb = self.ptr["static_info"]["body"]
+
+        return resolve_annotation(sfb, offs)
+
+def extract_moar_stack_frame_args(cur_frame):
+    # TODO extract to global scope and lookup on init
+    stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
+    stoogep_t = stooge_t.pointer()
+    mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
+    mvmstrp_t = mvmstr_t.pointer()
+
+    callsite = cur_frame.params["arg_info"]["callsite"]
+    csinfo = parse_callsite(callsite)
+    param_vals = cur_frame.param_vals
+
+    infoparts = []
+
+    for i, csi in enumerate(csinfo):
+        # info = csinfo[i][0]
+        subpart  = csi[1](param_vals[i])
+        typename = csi[2][1]
+        argname  = csi[2][0]
+
+        string_of_subpart = None
+
+        #print("adding arg of", typename, argname, repr(subpart))
+        if typename == "obj":
+            flags1 = int(subpart["header"]["flags1"])
+            if flags1 & 2: # MVM_CF_STABLE
+                is_obj = False
+                pass
+            elif flags1 & 1: # MVM_CF_TYPE_OBJECT
+                is_obj = True
+                is_concrete = False
+            elif flags1 & 4: # MVM_CF_FRAME
+                is_obj = False
+            else:
+                is_obj = True
+                is_concrete = True
+
+            if is_obj:
+                reprname = subpart["st"]["REPR"]["name"].string()
+                if reprname == "P6str" and is_concrete:
+                    #print("casting to p6str? before:")
+                    #print(repr(subpart), repr(subpart.type))
+                    subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
+                    #print(repr(subpart), repr(subpart.type))
+                    #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
+                    string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
+                elif int(subpart["st"]["debug_name"]) != 0:
+                    typename = reprname + "#" + subpart["st"]["debug_name"].string()
+                    if is_concrete:
+                        typename = typename + ".new"
+
+        if string_of_subpart is None:
+            string_of_subpart = gdb.printing.make_visualizer(subpart).to_string()
+        if string_of_subpart is None:
+            string_of_subpart = "<???>"
+
+        infoparts.append(
+            (argname + "=" if argname else "")
+            + typename
+            + "("
+            + string_of_subpart
+            + ")")
+
+    return infoparts
+
 class MoarBtCommands(gdb.Command):
     """Commands to look at a moar-level backtrace."""
     def __init__(self):
         super(MoarBtCommands, self).__init__("moar bt", gdb.COMMAND_STACK, prefix=True)
 
-    def invoke(self, arg, from_tty):
-        tc = find_tc()
-
-        stack_idx = 0
-
+    def invoke(self, argument, from_tty):
         stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
         stoogep_t = stooge_t.pointer()
         mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
         mvmstrp_t = mvmstr_t.pointer()
 
-        cur_frame = tc["cur_frame"]
-        try:
-            int(cur_frame)
-        except gdb.MemoryError:
-            print("couldn't get cur_frame from the tc ...")
+        tc = find_tc()
+        cur_frame : MoarStackFrame = MoarStackFrame.from_tc(tc)
 
-        while int(cur_frame) != 0:
-            sfb = cur_frame["static_info"]["body"]
+        stack_idx = 0
 
-            name = sfb["name"].dereference()
+        while cur_frame is not None:
+            name = cur_frame.name
+            fn, ln = cur_frame.resolve_annotation()
 
-            bc = frame_effective_bytecode(cur_frame)
-
-            if stack_idx == 0:
-                cur_op = tc["interp_cur_op"].dereference()
-            else:
-                cur_op = cur_frame["return_address"]
-
-            offs = int(cur_op) - int(bc)
-            fn, ln = resolve_annotation(sfb, offs)
-
-            callsite = cur_frame["params"]["arg_info"]["callsite"]
-            csinfo = parse_callsite(callsite)
-
-            param_vals = [
-                cur_frame["params"]["arg_info"]["source"][
-                    cur_frame["params"]["arg_info"]["map"][i]
-                ] for i in range(len(csinfo))]
-
-            infoparts = []
-
-            for i in range(len(csinfo)):
-                # info = csinfo[i][0]
-                subpart = csinfo[i][1](param_vals[i])
-                typename = csinfo[i][2][1]
-                argname = csinfo[i][2][0]
-
-                string_of_subpart = None
-
-                #print("adding arg of", typename, argname, repr(subpart))
-                if typename == "obj":
-                    flags1 = int(subpart["header"]["flags1"])
-                    if flags1 & 2: # MVM_CF_STABLE
-                        is_obj = False
-                        pass
-                    elif flags1 & 1: # MVM_CF_TYPE_OBJECT
-                        is_obj = True
-                        is_concrete = False
-                    elif flags1 & 4: # MVM_CF_FRAME
-                        is_obj = False
-                    else:
-                        is_obj = True
-                        is_concrete = True
-
-                    if is_obj:
-                        reprname = subpart["st"]["REPR"]["name"].string()
-                        if reprname == "P6str" and is_concrete:
-                            #print("casting to p6str? before:")
-                            #print(repr(subpart), repr(subpart.type))
-                            subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
-                            #print(repr(subpart), repr(subpart.type))
-                            #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
-                            string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
-                        elif int(subpart["st"]["debug_name"]) != 0:
-                            typename = reprname + "#" + subpart["st"]["debug_name"].string()
-                            if is_concrete:
-                                typename = typename + ".new"
-
-                if string_of_subpart is None:
-                    string_of_subpart = gdb.printing.make_visualizer(subpart).to_string()
-                if string_of_subpart is None:
-                    string_of_subpart = "<???>"
-
-                infoparts.append(
-                    (argname + "=" if argname else "")
-                    + typename
-                    + "("
-                    + string_of_subpart
-                    + ")")
+            infoparts = extract_moar_stack_frame_args(cur_frame)
 
             csinfo_str = "args=(" + ", ".join(infoparts) + ")"
 
+            name = "''" if name == "" else name
+
             if fn is not None and ln is not None:
-                print(f"#{stack_idx}", cur_frame, name, csinfo_str, fn, ":", ln)
+                print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, fn, ":", ln)
             else:
-                print(f"#{stack_idx}", cur_frame, name, csinfo_str, "<unknown>:1")
+                print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, "<unknown>:1")
 
+            cur_frame = cur_frame.caller
             stack_idx += 1
-            cur_frame = cur_frame["caller"]
 
-            try:
-                int(cur_frame)
-            except gdb.MemoryError:
-                print("couldn't get cur_frame from the tc ...")
+class MoarBtFrameCommand(gdb.Command):
+    """Get all details of one stack frame on the moarvm stack"""
+    def __init__(self):
+        super(MoarBtFrameCommand, self).__init__("moar bt frame", gdb.COMMAND_STACK)
+
+    def invoke(self, argument, from_tty):
+        if argument == "" or argument is None:
+            cur_frame = MoarStackFrame.from_tc(tc)
+        elif argument[0] == "*":
+            evaled = gdb.parse_and_eval(argument[1:])
+            cur_frame = MoarStackFrame(evaled, evaled, MoarStackFrame.Relation.MANUAL)
+        else:
+            evaled = int(gdb.parse_and_eval(argument))
+            cur_frame = MoarStackFrame.from_tc()
+            stack_idx = 0
+            while stack_idx < evaled and cur_frame is not None:
+                cur_frame = cur_frame.caller
+                stack_idx += 1
+            if cur_frame is None:
+                print(f"Frame with index {evaled} could not be found; stack exhausted after {stack_idx} steps!")
+
+        gdb.set_convenience_variable("mframe", cur_frame.ptr)
+        print(f"var $mframe set to {cur_frame.ptr}")
+
+        fn, ln = cur_frame.resolve_annotation()
+        infoparts = extract_moar_stack_frame_args(cur_frame)
+
+        csinfo_str = "args=(" + ", ".join(infoparts) + ")"
+
+        name = cur_frame.name
+        name = "''" if name == "" else name
+
+        if fn is not None and ln is not None:
+            print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, fn, ":", ln)
+        else:
+            print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, "<unknown>:1")
+
+        csinfo = parse_callsite(cur_frame.params["arg_info"]["callsite"])
+        param_vals = cur_frame.param_vals
+
+        prev_margs_cnt = 0
+        unset_val = None
+        try:
+            prev_margs_cnt_val = gdb.parse_and_eval("$margs_cnt")
+            if prev_margs_cnt_val.type.name != "void":
+                prev_margs_cnt = int(prev_margs_cnt_val)
+            unset_val = gdb.parse_and_eval("$okay_so_hear_me_out_i_need_a_gdb_value_that_is_void_but_not_a_void_pointer_or_anything_and_i_dont_know_how_to_create_it_from_python_so_please_dont_put_anything_in_this_variable_thank_you")
+        except:
+            print("could not unset obsolete margs convenience vars")
+
+        gdb.set_convenience_variable("margs_cnt", len(csinfo))
+        print(f"var $margs_cnt set to {len(csinfo)}")
+        for i, csi in enumerate(csinfo):
+            # info = csinfo[i][0]
+            subpart  = csi[1](param_vals[i])
+
+            varname = f"margs_{i}"
+            gdb.set_convenience_variable(varname, subpart)
+            print(f"var ${varname} set to {subpart}")
+
+        try:
+            for i in range(len(csinfo), prev_margs_cnt):
+                varname = f"margs_{i}"
+                gdb.set_convenience_variable(varname, unset_val)
+                print(f"var ${varname} unset")
+        except:
+            print("could not unset obsolete margs convenience vars")
 
 #                  _   _                   _     _
 #     _ __ _ _ ___| |_| |_ _  _   _ __ _ _(_)_ _| |_ ___ _ _ ___
@@ -1599,6 +1748,7 @@ def register_commands(objfile):
     print("moar break commands registered")
 
     commands.append(MoarBtCommands())
+    commands.append(MoarBtFrameCommand())
     print("moar bt commands registered")
 
 # We have to introduce our classes to gdb so that they can be used
