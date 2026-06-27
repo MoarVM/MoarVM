@@ -56,7 +56,12 @@ import time
 import typing
 import tempfile
 
+import gdb.printing
+
 import traceback # debugging
+
+uint32_t : gdb.Type | None
+uint32p_t : gdb.Type | None
 
 # These are the flags from MVMString's body.flags
 str_t_info = {0: 'blob_32',
@@ -245,7 +250,7 @@ def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
         else:
             return output
 
-class MVMStringPPrinter(object):
+class MVMStringPPrinter(gdb.printing.PrettyPrinter):
     """Whenever gdb encounters an MVMString or an MVMString*, this class gets
     instantiated and its to_string method tries its best to print out the
     actual contents of the MVMString's storage."""
@@ -254,14 +259,10 @@ class MVMStringPPrinter(object):
         self.pointer = pointer
 
     def to_string(self):
-        result = self.stringify()
-        if result:
-            if self.pointer:
-                return "(MVMString *)'" + mvmstr_to_str(self.val) + "'"
-            else:
-                return "(MVMString)'" + mvmstr_to_str(self.val) + "'"
+        if self.pointer:
+            return "(MVMString *)'" + mvmstr_to_str(self.val) + "'"
         else:
-            return None
+            return "(MVMString)'" + mvmstr_to_str(self.val) + "'"
 
 # currently nonfunctional
 class MVMObjectPPrinter(object):
@@ -871,7 +872,7 @@ class MoarBreakCommands(gdb.Command):
     def __init__(self):
         super(MoarBreakCommands, self).__init__("moar break", gdb.COMMAND_BREAKPOINTS, prefix=True)
 
-    def invoke(self, arg, from_tty):
+    def invoke(self, argument, from_tty):
         return gdb.Breakpoint(self._break_spec)
 
 class MoarBreakInterpRunCommands(MoarBreakCommands):
@@ -991,6 +992,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     def _register_event_sql(self, table_name, exprs):
         rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
         rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
+        rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
 
         row = {}
         for expr in exprs:
@@ -1001,6 +1003,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             row[key] = value
         row["rr_tick"] = rr_tick
         row["rr_event"] = rr_event
+        row["rr_time"] = rr_time
 
         colnames = ', '.join([":" + n for n in row.keys()])
         query = f"INSERT INTO {table_name} VALUES ({colnames});"
@@ -1049,6 +1052,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
+                rr_time float,
                 data_addr integer
             );
         """)
@@ -1057,6 +1061,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             create table staticframes (
                 rr_tick integer,
                 rr_event integer,
+                rr_time float,
                 bytecode integer,
                 compunit_data_addr integer,
                 sf_addr integer,
@@ -1069,6 +1074,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             create table spesh_bytecode (
                 rr_tick integer,
                 rr_event integer,
+                rr_time float,
                 sf_addr integer,
                 bytecode_addr integer,
                 size integer
@@ -1080,6 +1086,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
+                rr_time float,
                 gc_seq_number integer,
                 is_full integer
             );
@@ -1090,6 +1097,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
+                rr_time float,
                 nursery_alloc integer,
                 nursery_alloc_limit integer,
                 nursery_tospace integer,
@@ -1240,27 +1248,98 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 #    |_.__/\__,_\__|_\_\\__|_| \__,_\__\___| \__\___/_|_|_|_|_|_\__,_|_||_\__,_/__/
 #
 
+def can_read(val: gdb.Value):
+    try:
+        val.cast(uint32p_t).dereference()
+    except gdb.MemoryError:
+        return False
+    return True
+
+def can_read_path(val: gdb.Value, *path: str):
+    for step in path:
+        try:
+            val = val[step]
+            try:
+                val.cast(uint32p_t).dereference()
+            except gdb.error as ex:
+                print("harmless gdb error: ", ex)
+        except gdb.MemoryError:
+            return False
+    return True
+
+class EarlyAbortException(Exception):
+    pass
+
+def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
+    # Plausibility check, since arguments in backtraces are sometimes
+    # mangled when they are not explicitly stored in a way the debug
+    # symbols tell us ...
+
+    def deduct(n):
+        nonlocal score
+        score -= n
+        if score < -500:
+            raise EarlyAbortException("score bottomed out")
+
+    try:
+        if not can_read_path(tc, "thread_obj", "body"):
+            deduct(100)
+        else:
+            if int(tc["thread_obj"]["body"]["tc"]) != int(tc):
+                deduct(250)
+            if not (0 <= int(tc["thread_obj"]["body"]["stage"]) <= 6):
+                deduct(100)
+
+        if not can_read_path(tc, "instance", "main_thread"):
+            deduct(100)
+
+        if not can_read(tc["nursery_tospace"]):
+            deduct(200)
+        if not can_read(tc["nursery_alloc"]):
+            deduct(200)
+        if not can_read(tc["nursery_fromspace"]):
+            deduct(25)
+        if not can_read(tc["gen2"]):
+            deduct(100)
+        if int(tc["cur_frame"]) != 0 and not can_read_path(tc, "cur_frame", "static_info"):
+            deduct(150)
+
+    except EarlyAbortException:
+        return -math.inf
+
+    return score
+
 
 def find_tc():
     frame = gdb.selected_frame()
     found_tcs = []
 
+    # First, let's try the thread-local storage value
+    try:
+        tls_tc = gdb.parse_and_eval("MVM_running_threads_context")
+        # If there's no reason to doubt this tc is right, take it immediately
+        if is_tc_plausible(tls_tc) == 0:
+            return tls_tc
+        found_tcs.append(tls_tc)
+    except gdb.GdbError as ex:
+        print("Could not get TC from MVM_running_threads_context: ", ex)
+
+    addrs_seen = set()
+
     while frame is not None:
         tc_value = frame.read_var("tc")
         if tc_value.is_optimized_out:
             pass
-        elif int(tc_value) < 0xffffff:
-            # sometimes tc is 0x0, sometimes it's a random very low value
-            # this happens when the code is optimized to not have the tc
-            # immediately available at the exact spot we're at.
-            pass
         else:
-            found_tcs.append(tc_value)
+            if int(tc_value) not in addrs_seen:
+                found_tcs.append(tc_value)
+                addrs_seen.add(int(tc_value))
 
         frame = frame.older()
 
-    #for tc in found_tcs:
-    #    print(" found a TC with value", hex(tc))
+    tcs_by_score = sorted(found_tcs, lambda ts: is_tc_plausible(ts))
+    for tc in found_tcs:
+       print(" found a TC with value ", hex(tc), " with score ", is_tc_plausible(tc))
 
     return found_tcs[0]
 
@@ -1274,9 +1353,6 @@ def frame_effective_bytecode(frame):
 
 def string_from_cu(cu, index):
     strp = cu["body"]["strings"][index]
-
-    uint32_t = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
-    uint32p_t = uint32_t.pointer()
 
     if int(strp) == 0:
         # not decoded yet, have to do it in here
@@ -1295,14 +1371,11 @@ def string_from_cu(cu, index):
         data = (strheap + 4).string("utf-8", "backslashreplace", entrysize)
         return data
     else:
-        return gdb.printing.make_visualizer(strp.dereference()).stringify()
+        return gdb.printing.make_visualizer(strp.dereference()).to_string()
 
 def resolve_annotation(sfb, offset):
     if not (sfb["num_annotations"] > 0 and offset > 0 and offset < sfb["bytecode_size"]):
         return (None, None)
-
-    uint32_t = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
-    uint32p_t = uint32_t.pointer()
 
     ann_offs = 0
     cur_anno = sfb["annotations_data"]
@@ -1382,6 +1455,11 @@ class MoarBtCommands(gdb.Command):
         mvmstrp_t = mvmstr_t.pointer()
 
         cur_frame = tc["cur_frame"]
+        try:
+            int(cur_frame)
+        except gdb.MemoryError:
+            print("couldn't get cur_frame from the tc ...")
+
         while int(cur_frame) != 0:
             sfb = cur_frame["static_info"]["body"]
 
@@ -1459,12 +1537,17 @@ class MoarBtCommands(gdb.Command):
             csinfo_str = "args=(" + ", ".join(infoparts) + ")"
 
             if fn is not None and ln is not None:
-                print(cur_frame, name, csinfo_str, fn, ":", ln)
+                print(f"#{stack_idx}", cur_frame, name, csinfo_str, fn, ":", ln)
             else:
-                print(cur_frame, name, csinfo_str, "<unknown>:1")
+                print(f"#{stack_idx}", cur_frame, name, csinfo_str, "<unknown>:1")
 
             stack_idx += 1
             cur_frame = cur_frame["caller"]
+
+            try:
+                int(cur_frame)
+            except gdb.MemoryError:
+                print("couldn't get cur_frame from the tc ...")
 
 #                  _   _                   _     _
 #     _ __ _ _ ___| |_| |_ _  _   _ __ _ _(_)_ _| |_ ___ _ _ ___
@@ -1522,6 +1605,12 @@ def register_commands(objfile):
 if __name__ == "__main__":
     the_objfile = gdb.current_objfile()
     if the_objfile is None:
+        try:
+            uint32_t  = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
+            uint32p_t = uint32_t.pointer()
+        except gdb.error as ex:
+            print("Couldn't get MVMuint32 type!?", ex)
+
         try:
             the_objfile = gdb.lookup_objfile("libmoar.so")
         except:
