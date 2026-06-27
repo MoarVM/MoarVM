@@ -1095,10 +1095,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _prev_thread = None
     _prev_thread_str = None
 
+    _last_saved_event_time = -1
+
     def _register_event_sql(self, table_name, column_expr, exprs):
         rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
         rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
-        rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
 
         row = {}
         for expr in exprs:
@@ -1113,10 +1114,16 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 raise
         row["rr_tick"] = rr_tick
         row["rr_event"] = rr_event
-        row["rr_time"] = rr_time
 
         query = f"INSERT INTO {table_name} VALUES ({column_expr});"
         self._db_cur.execute(query, row)
+
+        if rr_event != self._last_saved_event_time:
+            rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
+            query = f'INSERT INTO event_times VALUES (?, ?)';
+            self._db_cur.execute(query, (rr_event, rr_time))
+            self._last_saved_event_time = rr_event
+
         self._db_conn.commit()
 
         return row
@@ -1133,6 +1140,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     def setup(self):
         import sqlite3
 
+        self._last_saved_event_time = -1
+
         def store_seq_num(ev):
             prev = self._gc_seq_num
             self._gc_seq_num = int(gdb.parse_and_eval("tc->instance->gc_seq_number"))
@@ -1141,9 +1150,9 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             #    self._object_movements[self._gc_seq_num] = array.array("Q")
 
             if prev is not None and prev // 20 != self._gc_seq_num // 20:
-                rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
+                rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
                 rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
-                print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num, " - time ", rr_time, " ticks: ", rr_tick)
+                print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num, " - time ", rr_time, " event: ", rr_event)
                 #for s in self._db["subjects"]:
                 #    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
                 #if self._gc_seq_num == 60:
@@ -1163,7 +1172,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
-                rr_time float,
                 data_addr integer
             );
         """)
@@ -1172,7 +1180,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             create table staticframes (
                 rr_tick integer,
                 rr_event integer,
-                rr_time float,
                 bytecode integer,
                 compunit_data_addr integer,
                 sf_addr integer,
@@ -1185,7 +1192,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             create table spesh_bytecode (
                 rr_tick integer,
                 rr_event integer,
-                rr_time float,
                 sf_addr integer,
                 bytecode_addr integer,
                 size integer
@@ -1197,7 +1203,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
-                rr_time float,
                 gc_seq_number integer,
                 is_full integer
             );
@@ -1208,11 +1213,17 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
-                rr_time float,
                 nursery_alloc integer,
                 nursery_alloc_limit integer,
                 nursery_tospace integer,
                 nursery_fromspace integer
+            );
+        """)
+
+        self._db_cur.execute("""
+            create table event_times (
+                rr_event integer,
+                rr_time float
             );
         """)
 
@@ -1255,18 +1266,18 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 bp.enabled = False
                 self._disabled_breakpoints.append(bp)
 
-        cbp.append(SQLRecordingBreakpoint(self, "gcs", "tc rr_tick rr_event rr_time gc_seq_number is_full", [
+        cbp.append(SQLRecordingBreakpoint(self, "gcs", "tc rr_tick rr_event gc_seq_number is_full", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("gc_seq_number", "tc->instance->gc_seq_number", int),
             EXP.gdb_eval("is_full", "tc->instance->gc_full_collect", int),
             ], "run_gc"))
 
-        cbp.append(SQLRecordingBreakpoint(self, "compunits", "tc rr_tick rr_event rr_time data_addr", [
+        cbp.append(SQLRecordingBreakpoint(self, "compunits", "tc rr_tick rr_event data_addr", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("data_addr", "cu->body.data_start", int),
             ], "run_comp_unit"))
 
-        cbp.append(SQLRecordingBreakpoint(self, "worklist_runs", "tc rr_tick rr_event rr_time nursery_alloc nursery_alloc_limit nursery_tospace nursery_fromspace", [
+        cbp.append(SQLRecordingBreakpoint(self, "worklist_runs", "tc rr_tick rr_event nursery_alloc nursery_alloc_limit nursery_tospace nursery_fromspace", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("nursery_alloc", "tc->nursery_alloc", int),
             EXP.gdb_eval("nursery_alloc_limit", "tc->nursery_alloc_limit", int),
@@ -1299,13 +1310,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         gdb.execute("list MVM_spesh_candidate_add", False, True)
         free_speshcode_lineno = gdb.execute("search MVM_free.sc.;", False, True).split("\t")[0]
 
-        cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", "rr_tick rr_event rr_time sf_addr bytecode_addr size", [
+        cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", "rr_tick rr_event sf_addr bytecode_addr size", [
             EXP.gdb_eval("sf_addr", "p->sf", int),
             EXP.gdb_eval("bytecode_addr", "candidate->body.bytecode", int),
             EXP.gdb_eval("size", "candidate->body.bytecode_size", int),
             ], "src/6model/reprs/MVMSpeshCandidate.c:" + free_speshcode_lineno))
 
-        cbp.append(SQLRecordingBreakpoint(self, "staticframes", "rr_tick rr_event rr_time bytecode compunit_data_addr sf_addr cuuid name", [
+        cbp.append(SQLRecordingBreakpoint(self, "staticframes", "rr_tick rr_event bytecode compunit_data_addr sf_addr cuuid name", [
             EXP.gdb_eval("bytecode", "static_frame->body.bytecode", int),
             EXP.gdb_eval("compunit_data_addr", "static_frame->body.cu->body.data_start", int),
             EXP.gdb_eval("sf_addr", "static_frame", int),
