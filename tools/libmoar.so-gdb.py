@@ -1128,13 +1128,22 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         return row
 
+    _last_saved_movement_event = -1
+
     def _register_object_movement(self):
         to_addr   = int(gdb.parse_and_eval("(uintptr_t)new_addr"))
         from_addr = int(gdb.parse_and_eval("(uintptr_t)item"))
+        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
 
-        query = "INSERT INTO object_movements VALUES (?, ?);"
-        self._db_cur.execute(query, (from_addr, to_addr))
-        self._db_conn.commit()
+        if self._last_saved_movement_event != rr_event:
+            query = "INSERT INTO object_movements VALUES (?, ?, ?);"
+            self._db_cur.execute(query, (rr_event, from_addr, to_addr))
+            self._db_conn.commit()
+            self._last_saved_movement_event = rr_event
+        else:
+            query = "INSERT INTO object_movements VALUES (null, ?, ?);"
+            self._db_cur.execute(query, (from_addr, to_addr))
+            self._db_conn.commit()
 
 
     def setup(self):
@@ -1229,6 +1238,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         self._db_cur.execute("""
             create table object_movements (
+                rr_event integer,
                 to_addr integer,
                 from_addr integer
             );
