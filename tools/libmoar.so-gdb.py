@@ -185,6 +185,101 @@ def prettify_size(num):
 #    | .__/_| \___|\__|\__|\_, | | .__/_| |_|_||_\__\___|_| /__/
 #    |_|                   |__/  |_|
 
+repr_infos = dict()
+
+def _first_found_type(candidates):
+    for c in candidates:
+        try:
+            return (c, gdb.lookup_type(c))
+        except gdb.error:
+            pass
+    raise ValueError(f"None of the candidates {candidates} could be found as a type by gdb")
+
+def init_repr_types_and_structs():
+    c_r_id = 0
+    repr_errors = []
+    def _ri(name : str, structname = None, reprdatastruct = None, repridname = None):
+        nonlocal c_r_id
+        try:
+            structnames = [name]
+            if structname is not None:
+                structnames.append(structname)
+            if not name.startswith("MVM"):
+                structnames.append("MVM" + name)
+            if not name.startswith("P6"):
+                structnames.append("MVM" + name)
+
+            structname, structtype = _first_found_type(structnames)
+
+            info = {
+                "name": name,
+                "reprid": c_r_id,
+                "struct": structtype,
+                "reprops": None, # TODO how best to find all the reprops structs?
+            }
+            if reprdatastruct is None:
+                reprdatastruct = f"{structname}REPRData"
+            if reprdatastruct is not False:
+                try:
+                    info["reprdatastruct"] = gdb.lookup_type(reprdatastruct)
+                except gdb.error:
+                    info["reprdatastruct"] = None
+            repr_infos[name] = info
+        except:
+            repr_errors.append(name)
+        c_r_id += 1
+
+    _ri("MVMString")
+    _ri("VMArray", "MVMArray", "MVMArrayREPRData")
+    _ri("MVMHash")
+    _ri("MVMCFunction")
+    _ri("KnowHOWREPR")
+    _ri("P6opaque")
+    _ri("MVMCode")
+    _ri("MVMOSHandle")
+    _ri("P6int")
+    _ri("P6num")
+    _ri("Uninstantiable")
+    _ri("HashAttrStore")
+    _ri("KnowHOWAttributeREPR")
+    _ri("P6str")
+    _ri("MVMThread")
+    _ri("MVMIter")
+    _ri("MVMContext")
+    _ri("SCRef")
+    _ri("MVMSpeshLog")
+    _ri("P6bigint")
+    _ri("NFA")
+    _ri("MVMException")
+    _ri("MVMStaticFrame")
+    _ri("MVMCompUnit")
+    _ri("MVMDLLSym")
+    _ri("MVMContinuation")
+    _ri("MVMNativeCall")
+    _ri("MVMCPointer")
+    _ri("MVMCStr")
+    _ri("MVMCArray")
+    _ri("MVMCStruct")
+    _ri("ReentrantMutex")
+    _ri("ConditionVariable")
+    _ri("Semaphore")
+    _ri("ConcBlockingQueue")
+    _ri("MVMAsyncTask")
+    _ri("MVMNull")
+    _ri("NativeRef")
+    _ri("MVMCUnion")
+    _ri("MultiDimArray")
+    _ri("MVMCPPStruct")
+    _ri("Decoder")
+    _ri("MVMStaticFrameSpesh")
+    _ri("MVMSpeshCandidate")
+    _ri("MVMCapture")
+    _ri("MVMTracked")
+    _ri("MVMStat")
+
+    print(f"Registered {len(repr_infos)} REPRs.")
+    if len(repr_errors):
+        print(f"... could not register these: {repr_errors}")
 
 def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
     stringtyp = str_t_info[int(val['body']['storage_type'])]
@@ -1686,9 +1781,32 @@ class MoarBtFrameCommand(gdb.Command):
             # info = csinfo[i][0]
             subpart  = csi[1](param_vals[i])
 
+            typename = csi[2][1]
+
+            if typename == "obj":
+                is_obj = False
+                is_concrete = False
+                flags1 = int(subpart["header"]["flags1"])
+                if flags1 & 2: # MVM_CF_STABLE
+                    is_obj = False
+                elif flags1 & 1: # MVM_CF_TYPE_OBJECT
+                    is_obj = True
+                    is_concrete = False
+                elif flags1 & 4: # MVM_CF_FRAME
+                    is_obj = False
+                else:
+                    is_obj = True
+                    is_concrete = True
+
+                if is_obj:
+                    reprname = subpart["st"]["REPR"]["name"].string()
+                    if reprname in repr_infos:
+                        typ = repr_infos[reprname]["struct"].pointer()
+                        subpart = subpart.cast(typ)
+
             varname = f"margs_{i}"
             gdb.set_convenience_variable(varname, subpart)
-            print(f"var ${varname} set to {subpart}")
+            print(f"var ${varname} set to ({subpart.type}) {subpart}")
 
         try:
             for i in range(len(csinfo), prev_margs_cnt):
@@ -1756,12 +1874,6 @@ if __name__ == "__main__":
     the_objfile = gdb.current_objfile()
     if the_objfile is None:
         try:
-            uint32_t  = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
-            uint32p_t = uint32_t.pointer()
-        except gdb.error as ex:
-            print("Couldn't get MVMuint32 type!?", ex)
-
-        try:
             the_objfile = gdb.lookup_objfile("libmoar.so")
         except:
             print("GDB doesn't know about 'libmoar.so' yet; maybe you need to run the program a little until it's loaded:")
@@ -1770,3 +1882,11 @@ if __name__ == "__main__":
     if the_objfile:
         register_printers(the_objfile)
     register_commands(the_objfile)
+
+    try:
+        uint32_t  = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
+        uint32p_t = uint32_t.pointer()
+    except gdb.error as ex:
+        print("Couldn't get MVMuint32 type!?", ex)
+
+    init_repr_types_and_structs()
