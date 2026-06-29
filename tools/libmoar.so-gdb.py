@@ -1801,6 +1801,16 @@ class MoarStackFrame:
         self.related = related
         self.relation = relation
 
+        self._outer = self.ptr["outer"]
+        self._caller = self.ptr["caller"]
+        self._static_info_body = self.ptr["static_info"]["body"]
+
+        self._params = self.ptr["params"]
+        self._arg_info = self._params["arg_info"]
+
+        self._outer_obj = None
+        self._caller_obj = None
+
     @classmethod
     def from_tc(cls, tc : gdb.Value | None = None):
         if tc is None:
@@ -1813,23 +1823,29 @@ class MoarStackFrame:
 
     @property
     def caller(self):
-        caller = self.ptr["caller"]
-        if int(caller) != 0:
-            return MoarStackFrame(caller, self, MoarStackFrame.Relation.CALLEE)
+        if self._caller_obj:
+            return self._caller_obj
+
+        if int(self._caller) != 0:
+            self._caller_obj = MoarStackFrame(self._caller, self, MoarStackFrame.Relation.CALLEE)
+            return self._caller_obj
         else:
             return None
 
     @property
     def outer(self):
-        outer = self.ptr["outer"]
-        if int(outer) != 0:
-            return MoarStackFrame(outer, self, MoarStackFrame.Relation.INNER)
+        if self._outer_obj:
+            return self._outer_obj
+
+        if int(self._outer) != 0:
+            self._outer_obj = MoarStackFrame(self._outer, self, MoarStackFrame.Relation.OUTER)
+            return self._outer_obj
         else:
             return None
 
     @property
     def name(self):
-        sfb = self.ptr["static_info"]["body"]
+        sfb = self._static_info_body
         return mvmstr_to_str(sfb["name"].dereference())
 
     @property
@@ -1842,37 +1858,38 @@ class MoarStackFrame:
 
     @property
     def bytecode_offs(self):
-        sfb = self.ptr["static_info"]["body"]
+        sfb = self._static_info_body
         bc = frame_effective_bytecode(self.ptr)
         return int(self.cur_op) - int(bc)
 
     @property
     def params(self):
-        return self.ptr["params"]
+        return self._params
 
     @property
     def param_vals(self):
-        callsite = self.params["arg_info"]["callsite"]
+        callsite = self._arg_info["callsite"]
         csinfo = parse_callsite(callsite)
 
+        source = self._arg_info["source"]
+        map = self._arg_info["map"]
+
         return [
-            self.params["arg_info"]["source"][
-                self.params["arg_info"]["map"][i]
-            ] for i in range(len(csinfo))]
+            source[map[i]] for i in range(len(csinfo))]
 
     @property
     def cuuid(self):
-        return mvmstr_to_str(self.ptr["static_info"]["body"]["cuuid"])
+        return mvmstr_to_str(self._static_info_body["cuuid"])
 
     @property
     def cufile(self):
-        return mvmstr_to_str(self.ptr["static_info"]["body"]["cu"]["body"]["filename"])
+        return mvmstr_to_str(self._static_info_body["cu"]["body"]["filename"])
 
     def resolve_annotation(self, offs : int | None = None):
         if offs is None:
             offs = self.bytecode_offs
 
-        sfb = self.ptr["static_info"]["body"]
+        sfb = self._static_info_body
 
         return resolve_annotation(sfb, offs)
 
