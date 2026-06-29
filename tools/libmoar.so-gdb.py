@@ -1754,12 +1754,14 @@ def resolve_annotation(sfb, offset):
 
     return (fn, ln)
 
-def parse_callsite(cs):
+def parse_callsite(cs : gdb.Value):
     num_flags = cs["flag_count"]
     flags = cs["arg_flags"]
 
     args = []
     name_idx = 0
+
+    arg_names = cs["arg_names"]
 
     for i in range(num_flags):
         flagvar = int(flags[i])
@@ -1769,7 +1771,7 @@ def parse_callsite(cs):
         namestr = None
 
         if flagvar & 32: # MVM_CALLSITE_ARG_NAMED
-            namestr = mvmstr_to_str(cs["arg_names"][name_idx])
+            namestr = mvmstr_to_str(arg_names[name_idx])
             name_idx += 1
 
         typname = ""
@@ -1912,7 +1914,7 @@ class MoarStackFrame:
 
         return resolve_annotation(sfb, offs)
 
-def extract_moar_stack_frame_args(cur_frame):
+def extract_moar_stack_frame_args(cur_frame, str_cache = None):
     # TODO extract to global scope and lookup on init
     stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
     stoogep_t = stooge_t.pointer()
@@ -1920,7 +1922,12 @@ def extract_moar_stack_frame_args(cur_frame):
     mvmstrp_t = mvmstr_t.pointer()
 
     callsite = cur_frame.params["arg_info"]["callsite"]
-    csinfo = parse_callsite(callsite)
+    if str_cache is not None and int(callsite) in str_cache:
+        csinfo = str_cache[int(callsite)]
+    else:
+        csinfo = parse_callsite(callsite)
+        if str_cache is not None:
+            str_cache[int(callsite)] = csinfo
     param_vals = cur_frame.param_vals
 
     infoparts = []
@@ -1949,14 +1956,26 @@ def extract_moar_stack_frame_args(cur_frame):
                 is_concrete = True
 
             if is_obj:
-                reprname = subpart["st"]["REPR"]["name"].string()
-                if reprname == "P6str" and is_concrete:
+                if str_cache is not None and int(subpart["st"]) in str_cache:
+                    reprname = str_cache[int(subpart["st"])]
+                else:
+                    reprname = subpart["st"]["REPR"]["name"].string()
+                    if str_cache is not None:
+                        str_cache[int(subpart["st"])] = reprname
+
+                if is_concrete and reprname == "P6str":
                     #print("casting to p6str? before:")
                     #print(repr(subpart), repr(subpart.type))
                     subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
                     #print(repr(subpart), repr(subpart.type))
                     #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
-                    string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
+                    if str_cache is not None and int(subpart) in str_cache:
+                        string_of_subpart = str_cache[int(subpart)]
+                    else:
+                        string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
+                        if str_cache is not None:
+                            str_cache[int(subpart)] = string_of_subpart
+
                 elif int(subpart["st"]["debug_name"]) != 0:
                     typename = reprname + "#" + subpart["st"]["debug_name"].string()
                     if is_concrete:
@@ -1987,6 +2006,8 @@ class MoarBtCommands(gdb.Command):
         mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
         mvmstrp_t = mvmstr_t.pointer()
 
+        str_cache = {}
+
         tc = find_tc()
         cur_frame : MoarStackFrame = MoarStackFrame.from_tc(tc)
 
@@ -1998,7 +2019,7 @@ class MoarBtCommands(gdb.Command):
             name = cur_frame.name
             fn, ln = cur_frame.resolve_annotation()
 
-            infoparts = extract_moar_stack_frame_args(cur_frame)
+            infoparts = extract_moar_stack_frame_args(cur_frame, str_cache)
 
             csinfo_str = "args=(" + ", ".join(infoparts) + ")"
 
