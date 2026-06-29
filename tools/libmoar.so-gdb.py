@@ -55,6 +55,7 @@ from collections import defaultdict
 from itertools import chain
 import math
 import random
+import struct
 import sys
 import time
 import typing
@@ -1616,10 +1617,13 @@ def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
         if not can_read_path(tc, "thread_obj", "body"):
             deduct(100)
         else:
-            if int(tc["thread_obj"]["body"]["tc"]) != int(tc):
-                deduct(250)
-            if not (0 <= int(tc["thread_obj"]["body"]["stage"]) <= 6):
-                deduct(100)
+            try:
+                if int(tc["thread_obj"]["body"]["tc"]) != int(tc):
+                    deduct(250)
+                if not (0 <= int(tc["thread_obj"]["body"]["stage"]) <= 6):
+                    deduct(100)
+            except gdb.MemoryError:
+                deduct(400)
 
         if not can_read_path(tc, "instance", "main_thread"):
             deduct(100)
@@ -1729,26 +1733,31 @@ def string_from_cu(cu, index):
 
 def resolve_annotation(sfb, offset, str_cache = None):
     num_anno = sfb["num_annotations"]
-    if not (num_anno >= 0 and offset >= 0 and offset < sfb["bytecode_size"]):
+    if num_anno == 0:
         return (None, None)
 
+    if not (offset >= 0 and offset < sfb["bytecode_size"]):
+        return (None, None)
+
+    # read entire annotation data ahead of time
+    entire_buf = gdb.selected_inferior().read_memory(sfb["annotations_data"], 12 * num_anno)
+
     ann_offs = 0
-    cur_anno = sfb["annotations_data"]
+
     p_cur_anno = None
-    for i in range(0, num_anno):
-        ann_offs = int(cur_anno.cast(uint32p_t).dereference())
+    for annot in struct.iter_unpack("HHH", entire_buf):
+        ann_offs = annot[0]
 
         if ann_offs > offset:
             break
 
-        p_cur_anno = cur_anno
-        cur_anno += 12
+        p_cur_anno = annot
 
-    if p_cur_anno is not None:
-        cur_anno = p_cur_anno
+    if p_cur_anno is None:
+        return (None, None)
 
-    fnshi = int((cur_anno + 4).cast(uint32p_t).dereference())
-    ln    = int((cur_anno + 8).cast(uint32p_t).dereference())
+    fnshi = p_cur_anno[1]
+    ln    = p_cur_anno[2]
 
     cu = sfb["cu"]
     if str_cache is not None and (int(cu), fnshi) in str_cache:
