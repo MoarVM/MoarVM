@@ -1943,7 +1943,11 @@ def extract_moar_stack_frame_args(cur_frame, str_cache = None):
         csinfo = parse_callsite(callsite)
         if str_cache is not None:
             str_cache[int(callsite)] = csinfo
-    param_vals = cur_frame.param_vals
+
+    source = cur_frame._arg_info["source"]
+    map = cur_frame._arg_info["map"]
+
+    param_vals = [source[int(map[i])] for i in range(len(csinfo))]
 
     infoparts = []
 
@@ -1957,44 +1961,52 @@ def extract_moar_stack_frame_args(cur_frame, str_cache = None):
 
         #print("adding arg of", typename, argname, repr(subpart))
         if typename == "obj":
-            flags1 = int(subpart["header"]["flags1"])
-            if flags1 & 2: # MVM_CF_STABLE
-                is_obj = False
-                pass
-            elif flags1 & 1: # MVM_CF_TYPE_OBJECT
-                is_obj = True
-                is_concrete = False
-            elif flags1 & 4: # MVM_CF_FRAME
-                is_obj = False
+            if str_cache is not None and (int(subpart), "arg") in str_cache:
+                string_of_subpart = str_cache[(int(subpart), "arg")]
+
             else:
-                is_obj = True
-                is_concrete = True
-
-            if is_obj:
-                if str_cache is not None and int(subpart["st"]) in str_cache:
-                    reprname = str_cache[int(subpart["st"])]
+                flags1 = int(subpart["header"]["flags1"])
+                if flags1 & 2: # MVM_CF_STABLE
+                    is_obj = False
+                    pass
+                elif flags1 & 1: # MVM_CF_TYPE_OBJECT
+                    is_obj = True
+                    is_concrete = False
+                elif flags1 & 4: # MVM_CF_FRAME
+                    is_obj = False
                 else:
-                    reprname = subpart["st"]["REPR"]["name"].string()
-                    if str_cache is not None:
-                        str_cache[int(subpart["st"])] = reprname
+                    is_obj = True
+                    is_concrete = True
 
-                if is_concrete and reprname == "P6str":
-                    #print("casting to p6str? before:")
-                    #print(repr(subpart), repr(subpart.type))
-                    subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
-                    #print(repr(subpart), repr(subpart.type))
-                    #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
-                    if str_cache is not None and int(subpart) in str_cache:
-                        string_of_subpart = str_cache[int(subpart)]
+                if is_obj:
+                    if str_cache is not None and int(subpart["st"]) in str_cache:
+                        reprname = str_cache[int(subpart["st"])]
                     else:
-                        string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
+                        reprname = subpart["st"]["REPR"]["name"].string()
                         if str_cache is not None:
-                            str_cache[int(subpart)] = string_of_subpart
+                            str_cache[int(subpart["st"])] = reprname
 
-                elif int(subpart["st"]["debug_name"]) != 0:
-                    typename = reprname + "#" + subpart["st"]["debug_name"].string()
-                    if is_concrete:
-                        typename = typename + ".new"
+                    if is_concrete and reprname == "P6str":
+                        #print("casting to p6str? before:")
+                        #print(repr(subpart), repr(subpart.type))
+                        subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
+                        #print(repr(subpart), repr(subpart.type))
+                        #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
+                        if str_cache is not None and int(subpart) in str_cache:
+                            string_of_subpart = str_cache[int(subpart)]
+                        else:
+                            string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
+                            if str_cache is not None:
+                                str_cache[int(subpart)] = string_of_subpart
+
+                    elif int(subpart["st"]["debug_name"]) != 0:
+                        typename = reprname + "#" + subpart["st"]["debug_name"].string()
+                        if is_concrete:
+                            typename = typename + ".new"
+
+                if str_cache is not None:
+                    str_cache[(int(subpart), "arg")] = string_of_subpart
+
 
         if string_of_subpart is None:
             string_of_subpart = gdb.printing.make_visualizer(subpart).to_string()
