@@ -46,6 +46,8 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+from dataclasses import dataclass
+from pathlib import Path
 from collections.abc import Mapping, Sequence, Set
 from enum import Enum
 import gdb
@@ -1067,6 +1069,11 @@ class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
 
 execution_db = None
 
+def follow_fields(val : gdb.Value, fields : list[str]):
+    for step in fields:
+        val = val[step]
+    return val
+
 class MakeExecutionDatabaseCommand(gdb.Command):
     """Run execution from beginning to end, creating a database with interesting events.
 
@@ -1088,8 +1095,23 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _gc_seq_num = None
 
     class _EXP:
-        tid = lambda _: ["tid", gdb.selected_thread().ptid_string]
-        gdb_eval = lambda _, sub, code, pytype: lambda: [sub, pytype(gdb.parse_and_eval(code))]
+        tid         = lambda _: lambda _: ["tid", gdb.selected_thread().ptid_string]
+        gdb_eval    = lambda _, sub, code, pytype: lambda _: [sub, pytype(gdb.parse_and_eval(code))]
+        local_var   = lambda _, sub, var_name, pytype: lambda frame: [sub, pytype(frame.read_var(var_name))]
+        local_field = lambda _, sub, var_name, steps, pytype: lambda frame: [sub, pytype(follow_fields(frame.read_var(var_name), steps))]
+
+        def local_fields(cls, var_name, steps, fields, pytype):
+            def local_fields_impl(frame):
+                val = frame.read_var(var_name)
+                for step in steps:
+                    val = val[step]
+                res_keys = []
+                res_vals = []
+                for (colname, fieldname) in fields:
+                    res_keys.append(colname)
+                    res_vals.append(pytype(val[fieldname]))
+                return res_keys, res_vals
+            return local_fields_impl
 
     _prev_tl_entry = None
     _prev_thread = None
@@ -1098,8 +1120,23 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _last_saved_event_time = -1
 
     def _register_event_sql(self, table_name, column_expr, exprs):
-        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
-        rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
+        conn = gdb.connections()[0]
+        assert isinstance(conn, gdb.RemoteTargetConnection)
+
+        currthreadptid = conn.send_packet("qC")
+        currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+        rr_event = int(resp[resp.rindex(b' '):])
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+        rr_tick  = int(resp[resp.rindex(b' '):])
+
+        frame = gdb.selected_frame()
+
+        # rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
+        # rr_tick = 0
+        # rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
 
         row = {}
         for expr in exprs:
@@ -1107,11 +1144,17 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 if isinstance(expr, list):
                     key, value = expr
                 elif isinstance(expr, typing.Callable):
-                    key, value = expr()
-                row[key] = value
+                    key, value = expr(frame)
+
+                if isinstance(key, str):
+                    row[key] = value
+                else:
+                    for i in range(len(key)):
+                        row[key[i]] = value[i]
             except Exception:
                 print("when evaluating expr ", expr, " for table ", table_name)
                 raise
+
         row["rr_tick"] = rr_tick
         row["rr_event"] = rr_event
 
@@ -1119,12 +1162,18 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         self._db_cur.execute(query, row)
 
         if rr_event != self._last_saved_event_time:
-            rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
+            resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
+            rr_time = float(resp[resp.rindex(b' ') + 1:])
+
             query = f'INSERT INTO event_times VALUES (?, ?)';
             self._db_cur.execute(query, (rr_event, rr_time))
             self._last_saved_event_time = rr_event
 
         self._db_conn.commit()
+
+        # helpers for "extras" handlers
+        row["__frame"] = frame
+        row["__currthreadptid"] = currthreadptid
 
         return row
 
@@ -1153,14 +1202,21 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         def store_seq_num(ev):
             prev = self._gc_seq_num
-            self._gc_seq_num = int(gdb.parse_and_eval("tc->instance->gc_seq_number"))
+            # self._gc_seq_num = int(gdb.parse_and_eval("tc->instance->gc_seq_number"))
+            self._gc_seq_num = int(ev["__frame"].read_var("tc")["instance"]["gc_seq_number"])
 
             #if self._gc_seq_num not in self._object_movements:
             #    self._object_movements[self._gc_seq_num] = array.array("Q")
 
             if prev is not None and prev // 20 != self._gc_seq_num // 20:
-                rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
-                rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
+                rr_event = ev["rr_event"]
+
+                conn = gdb.connections()[0]
+                assert isinstance(conn, gdb.RemoteTargetConnection)
+
+                resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(ev["__currthreadptid"])))
+                rr_time = float(resp[resp.rindex(b' ') + 1:])
+
                 print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num, " - time ", rr_time, " event: ", rr_event)
                 #for s in self._db["subjects"]:
                 #    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
@@ -1230,6 +1286,17 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         """)
 
         self._db_cur.execute("""
+            create table continuation_events (
+                tc integer,
+                rr_tick integer,
+                rr_event integer,
+                tag integer,
+                is_slice boolean
+            );
+        """)
+
+
+        self._db_cur.execute("""
             create table event_times (
                 rr_event integer,
                 rr_time float
@@ -1277,22 +1344,25 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 self._disabled_breakpoints.append(bp)
 
         cbp.append(SQLRecordingBreakpoint(self, "gcs", "tc rr_tick rr_event gc_seq_number is_full", [
-            EXP.gdb_eval("tc", "tc", int),
-            EXP.gdb_eval("gc_seq_number", "tc->instance->gc_seq_number", int),
-            EXP.gdb_eval("is_full", "tc->instance->gc_full_collect", int),
+            EXP.local_var("tc", "tc", int),
+            EXP.local_fields("tc", ["instance"],
+                             [("gc_seq_number", "gc_seq_number"),
+                              ("is_full", "gc_full_collect")], int),
             ], "run_gc"))
 
         cbp.append(SQLRecordingBreakpoint(self, "compunits", "tc rr_tick rr_event data_addr", [
-            EXP.gdb_eval("tc", "tc", int),
-            EXP.gdb_eval("data_addr", "cu->body.data_start", int),
+            EXP.local_var("tc", "tc", int),
+            EXP.local_field("data_addr", "cu", ["body", "data_start"], int),
             ], "run_comp_unit"))
 
         cbp.append(SQLRecordingBreakpoint(self, "worklist_runs", "tc rr_tick rr_event nursery_alloc nursery_alloc_limit nursery_tospace nursery_fromspace", [
-            EXP.gdb_eval("tc", "tc", int),
-            EXP.gdb_eval("nursery_alloc", "tc->nursery_alloc", int),
-            EXP.gdb_eval("nursery_alloc_limit", "tc->nursery_alloc_limit", int),
-            EXP.gdb_eval("nursery_fromspace", "tc->nursery_fromspace", int),
-            EXP.gdb_eval("nursery_tospace", "tc->nursery_tospace", int),
+            EXP.local_var("tc", "tc", int),
+            EXP.local_fields("tc", [],
+                             [("nursery_alloc", "nursery_alloc"),
+                              ("nursery_alloc_limit", "nursery_alloc_limit"),
+                              ("nursery_fromspace", "nursery_fromspace"),
+                              ("nursery_tospace", "nursery_tospace"),
+              ], int),
             ], "process_worklist")._extra(store_seq_num))
 
         if "notrackgc" not in self.flags:
@@ -1321,18 +1391,34 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         free_speshcode_lineno = gdb.execute("search MVM_free.sc.;", False, True).split("\t")[0]
 
         cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", "rr_tick rr_event sf_addr bytecode_addr size", [
-            EXP.gdb_eval("sf_addr", "p->sf", int),
-            EXP.gdb_eval("bytecode_addr", "candidate->body.bytecode", int),
-            EXP.gdb_eval("size", "candidate->body.bytecode_size", int),
+            EXP.local_field("sf_addr", "p", ["sf"], int),
+            EXP.local_fields("candidate", ["body"], [
+                                 ["bytecode_addr", "bytecode"],
+                                 ["size", "bytecode_size"]
+                             ], int),
             ], "src/6model/reprs/MVMSpeshCandidate.c:" + free_speshcode_lineno))
 
         cbp.append(SQLRecordingBreakpoint(self, "staticframes", "rr_tick rr_event bytecode compunit_data_addr sf_addr cuuid name", [
-            EXP.gdb_eval("bytecode", "static_frame->body.bytecode", int),
-            EXP.gdb_eval("compunit_data_addr", "static_frame->body.cu->body.data_start", int),
-            EXP.gdb_eval("sf_addr", "static_frame", int),
-            EXP.gdb_eval("cuuid", "MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid)", lambda v: v.string()),
-            EXP.gdb_eval("name", "MVM_string_utf8_encode_C_string(tc, static_frame->body.name)", lambda v: v.string()),
+            EXP.local_field("bytecode", "static_frame", ["body", "bytecode"], int),
+            EXP.local_field("compunit_data_addr", "static_frame", ["body", "cu", "body", "data_start"], int),
+            EXP.local_var("sf_addr", "static_frame", int),
+            EXP.local_fields("static_frame", ["body"], [
+                                 ["cuuid", "cuuid"],
+                                 ["name", "name"],
+                             ], mvmstr_to_str),
             ], "MVM_validate_static_frame"))
+
+        cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event tag is_slice", [
+            EXP.local_var("tc", "tc", int),
+            EXP.local_var("tag", "tag", int),
+            lambda _: ["is_slice", 0],
+            ], "MVM_callstack_continuation_slice"))
+
+        cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event tag is_slice", [
+            EXP.local_var("tc", "tc", int),
+            EXP.local_var("tag", "update_tag", int),
+            lambda _: ["is_slice", 1],
+            ], "MVM_callstack_continuation_append"))
 
         #cbp.append(SQLRecordingBreakpoint(self, "sc_code", [
         #    EXP.gdb_eval("sc_addr", "sc->body", int),
@@ -1375,13 +1461,113 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         gdb.execute("c")
 
     def invoke(self, argument, from_tty):
+        global execution_db
         self.flags = set(argument.split(" "))
         self.dont_repeat()
         self.setup()
         try:
             self.run()
         finally:
+            try:
+                gdb.execute("info breakpoints")
+            except:
+                pass
+            try:
+                execution_db = self._db_conn
+                gdb.set_convenience_variable("moar_rrdb_file", self._db_file.name)
+            except Exception as e:
+                print("Could not store the name of the rrdb file in convenience var :(", e)
             self.teardown()
+
+@dataclass
+class TimelineEntry:
+    pos_event: int
+
+    earliest_event: int | None
+    latest_event: int | None
+
+    pos_time: float
+
+    earliest_time: float | None
+    latest_time: float | None
+
+class MoarTimelineCommand(gdb.Command):
+    """Show recent and upcoming events from moar rrdb's execution db"""
+
+    flags : Set[str]
+
+    def __init__(self):
+        super(MoarTimelineCommand, self).__init__("moar timeline", gdb.COMMAND_STATUS)
+
+    def invoke(self, argument, from_tty):
+        global execution_db
+
+        if execution_db is None:
+            filename_maybe = gdb.parse_and_eval("$moar_rrdb_file")
+            # print(f"Can I load db from $moar_rrdb_file? ({filename_maybe})")
+            if str(filename_maybe) and str(filename_maybe) != "void" and Path(filename_maybe.string()).exists():
+                import sqlite3
+                print("Loading previous execution db from ", filename_maybe)
+                execution_db = sqlite3.connect(filename_maybe.string(), autocommit=False)
+            else:
+                print("No execution DB seems to exist. run `moar rrdb` first!")
+                self.dont_repeat()
+                return
+
+        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
+        rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
+
+        try:
+            cur = execution_db.cursor()
+
+            query = """
+                select
+                   igcs.earliest,
+                   eet.rr_time as earliest_time,
+                   let.rr_time as latest_time,
+                   igcs.*
+                from
+                    (select
+                        abs(min(rr_event) - ?) as absdiff,
+                        min(rr_event) as earliest,
+                        max(rr_event) as latest,
+                        gc_seq_number,
+                        is_full
+                    from gcs
+                    where is_full = ?
+                    group by gc_seq_number
+                    order by 1 asc) igcs
+                    left join event_times eet on igcs.earliest = eet.rr_event
+                    left join event_times let on igcs.latest = let.rr_event
+                limit ?;
+            """
+
+
+            timeline_events = []
+            for (want_full, limit) in [(0, 8), (1, 4)]:
+                nearby_gcs = cur.execute(query, (rr_event, want_full, limit)).fetchall()
+                timeline_events.extend(nearby_gcs)
+
+            timeline_events = sorted(timeline_events, key=lambda e: e[0])
+            before = [e for e in timeline_events if e[0] <  rr_event]
+            after  = [e for e in timeline_events if e[0] >= rr_event]
+
+            def gc_event_line(earliest, earliest_time, latest_time, absdiff, _, latest, gc_seq_number, is_full):
+                print(f"{"maj" if is_full else "min"} GC run {gc_seq_number:5d}: {earliest_time:8.3f}s - {latest_time:8.3f}s ({earliest} - {latest})")
+
+            for e in before:
+                gc_event_line(*e)
+
+            print("you are here: ", rr_time, "        ", rr_event, " <-- you are here")
+
+            for e in after:
+                gc_event_line(*e)
+
+        except Exception as ex:
+            print("Failed to get timeline stuff: ", ex)
+
+        finally:
+            cur.close()
 
 #     _             _   _                                                     _
 #    | |__  __ _ __| |_| |_ _ _ __ _ __ ___   __ ___ _ __  _ __  __ _ _ _  __| |___
@@ -1524,7 +1710,7 @@ def string_from_cu(cu, index):
         return mvmstr_to_str(strp.dereference())
 
 def resolve_annotation(sfb, offset):
-    if not (sfb["num_annotations"] > 0 and offset > 0 and offset < sfb["bytecode_size"]):
+    if not (sfb["num_annotations"] >= 0 and offset >= 0 and offset < sfb["bytecode_size"]):
         return (None, None)
 
     ann_offs = 0
@@ -1778,12 +1964,36 @@ class MoarBtCommands(gdb.Command):
 
             csinfo_str = "args=(" + ", ".join(infoparts) + ")"
 
-            name = "''" if name == "" else name
+            # Instead of just outputting "'' at <unknown>:1", make an attempt
+            # to get at least something to differentiate one thing from another
+            outer_str = ""
+            if not name and (fn is None or ln is None):
+                outer_frame = cur_frame.outer
+                print("outer frame is: ", outer_frame)
+                outer_fn, outer_ln = outer_frame.resolve_annotation(0)
+                outer_locstr = ""
+                if outer_fn is not None and outer_ln is not None:
+                    outer_locstr = f" {fn}:{ln}"
+                if outer_frame is not None:
+                    if outer_frame.name is not None and outer_frame.name:
+                        outer_str = f"(nested inside '{outer_frame.name}'{outer_locstr})"
+                    else:
+                        outer_str = f"(nested inside {outer_frame.cuuid}{outer_locstr})"
 
+            name = f"'' ({cur_frame.cuuid})" if name == "" else name
             if fn is not None and ln is not None:
-                print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, fn, ":", ln)
+                locstr = f"{fn}:{ln}"
             else:
-                print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, "<unknown>:1")
+                locstr = "<unknown>:1"
+
+                fn, ln = cur_frame.resolve_annotation(offs=0)
+                if fn is not None and ln is not None:
+                    locstr = f"somewhere after {fn}:{ln}"
+
+            if outer_str:
+                locstr = locstr + " " + outer_str
+
+            print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, locstr)
 
             cur_frame = cur_frame.caller
             stack_idx += 1
@@ -1999,6 +2209,9 @@ def register_commands(objfile):
 
     commands.append(MakeExecutionDatabaseCommand())
     print("command moar rrdb registered")
+
+    commands.append(MoarTimelineCommand())
+    print("command moar timelineregistered")
 
     commands.append(MoarBreakCommands())
     commands.append(MoarBreakInterpRunCommands())
