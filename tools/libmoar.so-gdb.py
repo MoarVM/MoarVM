@@ -65,8 +65,13 @@ import gdb.printing
 
 import traceback # debugging
 
-uint32_t : gdb.Type | None
+uint32_t  : gdb.Type | None
 uint32p_t : gdb.Type | None
+
+stooge_t  : gdb.Type | None
+stoogep_t : gdb.Type | None
+mvmstr_t  : gdb.Type | None
+mvmstrp_t : gdb.Type | None
 
 # These are the flags from MVMString's body.flags
 str_t_info = {0: 'blob_32',
@@ -1930,12 +1935,6 @@ class MoarStackFrame:
         return resolve_annotation(sfb, offs, str_cache)
 
 def extract_moar_stack_frame_args(cur_frame, str_cache = None):
-    # TODO extract to global scope and lookup on init
-    stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
-    stoogep_t = stooge_t.pointer()
-    mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
-    mvmstrp_t = mvmstr_t.pointer()
-
     callsite = cur_frame.params["arg_info"]["callsite"]
     if str_cache is not None and int(callsite) in str_cache:
         csinfo = str_cache[int(callsite)]
@@ -2027,12 +2026,15 @@ class MoarBtCommands(gdb.Command):
     def __init__(self):
         super(MoarBtCommands, self).__init__("moar bt", gdb.COMMAND_STACK, prefix=True)
 
-    def invoke(self, argument, from_tty):
-        stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
-        stoogep_t = stooge_t.pointer()
-        mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
-        mvmstrp_t = mvmstr_t.pointer()
+    # def invoke(self, argument, from_tty):
+    #     import cProfile
+    #     pr = cProfile.Profile()
+    #     with pr:
+    #         self.invoke_(argument, from_tty)
 
+    #     pr.print_stats(1)
+
+    def invoke(self, argument, from_tty):
         str_cache = {}
 
         tc = find_tc()
@@ -2337,7 +2339,14 @@ if __name__ == "__main__":
     try:
         uint32_t  = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
         uint32p_t = uint32_t.pointer()
+
+        stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
+        stoogep_t = stooge_t.pointer()
+
+        mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
+        mvmstrp_t = mvmstr_t.pointer()
+
     except gdb.error as ex:
-        print("Couldn't get MVMuint32 type!?", ex)
+        print("Couldn't get types!?", ex)
 
     init_repr_types_and_structs()
