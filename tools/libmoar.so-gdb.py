@@ -1727,7 +1727,7 @@ def string_from_cu(cu, index):
     else:
         return mvmstr_to_str(strp.dereference())
 
-def resolve_annotation(sfb, offset):
+def resolve_annotation(sfb, offset, str_cache = None):
     num_anno = sfb["num_annotations"]
     if not (num_anno >= 0 and offset >= 0 and offset < sfb["bytecode_size"]):
         return (None, None)
@@ -1750,7 +1750,13 @@ def resolve_annotation(sfb, offset):
     fnshi = int((cur_anno + 4).cast(uint32p_t).dereference())
     ln    = int((cur_anno + 8).cast(uint32p_t).dereference())
 
-    fn = string_from_cu(sfb["cu"], fnshi)
+    cu = sfb["cu"]
+    if str_cache is not None and (int(cu), fnshi) in str_cache:
+        fn = str_cache[(int(cu), fnshi)]
+    else:
+        fn = string_from_cu(cu, fnshi)
+        if str_cache is not None:
+            str_cache[(int(cu), fnshi)] = fn
 
     return (fn, ln)
 
@@ -1906,13 +1912,13 @@ class MoarStackFrame:
     def cufile(self):
         return mvmstr_to_str(self._static_info_body["cu"]["body"]["filename"])
 
-    def resolve_annotation(self, offs : int | None = None):
+    def resolve_annotation(self, offs : int | None = None, str_cache = None):
         if offs is None:
             offs = self.bytecode_offs
 
         sfb = self._static_info_body
 
-        return resolve_annotation(sfb, offs)
+        return resolve_annotation(sfb, offs, str_cache)
 
 def extract_moar_stack_frame_args(cur_frame, str_cache = None):
     # TODO extract to global scope and lookup on init
@@ -2016,8 +2022,14 @@ class MoarBtCommands(gdb.Command):
         output = []
 
         while cur_frame is not None:
-            name = cur_frame.name
-            fn, ln = cur_frame.resolve_annotation()
+            static_info = cur_frame.ptr["static_info"]
+            if int(static_info) in str_cache:
+                name = str_cache[int(static_info)]
+            else:
+                name = cur_frame.name
+                str_cache[int(static_info)] = name
+
+            fn, ln = cur_frame.resolve_annotation(None, str_cache)
 
             infoparts = extract_moar_stack_frame_args(cur_frame, str_cache)
 
@@ -2028,7 +2040,7 @@ class MoarBtCommands(gdb.Command):
             outer_str = ""
             if not name and (fn is None or ln is None):
                 outer_frame = cur_frame.outer
-                outer_fn, outer_ln = outer_frame.resolve_annotation(0)
+                outer_fn, outer_ln = outer_frame.resolve_annotation(0, str_cache)
                 outer_locstr = ""
                 if outer_fn is not None and outer_ln is not None:
                     outer_locstr = f" {fn}:{ln}"
