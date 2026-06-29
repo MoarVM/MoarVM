@@ -1759,7 +1759,7 @@ def resolve_annotation(sfb, offset, str_cache = None):
     ann_offs = 0
 
     p_cur_anno = None
-    for annot in struct.iter_unpack("HHH", entire_buf):
+    for annot in struct.iter_unpack("iii", entire_buf):
         ann_offs = annot[0]
 
         if ann_offs > offset:
