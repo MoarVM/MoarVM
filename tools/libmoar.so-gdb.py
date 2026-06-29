@@ -291,7 +291,10 @@ def init_repr_types_and_structs():
         print(f"... could not register these: {repr_errors}")
 
 def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
-    stringtyp = str_t_info[int(val['body']['storage_type'])]
+    try:
+        stringtyp = str_t_info[int(val['body']['storage_type'])]
+    except KeyError:
+        return "<invalid string?>"
     if stringtyp in ("blob_32", "blob_ascii", "blob_8", "in_situ_8", "in_situ_32"):
         data = val['body']['storage'][stringtyp]
         pieces = []
@@ -1704,37 +1707,43 @@ def string_from_cu(cu, index):
     strp = cub["strings"][index]
 
     if int(strp) == 0:
-        # not decoded yet, have to do it in here
+        try:
+            # not decoded yet, have to do it in here
 
-        # can hopefully at least find it quickly with the fast table?
-        fast_table_top = cub["string_heap_fast_table_top"]
+            # can hopefully at least find it quickly with the fast table?
+            fast_table_top = cub["string_heap_fast_table_top"]
 
-        # TODO can we safely get this with gdb from dwarf data?
-        bin = index // 16
+            # TODO can we safely get this with gdb from dwarf data?
+            bin = index // 16
 
-        fast_table = cub["string_heap_fast_table"]
+            fast_table = cub["string_heap_fast_table"]
 
-        # don't try to read outside the fast table!
-        if bin > int(fast_table_top):
-            bin = int(fast_table_top)
+            # dont try to read outside the fast table!
+            if bin > int(fast_table_top):
+                bin = int(fast_table_top)
 
-        strheap = cub["string_heap_start"] + fast_table[bin]
-        found_idx = bin * 16
+            strheap = cub["string_heap_start"] + fast_table[bin]
+            found_idx = bin * 16
 
-        while found_idx < index:
-            entrysize = int(int(strheap.cast(uint32p_t).dereference()) // 2)
-            if entrysize & 3:
-                entrysize += 4 - (entrysize & 3)
-            strheap = strheap + (int(entrysize) + 4)
-            found_idx += 1
+            while found_idx < index:
+                entrysize = int(int(strheap.cast(uint32p_t).dereference()) // 2)
+                if entrysize & 3:
+                    entrysize += 4 - (entrysize & 3)
+                strheap = strheap + (int(entrysize) + 4)
+                found_idx += 1
 
-        size_and_flag = int(strheap.cast(uint32p_t).dereference())
-        entrysize = size_and_flag // 2
+            size_and_flag = int(strheap.cast(uint32p_t).dereference())
+            entrysize = size_and_flag // 2
 
-        data = decode_utf8_in_stringheap(strheap + 4, entrysize)
-        return data
+            data = decode_utf8_in_stringheap(strheap + 4, entrysize)
+            return data
+        except gdb.MemoryError as ex:
+            return "<could not get string: " + str(ex) + ">"
     else:
-        return mvmstr_to_str(strp.dereference())
+        try:
+            return mvmstr_to_str(strp.dereference())
+        except gdb.MemoryError as ex:
+            return "<could not get string: " + str(ex) + ">"
 
 def resolve_annotation(sfb, offset, str_cache = None):
     num_anno = sfb["num_annotations"]
