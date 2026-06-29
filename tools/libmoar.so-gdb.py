@@ -1687,13 +1687,31 @@ def frame_effective_bytecode(frame):
         return spesh_cand["body"]["bytecode"]
     return frame["static_info"]["body"]["bytecode"]
 
+def decode_utf8_in_stringheap(val, entrysize):
+    data = val.string("utf-8", "backslashreplace", entrysize)
+
 def string_from_cu(cu, index):
-    strp = cu["body"]["strings"][index]
+    cub = cu["body"]
+    strp = cub["strings"][index]
 
     if int(strp) == 0:
         # not decoded yet, have to do it in here
-        strheap = cu["body"]["string_heap_start"]
-        found_idx = 0
+
+        # can hopefully at least find it quickly with the fast table?
+        fast_table_top = cub["string_heap_fast_table_top"]
+
+        # TODO can we safely get this with gdb from dwarf data?
+        bin = index // 16
+
+        fast_table = cub["string_heap_fast_table"]
+
+        # don't try to read outside the fast table!
+        if bin > int(fast_table_top):
+            bin = int(fast_table_top)
+
+        strheap = cub["string_heap_start"] + fast_table[bin]
+        found_idx = bin * 16
+
         while found_idx < index:
             entrysize = int(int(strheap.cast(uint32p_t).dereference()) // 2)
             if entrysize & 3:
@@ -1704,19 +1722,20 @@ def string_from_cu(cu, index):
         size_and_flag = int(strheap.cast(uint32p_t).dereference())
         entrysize = size_and_flag // 2
 
-        data = (strheap + 4).string("utf-8", "backslashreplace", entrysize)
+        data = decode_utf8_in_stringheap(strheap + 4, entrysize)
         return data
     else:
         return mvmstr_to_str(strp.dereference())
 
 def resolve_annotation(sfb, offset):
-    if not (sfb["num_annotations"] >= 0 and offset >= 0 and offset < sfb["bytecode_size"]):
+    num_anno = sfb["num_annotations"]
+    if not (num_anno >= 0 and offset >= 0 and offset < sfb["bytecode_size"]):
         return (None, None)
 
     ann_offs = 0
     cur_anno = sfb["annotations_data"]
     p_cur_anno = None
-    for i in range(0, sfb["num_annotations"]):
+    for i in range(0, num_anno):
         ann_offs = int(cur_anno.cast(uint32p_t).dereference())
 
         if ann_offs > offset:
@@ -1875,7 +1894,7 @@ class MoarStackFrame:
         map = self._arg_info["map"]
 
         return [
-            source[map[i]] for i in range(len(csinfo))]
+            source[int(map[i])] for i in range(len(csinfo))]
 
     @property
     def cuuid(self):
@@ -1973,6 +1992,8 @@ class MoarBtCommands(gdb.Command):
 
         stack_idx = 0
 
+        output = []
+
         while cur_frame is not None:
             name = cur_frame.name
             fn, ln = cur_frame.resolve_annotation()
@@ -1986,7 +2007,6 @@ class MoarBtCommands(gdb.Command):
             outer_str = ""
             if not name and (fn is None or ln is None):
                 outer_frame = cur_frame.outer
-                print("outer frame is: ", outer_frame)
                 outer_fn, outer_ln = outer_frame.resolve_annotation(0)
                 outer_locstr = ""
                 if outer_fn is not None and outer_ln is not None:
@@ -2010,10 +2030,12 @@ class MoarBtCommands(gdb.Command):
             if outer_str:
                 locstr = locstr + " " + outer_str
 
-            print(f"#{stack_idx}", cur_frame.ptr, name, csinfo_str, locstr)
+            output.append(f"#{stack_idx:3d} {str(cur_frame.ptr):20s} {name} {csinfo_str} {locstr}")
 
             cur_frame = cur_frame.caller
             stack_idx += 1
+
+        print("\n".join(output))
 
 
 def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
