@@ -276,6 +276,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
              * line and col numbers. */
             MVM_unicode_normalizer_cleanup(tc, &norm); /* Since we'll throw. */
             MVM_free(buffer);
+            if (did_mark_thread_blocked)
+                MVM_gc_mark_thread_unblocked(tc);
             utf8_decode_errors(tc, orig_utf8, orig_bytes);
             break;
         }
@@ -283,6 +285,8 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     if (state != UTF8_ACCEPT) {
         MVM_unicode_normalizer_cleanup(tc, &norm);
         MVM_free(buffer);
+        if (did_mark_thread_blocked)
+            MVM_gc_mark_thread_unblocked(tc);
         MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
     }
 
