@@ -47,6 +47,31 @@ to an object it didn't allocate and doesn't have a lock for.
 Same as MVM_CROSS_THREAD_WRITE_LOG, except objects that are locked are included
 as well.
 
+=item MVM_COVERAGE_LOG
+
+If set, MoarVM instruments bytecode to log a C<HIT E<lt>fileE<gt> E<lt>lineE<gt>>
+entry to this file each time a new source line is entered. If the value is an
+empty string the log is written to stderr. The file is opened in append mode.
+If the path contains C<%d> it is replaced with the process ID.
+
+By default each (file, line) pair is logged once per static frame ("de-duped").
+See C<MVM_COVERAGE_CONTROL> to disable.
+
+=item MVM_COVERAGE_CONTROL
+
+Controls de-duping behaviour of C<MVM_COVERAGE_LOG>. If set to C<1>, the
+non-de-duping mode is enabled at runtime when C<nqp::coveragecontrol(1)> is
+called. If set to C<2>, non-de-duping mode is enabled from the start of the
+program. Has no effect unless C<MVM_COVERAGE_LOG> is also set.
+
+=item MVM_COVERAGE_FILES
+
+A comma-separated list of substrings. When set, only source files whose path
+contains at least one of the substrings are instrumented for coverage. Other files
+(such as the Raku standard library and NQP internals) are left uninstrumented and
+incur no coverage overhead. Unset or empty means instrument everything
+(the default). Has no effect unless C<MVM_COVERAGE_LOG> is also set.
+
 =back
 
 =head1 REPORTING BUGS
