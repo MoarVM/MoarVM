@@ -1585,6 +1585,9 @@ class MoarTimelineCommand(gdb.Command):
 #
 
 def can_read(val: gdb.Value):
+    """Attempt to read memory at the value's target address.
+
+    Returns True if it's valid, False otherwise."""
     try:
         val.cast(uint32p_t).dereference()
     except gdb.MemoryError:
@@ -1592,6 +1595,10 @@ def can_read(val: gdb.Value):
     return True
 
 def can_read_path(val: gdb.Value, *path: str):
+    """Given a value, try to follow a path of field accesses in a row.
+
+    Returns True if the final step can be followed, False if any step
+    was not a valid memory access."""
     for step in path:
         try:
             val = val[step]
@@ -1608,6 +1615,11 @@ class EarlyAbortException(Exception):
     pass
 
 def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
+    """Check if a gdb.Value of type MVMThreadContext * is plausible as
+    an actual MVMThreadContext, based on contents and its pointers.
+
+    Returns a plausibility score between 0 (plausible) and negative
+    infinity (definitely not plausible)"""
     # Plausibility check, since arguments in backtraces are sometimes
     # mangled when they are not explicitly stored in a way the debug
     # symbols tell us ...
@@ -1659,6 +1671,8 @@ def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
     return score
 
 def find_tc():
+    """For the selected frame, go through the stack as well as thread
+    local storage to find the most plausible value for the thread's TC"""
     frame = gdb.selected_frame()
     found_tcs = []
 
@@ -1692,6 +1706,7 @@ def find_tc():
     return found_tcs[0]
 
 def frame_effective_bytecode(frame):
+    """Mirrors moar's MVM_frame_effective_bytecode."""
     spesh_cand = frame["spesh_cand"]
     if int(spesh_cand) != 0:
         if int(spesh_cand["body"]["jitcode"]) != 0:
@@ -1700,9 +1715,12 @@ def frame_effective_bytecode(frame):
     return frame["static_info"]["body"]["bytecode"]
 
 def decode_utf8_in_stringheap(val, entrysize):
-    data = val.string("utf-8", "backslashreplace", entrysize)
+    return val.string("utf-8", "backslashreplace", entrysize)
 
 def string_from_cu(cu, index):
+    """Like MVM_cu_string, grab the string at the index from the
+    given MVMCompUnit.""""
+
     cub = cu["body"]
     strp = cub["strings"][index]
 
@@ -1746,6 +1764,7 @@ def string_from_cu(cu, index):
             return "<could not get string: " + str(ex) + ">"
 
 def resolve_annotation(sfb, offset, str_cache = None):
+    """Mirrors moar's MVM_bytecode_resolve_annotation"""
     num_anno = sfb["num_annotations"]
     if num_anno == 0:
         return (None, None)
@@ -1784,6 +1803,16 @@ def resolve_annotation(sfb, offset, str_cache = None):
     return (fn, ln)
 
 def parse_callsite(cs : gdb.Value):
+    """Given an MVMCallsite*, return information about the arguments:
+
+    [name if present, otherwise type name (obj/int/num/str/uint),
+    function to turn a MVMRegister* into the right value,
+    [name of argument or None,
+     type name,
+     flag value,
+     flag value masked to arg type]
+    ]"""
+
     num_flags = cs["flag_count"]
     flags = cs["arg_flags"]
 
@@ -1863,6 +1892,8 @@ class MoarStackFrame:
 
     @classmethod
     def from_tc(cls, tc : gdb.Value | None = None):
+        """Given an MVMThreadContext *, create a MoarStackFrame from
+        its cur_frame"""
         if tc is None:
             tc = find_tc()
 
@@ -1944,6 +1975,8 @@ class MoarStackFrame:
         return resolve_annotation(sfb, offs, str_cache)
 
 def extract_moar_stack_frame_args(cur_frame, str_cache = None):
+    """From a MoarStackFrame, parse the callsite and get a string with
+    information for each of the arguments and its values"""
     callsite = cur_frame.params["arg_info"]["callsite"]
     if str_cache is not None and int(callsite) in str_cache:
         csinfo = str_cache[int(callsite)]
@@ -2032,8 +2065,12 @@ def extract_moar_stack_frame_args(cur_frame, str_cache = None):
 
 class MoarBtCommands(gdb.Command):
     """Commands to look at a moar-level backtrace."""
+
     def __init__(self):
         super(MoarBtCommands, self).__init__("moar bt", gdb.COMMAND_STACK, prefix=True)
+
+    # Uncomment this version of invoke and rename the below one to invoke_
+    # to cProfile running it.
 
     # def invoke(self, argument, from_tty):
     #     import cProfile
@@ -2104,6 +2141,9 @@ class MoarBtCommands(gdb.Command):
 
 
 def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
+    """Given a MoarStackFrame, output a load of information about it
+    to the terminal."""
+
     fn, ln = cur_frame.resolve_annotation()
     infoparts = extract_moar_stack_frame_args(cur_frame)
 
@@ -2284,6 +2324,7 @@ def str_lookup_function(val):
 
     return None
 
+# currently unused and probably unoperational
 def mvmobject_lookup_function(val):
     pointer = str(val.type).endswith("*")
     if str(val.type).startswith("MVM"):
