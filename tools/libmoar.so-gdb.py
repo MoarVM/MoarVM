@@ -2033,12 +2033,13 @@ def extract_moar_stack_frame_args(cur_frame, str_cache = None):
                         subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
                         #print(repr(subpart), repr(subpart.type))
                         #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
-                        if str_cache is not None and int(subpart) in str_cache:
-                            string_of_subpart = str_cache[int(subpart)]
+                        spk = (int(subpart), "arg")
+                        if str_cache is not None and spk in str_cache:
+                            string_of_subpart = str_cache[spk]
                         else:
                             string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
                             if str_cache is not None:
-                                str_cache[int(subpart)] = string_of_subpart
+                                str_cache[spk] = string_of_subpart
 
                     elif int(subpart["st"]["debug_name"]) != 0:
                         typename = reprname + "#" + subpart["st"]["debug_name"].string()
@@ -2125,7 +2126,7 @@ class MoarBtCommands(gdb.Command):
             else:
                 locstr = "<unknown>:1"
 
-                fn, ln = cur_frame.resolve_annotation(offs=0)
+                fn, ln = cur_frame.resolve_annotation(offs=0, str_cache=str_cache)
                 if fn is not None and ln is not None:
                     locstr = f"somewhere after {fn}:{ln}"
 
