@@ -2082,6 +2082,8 @@ class MoarBtCommands(gdb.Command):
     #     pr.print_stats(1)
 
     def invoke(self, argument, from_tty):
+        flags = set(argument.split(" )"))
+
         str_cache = {}
 
         tc = find_tc()
@@ -2101,9 +2103,12 @@ class MoarBtCommands(gdb.Command):
 
             fn, ln = cur_frame.resolve_annotation(None, str_cache)
 
-            infoparts = extract_moar_stack_frame_args(cur_frame, str_cache)
+            if "noargs" not in flags:
+                infoparts = extract_moar_stack_frame_args(cur_frame, str_cache)
 
-            csinfo_str = "args=(" + ", ".join(infoparts) + ")"
+                csinfo_str = "args=(" + ", ".join(infoparts) + ")"
+            else:
+                csinfo_str = ""
 
             # Instead of just outputting "'' at <unknown>:1", make an attempt
             # to get at least something to differentiate one thing from another
