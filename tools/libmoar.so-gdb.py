@@ -1719,7 +1719,7 @@ def decode_utf8_in_stringheap(val, entrysize):
 
 def string_from_cu(cu, index):
     """Like MVM_cu_string, grab the string at the index from the
-    given MVMCompUnit.""""
+    given MVMCompUnit."""
 
     cub = cu["body"]
     strp = cub["strings"][index]
