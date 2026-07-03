@@ -46,6 +46,7 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+from sqlite3 import Connection
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Mapping, Sequence, Set, Callable
@@ -1089,7 +1090,26 @@ class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
     def _hit_breakpoint_action(self):
         self._medbc._register_object_movement()
 
-execution_db = None
+execution_db : Connection | None = None
+
+def ensure_execution_db() -> Connection:
+    """Try to open an execution db sqlite file if $moar_rrdb_file is set."""
+    global execution_db
+
+    if execution_db is None:
+        filename_maybe = gdb.parse_and_eval("$moar_rrdb_file")
+        # print(f"Can I load db from $moar_rrdb_file? ({filename_maybe})")
+        if str(filename_maybe) and str(filename_maybe) != "void" and Path(filename_maybe.string()).exists():
+            import sqlite3
+            print("Loading previous execution db from ", filename_maybe)
+            execution_db = sqlite3.connect(filename_maybe.string(), autocommit=False)
+            return execution_db
+        else:
+            print("No execution DB seems to exist. run `moar rrdb` first!")
+            print("(Or if you already have one, try `set $moar_rrdb_file = /tmp/...`)")
+            raise Exception("No execution db (from moar rrdb) seems to exist")
+
+    return execution_db
 
 def follow_fields(val : gdb.Value, fields : list[str]):
     for step in fields:
@@ -1117,13 +1137,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _gc_seq_num = None
 
     class _EXP:
-        tid         = lambda _: lambda _: ["tid", gdb.selected_thread().ptid_string]
-        gdb_eval    = lambda _, sub, code, pytype: lambda _: [sub, pytype(gdb.parse_and_eval(code))]
-        local_var   = lambda _, sub, var_name, pytype: lambda frame: [sub, pytype(frame.read_var(var_name))]
-        local_field = lambda _, sub, var_name, steps, pytype: lambda frame: [sub, pytype(follow_fields(frame.read_var(var_name), steps))]
+        tid         = lambda _: lambda _, _2: ["tid", gdb.selected_thread().ptid_string]
+        gdb_eval    = lambda _, sub, code, pytype: lambda _, _2: [sub, pytype(gdb.parse_and_eval(code))]
+        local_var   = lambda _, sub, var_name, pytype: lambda frame, _: [sub, pytype(frame.read_var(var_name))]
+        local_field = lambda _, sub, var_name, steps, pytype: lambda frame, _: [sub, pytype(follow_fields(frame.read_var(var_name), steps))]
 
         def local_fields(cls, var_name, steps, fields, pytype):
-            def local_fields_impl(frame):
+            def local_fields_impl(frame, _):
                 val = frame.read_var(var_name)
                 for step in steps:
                     val = val[step]
@@ -1156,29 +1176,30 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         frame = gdb.selected_frame()
 
-        # rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
-        # rr_tick = 0
-        # rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
-
         row = {}
+
+        row["rr_tick"] = rr_tick
+        row["rr_event"] = rr_event
+
+        # helpers for "extras" handlers
+        row["__frame"] = frame
+        row["__currthreadptid"] = currthreadptid
+
         for expr in exprs:
             try:
                 if isinstance(expr, list):
                     key, value = expr
                 elif isinstance(expr, typing.Callable):
-                    key, value = expr(frame)
+                    key, value = expr(frame, row)
 
                 if isinstance(key, str):
                     row[key] = value
                 else:
                     for i in range(len(key)):
                         row[key[i]] = value[i]
-            except Exception:
+            except Exception as ex:
                 print("when evaluating expr ", expr, " for table ", table_name)
-                raise
-
-        row["rr_tick"] = rr_tick
-        row["rr_event"] = rr_event
+                print(ex)
 
         query = f"INSERT INTO {table_name} VALUES ({column_expr});"
         self._db_cur.execute(query, row)
@@ -1192,10 +1213,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             self._last_saved_event_time = rr_event
 
         self._db_conn.commit()
-
-        # helpers for "extras" handlers
-        row["__frame"] = frame
-        row["__currthreadptid"] = currthreadptid
 
         return row
 
@@ -1298,6 +1315,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         """)
 
         self._db_cur.execute("""
+            create table gc_ends(
+                rr_tick integer,
+                rr_event integer
+            );
+        """)
+
+        self._db_cur.execute("""
             create table worklist_runs (
                 tc integer,
                 rr_tick integer,
@@ -1332,6 +1356,14 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             create table event_times (
                 rr_event integer,
                 rr_time float
+            );
+        """)
+
+        self._db_cur.execute("""
+            create table threadcontexts (
+                rr_event integer,
+                tc integer,
+                tid integer
             );
         """)
 
@@ -1375,12 +1407,25 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 bp.enabled = False
                 self._disabled_breakpoints.append(bp)
 
+        cbp.append(SQLRecordingBreakpoint(self, "threadcontexts", "rr_event tc tid", [
+            EXP.local_var("tc", "tc", int),
+            lambda _, row: ["tid", row["__currthreadptid"]],
+            ], "src/core/threads.c:thread_initial_invoke"))
+
+
         cbp.append(SQLRecordingBreakpoint(self, "gcs", "tc rr_tick rr_event gc_seq_number is_full", [
             EXP.local_var("tc", "tc", int),
             EXP.local_fields("tc", ["instance"],
                              [("gc_seq_number", "gc_seq_number"),
                               ("is_full", "gc_full_collect")], int),
             ], "run_gc"))
+
+
+        gdb.execute("list finish_gc", False, True)
+        finish_gc_orchestrator_signal_completed_lineno = gdb.execute("search uv_cond_broadcast(&tc->instance->cond_gc_completed);", False, True).split("\t")[0]
+
+        cbp.append(SQLRecordingBreakpoint(self, "gc_ends", "rr_tick rr_event", [
+            ], f"src/gc/orchestrate.c:{finish_gc_orchestrator_signal_completed_lineno}"))
 
         cbp.append(SQLRecordingBreakpoint(self, "compunits", "tc rr_tick rr_event data_addr", [
             EXP.local_var("tc", "tc", int),
@@ -1443,13 +1488,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event tag is_slice", [
             EXP.local_var("tc", "tc", int),
             EXP.local_var("tag", "tag", int),
-            lambda _: ["is_slice", 0],
+            lambda _, _2: ["is_slice", 0],
             ], "MVM_callstack_continuation_slice"))
 
         cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event tag is_slice", [
             EXP.local_var("tc", "tc", int),
             EXP.local_var("tag", "update_tag", int),
-            lambda _: ["is_slice", 1],
+            lambda _, _2: ["is_slice", 1],
             ], "MVM_callstack_continuation_append"))
 
         #cbp.append(SQLRecordingBreakpoint(self, "sc_code", [
@@ -1561,19 +1606,7 @@ class MoarTimelineCommand(gdb.Command):
         super(MoarTimelineCommand, self).__init__("moar timeline", gdb.COMMAND_STATUS)
 
     def invoke(self, argument, from_tty):
-        global execution_db
-
-        if execution_db is None:
-            filename_maybe = gdb.parse_and_eval("$moar_rrdb_file")
-            # print(f"Can I load db from $moar_rrdb_file? ({filename_maybe})")
-            if str(filename_maybe) and str(filename_maybe) != "void" and Path(filename_maybe.string()).exists():
-                import sqlite3
-                print("Loading previous execution db from ", filename_maybe)
-                execution_db = sqlite3.connect(filename_maybe.string(), autocommit=False)
-            else:
-                print("No execution DB seems to exist. run `moar rrdb` first!")
-                self.dont_repeat()
-                return
+        execution_db = ensure_execution_db()
 
         rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
         rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
