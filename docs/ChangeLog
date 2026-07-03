@@ -1,3 +1,7 @@
+New
+
++ Do not lock up when very long string has invalid utf8
+
 New in 2026.06
 
 + Allow GC to run while decoding large buffers of utf8/c8
