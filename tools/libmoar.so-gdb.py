@@ -48,7 +48,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Mapping, Sequence, Set
+from collections.abc import Mapping, Sequence, Set, Callable
 from enum import Enum
 import gdb
 from collections import defaultdict
@@ -1013,7 +1013,10 @@ class MoarBreakExceptionAdhoc(MoarBreakCommands):
 
 class AutoResumingBreakpoint(gdb.Breakpoint):
     def stop(self):
-        self._hit_breakpoint_action()
+        try:
+            self._hit_breakpoint_action()
+        except Exception:
+            pass
         return False # don't actually stop
 
 class PointInTimeRecordingBreakpoint(AutoResumingBreakpoint):
@@ -1067,6 +1070,16 @@ class SQLRecordingBreakpoint(AutoResumingBreakpoint):
     def _extra(self, _the_extra):
         self._extras = _the_extra
         return self
+
+class SQLRecordingBreakpointWithPrereq(SQLRecordingBreakpoint):
+    prereq : Callable
+    def stop(self):
+        try:
+            if self.prereq():
+                self._hit_breakpoint_action()
+        except Exception as ex:
+            print("error evaluating bp prereq: ", ex)
+        return False
 
 class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
     def __init__(self, medbc, *args):
@@ -1306,6 +1319,14 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             );
         """)
 
+        self._db_cur.execute("""
+            create table nfa_runs(
+                rr_tick integer,
+                rr_event integer,
+                offset integer,
+                string integer
+            );
+        """)
 
         self._db_cur.execute("""
             create table event_times (
@@ -1452,6 +1473,35 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         #    ["subject_kind", "frames"],
         #    EXP.gdb_eval("subject", "returner", int),
         #    ], "callstack.c:exit_frame"))
+
+        conn = gdb.connections()[0]
+        assert isinstance(conn, gdb.RemoteTargetConnection)
+
+        last_event = 0
+        records_this_event = 0
+        def nfa_prereq():
+            nonlocal last_event, records_this_event
+
+            currthreadptid = conn.send_packet("qC")
+            currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+            resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+            rr_event = int(resp[resp.rindex(b' '):])
+
+            if last_event < rr_event or records_this_event < 10:
+                records_this_event += 1
+                last_event = rr_event
+                return True
+
+            return False
+
+        nfa_bp = SQLRecordingBreakpointWithPrereq(self, 'nfa_runs', "rr_tick rr_event offset string", [
+            EXP.local_var('offset', 'offset', int),
+            EXP.local_var('string', 'target', int),
+            ], 'nqp_nfa_run')
+        nfa_bp.prereq = nfa_prereq
+
+        cbp.append(nfa_bp)
 
     def teardown(self):
         print("Moar RRDB: Finished running. Tearing down breakpoints.")
