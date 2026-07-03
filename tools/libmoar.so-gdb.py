@@ -1226,7 +1226,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(ev["__currthreadptid"])))
                 rr_time = float(resp[resp.rindex(b' ') + 1:])
 
-                print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num, " - time ", rr_time, " event: ", rr_event)
+                print(time.strftime("%H:%M:%S"), f" - reached gc run {self._gc_seq_num:4d} - time {rr_time:7.3f} event: {rr_event}")
                 #for s in self._db["subjects"]:
                 #    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
                 #if self._gc_seq_num == 60:
@@ -1236,10 +1236,12 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         self._db_file = tempfile.NamedTemporaryFile(prefix="moar-gdb-rrdb-", suffix=".sqlite3", delete=False)
         self._db_file.close()
-        self._db_conn = sqlite3.connect(self._db_file.name, autocommit=False)
+        self._db_conn = sqlite3.connect(self._db_file.name, autocommit=False, timeout=30)
         self._db_cur = self._db_conn.cursor()
 
-        print("sqlite3 file can be found at ", self._db_file.name)
+        print("")
+        print("    sqlite3 file can be found at ", self._db_file.name)
+        print("")
 
         self._db_cur.execute("""
             create table compunits (
@@ -2378,6 +2380,29 @@ def register_commands(objfile):
     commands.append(MoarTCCommand())
     print("moar TC commands registered")
 
+def say_hello():
+    try:
+        if gdb.parse_and_eval('$moarvm_gdb_plugin_banner_shown') == 1:
+            return
+    except:
+        pass
+
+    print(r"""
+ __  __                __     ____  __    ____ ____  ____
+|  \/  | ___   __ _ _ _\ \   / /  \/  |  / ___|  _ \| __ )
+| |\/| |/ _ \ / _` | '__\ \ / /| |\/| | | |  _| | | |  _ \
+| |  | | (_) | (_| | |   \ V / | |  | | | |_| | |_| | |_) |
+|_|  |_|\___/ \__,_|_|    \_/  |_|  |_|  \____|____/|____/
+
+ ____  _             _         _                    _          _
+|  _ \| |_   _  __ _(_)_ __   | |    ___   __ _  __| | ___  __| |
+| |_) | | | | |/ _` | | '_ \  | |   / _ \ / _` |/ _` |/ _ \/ _` |
+|  __/| | |_| | (_| | | | | | | |__| (_) | (_| | (_| |  __/ (_| |
+|_|   |_|\__,_|\__, |_|_| |_| |_____\___/ \__,_|\__,_|\___|\__,_|
+               |___/
+        """)
+    gdb.set_convenience_variable("moarvm_gdb_plugin_banner_shown", 1)
+
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
     the_objfile = gdb.current_objfile()
@@ -2406,3 +2431,5 @@ if __name__ == "__main__":
         print("Couldn't get types!?", ex)
 
     init_repr_types_and_structs()
+
+    say_hello()
