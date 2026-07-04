@@ -46,10 +46,12 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+from symtable import Symbol
+from array import array
 from sqlite3 import Connection
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from collections.abc import Mapping, Sequence, Set, Callable
+from collections.abc import Mapping, Sequence, Set, Callable, Buffer
 from enum import Enum
 import gdb
 from collections import defaultdict
@@ -1090,6 +1092,384 @@ class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
     def _hit_breakpoint_action(self):
         self._medbc._register_object_movement()
 
+class StackRecorder:
+    @dataclass
+    class Func:
+        sfaddr : int
+        bcaddr : int
+
+    @dataclass
+    class StackPiece:
+        # frame  : int
+        pieces        : array = field(default_factory=lambda: array('L'))
+        piece_cur_ops : array = field(default_factory=lambda: array('Q'))
+
+    pid : int
+
+    func_by_sfaddr  : dict[int, int]
+    func_by_index   : list[Func]
+    stack_pieces    : list[StackPiece]
+
+    sfidx_by_cur_op  : dict[int, int]
+    sfidx_to_sfaddr  : list
+
+    stack_piece_of_sample: array
+    thread_of_sample : array
+
+    conn : Connection
+
+    def __init__(self, pid : int, conn : Connection):
+        self.pid = pid
+
+        self.func_by_sfaddr = dict()
+        self.func_by_index = list()
+        self.sfidx_by_cur_op = dict()
+        self.sfidx_to_sfaddr = list()
+
+        self.stack_pieces = [StackRecorder.StackPiece()]
+
+        self.stack_piece_of_sample = array('L')
+        self.thread_of_sample = array('Q')
+
+        self.conn = conn
+
+
+    def insert_stack_pieces(self, frames : Sequence[tuple[gdb.Value, gdb.Value]], rr_event : int, tid : int):
+        tree_pointer = self.stack_pieces[0]
+        stack_piece_index = 0
+
+        reused = 0
+
+        for frm in frames[::-1]:
+            assert frm[0] is not None
+            assert frm[1] is not None
+            assert frm[0].address is not None
+            assert frm[1].address is not None
+            frma = (int(frm[0].address), int(frm[1].address))
+            # try:
+                # print("addr: ", int(frm[0].address), " ", int(frm[1].address))
+            # except:
+                # print(frm)
+
+            try:
+                # print("1")
+                found = tree_pointer.piece_cur_ops.index(frma[0])
+                # print("2")
+                stack_piece_index = tree_pointer.pieces[found]
+                # print("3")
+                tree_pointer = self.stack_pieces[stack_piece_index]
+                # print("4")
+                reused += 1
+            except ValueError:
+                # print("5")
+                if frm[0].address not in self.sfidx_by_cur_op:
+                    # print("6")
+                    sfidx = len(self.sfidx_to_sfaddr)
+                    # print("7")
+                    self.sfidx_by_cur_op[frma[0]] = sfidx
+                    # print("8")
+                    self.sfidx_to_sfaddr.append(frm[1])
+                    # print(f"Inserted sfidx-to-sfaddr: {sfidx} -> {frma[1]} for cur_op {frma[0]}")
+                else:
+                    # print("9")
+                    sfidx = self.sfidx_by_cur_op[frma[0]]
+                # print("10")
+                new_piece = StackRecorder.StackPiece()
+                # print("11")
+                stack_piece_index = len(self.stack_pieces)
+                # print("12")
+                tree_pointer.pieces.append(stack_piece_index)
+                # print("13")
+                self.stack_pieces.append(new_piece)
+                # print("14")
+                tree_pointer.piece_cur_ops.append(frma[0])
+
+                tree_pointer = new_piece
+
+        while rr_event >= len(self.stack_piece_of_sample):
+            self.stack_piece_of_sample.append(0)
+            self.thread_of_sample.append(0)
+        self.stack_piece_of_sample[rr_event] = stack_piece_index
+        self.thread_of_sample[rr_event] = tid
+
+        print(f"done inserting; reused {reused:3d} out of {len(frames):3d}  |  stack pieces: {len(self.stack_pieces):4d}  |  cur ops: {len(self.sfidx_by_cur_op):4d}  |  stack piece of sample {len(self.stack_piece_of_sample)}  |  thread of sample {len(self.thread_of_sample)}")
+        # print("bla")
+
+    def dump_as_profile_file(self):
+        print("... preparing profile json data ...")
+        # For the FrameTable, look up index by address
+        frame_idx_by_cur_op : dict[int, int] = dict()
+        # Frame index to address, reverse of the above
+        cur_ops_for_frame_table : array = array('Q')
+
+        # First, turn the stack tree upside-down, yippie
+        parent_indices = list()
+        index_into_frame_array = array('L')
+
+        # FrameTable
+        # Lookup from frame to func
+        sfidx_to_func_index : dict[int, int] = dict()
+        # one entry per frame, points into the func array
+        index_into_func_array = array('L')
+        category_by_frame_idx = array('b')
+
+        # FuncTable
+        # one entry per func, points into the string array
+        name_indices_by_func = array('L')
+        resource_by_func = array('L')
+
+        # Resources (source files)
+        resource_idx_by_cu_addr : dict[int, int] = dict()
+        resource_name_by_idx = array('L')
+        resource_type_by_idx = array('b')
+
+        string_list = []
+
+        index_into_frame_array.append(0)
+
+        def traverse(index, parent=0):
+            piece : StackRecorder.StackPiece = self.stack_pieces[index]
+
+            # new value. starts out as 0
+            this_index = len(parent_indices)
+            # parent index of null means "root node"
+            parent_indices.append(parent)
+
+            for i in range(len(piece.pieces)):
+                child_piece_index : int = piece.pieces[i]
+                cur_op : int = piece.piece_cur_ops[i]
+
+                category_id = 0
+
+                # Make the new frames array entry as well
+                if cur_op not in frame_idx_by_cur_op:
+                    frame_entry_idx = len(frame_idx_by_cur_op)
+                    frame_idx_by_cur_op[cur_op] = frame_entry_idx
+                    cur_ops_for_frame_table.append(cur_op)
+
+                    # This may be the first time we've seen the sfidx for the
+                    # provided cur_op. If so, create a new entry in the
+                    # tables for FuncTable
+                    sfidx = self.sfidx_by_cur_op[cur_op]
+                    if sfidx not in sfidx_to_func_index:
+                        func_index = len(name_indices_by_func)
+
+                        name_of_frame = "error looking up frame name"
+                        try:
+                            sfaddr = self.sfidx_to_sfaddr[sfidx]
+                            name_of_frame = mvmstr_to_str(sfaddr["name"])
+                        except IndexError:
+                            print(f"Could not get addr at sfidx {sfidx} for addr {cur_op}")
+
+                        try:
+                            stridx = string_list.index(name_of_frame)
+                        except ValueError:
+                            stridx = len(string_list)
+                            string_list.append(name_of_frame)
+
+                        name_indices_by_func.append(stridx)
+                        index_into_func_array.append(func_index)
+                        sfidx_to_func_index[sfidx] = func_index
+
+                        cu_addr = int(sfaddr["cu"])
+                        if cu_addr not in resource_idx_by_cu_addr:
+                            cu_filename_ptr = sfaddr["cu"]["body"]["filename"]
+                            if int(cu_filename_ptr) != 0:
+                                try:
+                                    cu_filename = mvmstr_to_str(cu_filename_ptr)
+                                except:
+                                    cu_filename = "(error getting name)"
+                            else:
+                                cu_filename = "(unknown)"
+
+                            try:
+                                stridx = string_list.index(cu_filename)
+                            except ValueError:
+                                stridx = len(string_list)
+                                string_list.append(cu_filename)
+
+                            resource_idx_by_cu_addr[cu_addr] = len(resource_name_by_idx)
+                            resource_name_by_idx.append(stridx)
+
+                            if "runtime/CORE." in cu_filename:
+                                category_id = 2
+                            elif "share/nqp/lib" in cu_filename:
+                                category_id = 3
+                            elif "perl6/lib" in cu_filename:
+                                category_id = 4
+                            elif 'share/perl6' in cu_filename:
+                                category_id = 5
+                            else:
+                                category_id = 1
+
+                            print(f"added new category id into resource_type_by_idx at index {len(resource_type_by_idx)}")
+                            resource_type_by_idx.append(category_id)
+                        else:
+                            ridx = resource_idx_by_cu_addr[cu_addr]
+                            print(f"looking for category of resource idx {ridx} of cu addr {cu_addr}")
+                            category_id = resource_type_by_idx[ridx]
+
+                        resource_by_func.append(resource_idx_by_cu_addr[cu_addr])
+
+                    else:
+                        func_index = sfidx_to_func_index[sfidx]
+                        index_into_func_array.append(func_index)
+
+                else:
+                    frame_entry_idx = frame_idx_by_cur_op[cur_op]
+
+                    sfidx = self.sfidx_by_cur_op[cur_op]
+                    sfaddr = self.sfidx_to_sfaddr[sfidx]
+                    cu_addr = int(sfaddr["cu"])
+                    ridx = resource_idx_by_cu_addr[cu_addr]
+                    category_id = resource_type_by_idx[ridx]
+
+                category_by_frame_idx.append(category_id)
+                index_into_frame_array.append(frame_entry_idx)
+
+                # the new index child_piece_index is an index into the "old"
+                # stack pieces array. A new index will be created for it inside
+                # the call and the offset is calculated from that new index
+                # and "this_index" being the parent.
+                traverse(child_piece_index, this_index)
+
+        traverse(0, None)
+
+        print("... preparing samples ...")
+
+        all_tids = sorted(set(self.thread_of_sample))
+
+        stacks_per_thread = {tid: array('L') for tid in all_tids}
+        times_per_thread  = {tid: array('d') for tid in all_tids}
+
+        cur = self.conn.cursor();
+        cur.execute("select rr_event, rr_time from event_times;")
+        time_of_event = {e[0]: e[1] for e in cur.fetchall()}
+
+        for idx in range(len(self.thread_of_sample)):
+            tid = self.thread_of_sample[idx]
+            rr_event = idx
+
+            stacks_per_thread[tid].append(self.stack_piece_of_sample[idx])
+
+            times_per_thread[tid].append(time_of_event.get(rr_event, time_of_event.get(rr_event - 1, 0)) * 1000)
+
+
+        def samples_for_thread(tid):
+            return dict(
+                stack=list(stacks_per_thread[tid]),
+                time=list(times_per_thread[tid]),
+                weight=None,
+                weightType="samples",
+                length=len(stacks_per_thread[tid]),
+            )
+
+
+        threads = [dict(
+            processType="default",
+            processStartupTime=0,
+            processShutdownTime=None,
+            registerTime=0,
+            unregisterTime=None,
+            pausedRanges=[],
+            name="Raku frames!",
+            isMainThread=False,
+            pid=self.pid,
+            tid=str(tid) + ".raku",
+            samples=samples_for_thread(tid),
+            markers=dict(
+                data=[],
+                name=[],
+                startTime=[],
+                endTime=[],
+                phase=[],
+                category=[],
+                length=0,
+            ),
+        ) for tid in all_tids]
+
+        if len(index_into_frame_array) != len(parent_indices):
+            print(f"    !!!!  length mismatch for stackTable: {len(index_into_frame_array)} vs {len(parent_indices)}")
+
+        if len(cur_ops_for_frame_table) != len(index_into_func_array):
+            print(f"    !!!!  length mismatch for frameTable: {len(cur_ops_for_frame_table)} vs {len(index_into_func_array)}")
+
+        def cat(name, color):
+            return dict(name=name, color=color, subcategories=["Other"])
+
+        categories = [
+            cat("Other",    "grey"),
+            cat("User",   "yellow"),
+            cat("Core", "lightred"),
+            cat("NQP", "lightblue"),
+            cat("Rakudo", "maroon"),
+            cat("Modules", "green"),
+        ]
+
+        import json
+        print("... serializing data")
+        result = json.dumps(dict(
+            meta=dict(
+                interval=1000,
+                startTime=0,
+                processType=0,
+                product="moarvm rrdb",
+                stackwalk=1,
+                version=24,
+                preprocessedProfileVersion=60,
+                sourceCodeIsNotOnSearchfox=True,
+                markerSchema=[],
+                categories=categories,
+            ),
+            libs=[],
+            shared=dict(
+                stackTable=dict(
+                    frame=list(index_into_frame_array),
+                    prefix=list(parent_indices),
+                    length=len(index_into_frame_array)
+                ),
+                frameTable=dict(
+                    address=list(cur_ops_for_frame_table),
+                    length=len(cur_ops_for_frame_table),
+                    inlineDepth=[0] * len(cur_ops_for_frame_table),
+                    category=list(category_by_frame_idx),
+                    subcategory=[None] * len(cur_ops_for_frame_table),
+                    innerWindowID=[None] * len(cur_ops_for_frame_table),
+                    nativeSymbol=[None] * len(cur_ops_for_frame_table),
+                    line=[None] * len(cur_ops_for_frame_table),
+                    column=[None] * len(cur_ops_for_frame_table),
+                    func=list(index_into_func_array),
+                ),
+                funcTable=dict(
+                    name=list(name_indices_by_func),
+                    isJS=[False] * len(name_indices_by_func),
+                    relevantForJS=[False] * len(name_indices_by_func),
+                    resource=list(resource_by_func),
+                    source=[None] * len(name_indices_by_func),
+                    lineNumber=[None] * len(name_indices_by_func),
+                    columnNumber=[None] * len(name_indices_by_func),
+                    originalLocation=[None] * len(name_indices_by_func),
+                    length=len(name_indices_by_func),
+                ),
+                resourceTable=dict(
+                      length=len(resource_name_by_idx),
+                      lib=[None] * len(resource_name_by_idx),
+                      name=list(resource_name_by_idx),
+                      host=[0] * len(resource_name_by_idx),
+                      type=[0] * len(resource_name_by_idx),
+                ),
+                nativeSymbols=dict(),
+                stringArray=string_list,
+                sources=dict(),
+                sourceLocationTable=dict(),
+            ),
+            threads=threads,
+        ))
+
+        with open("rakudo_profile.json", "w") as f:
+            f.write(result)
+        print(f"Data written to rakudo_profile.json: {len(result)} bytes")
+
 execution_db : Connection | None = None
 
 def ensure_execution_db() -> Connection:
@@ -1130,6 +1510,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     def __init__(self):
         super(MakeExecutionDatabaseCommand, self).__init__("moar rrdb", gdb.COMMAND_DATA)
+
+    stackrec : StackRecorder
 
     _disabled_breakpoints = None
     _created_breakpoints = None
@@ -1202,17 +1584,29 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 print(ex)
 
         query = f"INSERT INTO {table_name} VALUES ({column_expr});"
-        self._db_cur.execute(query, row)
+        try:
+            self._db_cur.execute(query, row)
 
-        if rr_event != self._last_saved_event_time:
-            resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
-            rr_time = float(resp[resp.rindex(b' ') + 1:])
+            if rr_event != self._last_saved_event_time:
+                resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
+                rr_time = float(resp[resp.rindex(b' ') + 1:])
 
-            query = f'INSERT INTO event_times VALUES (?, ?)';
-            self._db_cur.execute(query, (rr_event, rr_time))
-            self._last_saved_event_time = rr_event
+                query = f'INSERT INTO event_times VALUES (?, ?)';
+                self._db_cur.execute(query, (rr_event, rr_time))
+                self._last_saved_event_time = rr_event
 
-        self._db_conn.commit()
+                # Record a stack into the stack tree
+                to_insert = stack_for_stack_piece_inserter()
+                try:
+                    if to_insert:
+                        self.stackrec.insert_stack_pieces(to_insert, rr_event=rr_event, tid=currthreadptid)
+                except Exception as ex:
+                    print("could not insert stack pieces: ", ex)
+                    raise
+
+
+        finally:
+            self._db_conn.commit()
 
         return row
 
@@ -1268,6 +1662,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         self._db_file.close()
         self._db_conn = sqlite3.connect(self._db_file.name, autocommit=False, timeout=30)
         self._db_cur = self._db_conn.cursor()
+
+        self.stackrec = StackRecorder(gdb.inferiors()[0].pid, self._db_conn)
 
         print("")
         print("    sqlite3 file can be found at ", self._db_file.name)
@@ -1583,6 +1979,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 gdb.set_convenience_variable("moar_rrdb_file", self._db_file.name)
             except Exception as e:
                 print("Could not store the name of the rrdb file in convenience var :(", e)
+
+            # try:
+            self.stackrec.dump_as_profile_file()
+            # except Exception as ex:
+                # print("Error while trying to dump stackrec profile file :(")
+                # print(ex)
+
             self.teardown()
 
 @dataclass
@@ -2058,6 +2461,16 @@ class MoarStackFrame:
         sfb = self._static_info_body
 
         return resolve_annotation(sfb, offs, str_cache)
+
+def stack_for_stack_piece_inserter() -> Sequence[tuple[gdb.Value, gdb.Value]]:
+    bits = []
+    cur_frame : MoarStackFrame = MoarStackFrame.from_tc()
+
+    while cur_frame is not None:
+        bits.append((cur_frame.cur_op, cur_frame._static_info_body))
+        cur_frame = cur_frame.caller
+
+    return bits
 
 def extract_moar_stack_frame_args(cur_frame, str_cache = None):
     """From a MoarStackFrame, parse the callsite and get a string with
