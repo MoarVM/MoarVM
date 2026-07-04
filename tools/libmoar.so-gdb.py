@@ -1138,7 +1138,7 @@ class StackRecorder:
         tree_pointer = self.stack_pieces[0]
         stack_piece_index = 0
 
-        reused = 0
+        # reused = 0
 
         for frm in frames[::-1]:
             assert frm[0] is not None
@@ -1159,7 +1159,7 @@ class StackRecorder:
                 # print("3")
                 tree_pointer = self.stack_pieces[stack_piece_index]
                 # print("4")
-                reused += 1
+                # reused += 1
             except ValueError:
                 # print("5")
                 if frm[0].address not in self.sfidx_by_cur_op:
@@ -1192,7 +1192,7 @@ class StackRecorder:
         self.stack_piece_of_sample[rr_event] = stack_piece_index
         self.thread_of_sample[rr_event] = tid
 
-        print(f"done inserting; reused {reused:3d} out of {len(frames):3d}  |  stack pieces: {len(self.stack_pieces):4d}  |  cur ops: {len(self.sfidx_by_cur_op):4d}  |  stack piece of sample {len(self.stack_piece_of_sample)}  |  thread of sample {len(self.thread_of_sample)}")
+        # print(f"reused {reused:3d} / {len(frames):3d} | stack pcs: {len(self.stack_pieces):4d} | cur ops: {len(self.sfidx_by_cur_op):4d} | samples {len(self.stack_piece_of_sample)}")
         # print("bla")
 
     def dump_as_profile_file(self):
@@ -1302,11 +1302,11 @@ class StackRecorder:
                             else:
                                 category_id = 1
 
-                            print(f"added new category id into resource_type_by_idx at index {len(resource_type_by_idx)}")
+                            # print(f"added new category id into resource_type_by_idx at index {len(resource_type_by_idx)}")
                             resource_type_by_idx.append(category_id)
                         else:
                             ridx = resource_idx_by_cu_addr[cu_addr]
-                            print(f"looking for category of resource idx {ridx} of cu addr {cu_addr}")
+                            # print(f"looking for category of resource idx {ridx} of cu addr {cu_addr}")
                             category_id = resource_type_by_idx[ridx]
 
                         resource_by_func.append(resource_idx_by_cu_addr[cu_addr])
@@ -1492,9 +1492,13 @@ def ensure_execution_db() -> Connection:
     return execution_db
 
 def follow_fields(val : gdb.Value, fields : list[str]):
-    for step in fields:
-        val = val[step]
-    return val
+    try:
+        for step in fields:
+            val = val[step]
+        return val
+    except Exception as ex:
+        print(f"error trying to get {fields} ", ex)
+        raise
 
 class MakeExecutionDatabaseCommand(gdb.Command):
     """Run execution from beginning to end, creating a database with interesting events.
@@ -1503,13 +1507,18 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     Possible arguments:
 
-      - notrackgc      Don't record every object's old and new addresses when doing GC
+      - trackgc      Record every object's old and new addresses when doing GC
+      - deopt        Record whenever any frame hits a deopt one, deopt all, or lazy deopt.
     """
 
+    allowedflags : Set[str] = {"trackgc", "deopt"}
     flags : Set[str]
 
     def __init__(self):
         super(MakeExecutionDatabaseCommand, self).__init__("moar rrdb", gdb.COMMAND_DATA)
+
+    def complete(self, text, word):
+        return [f for f in self.allowedflags if f not in text and (word is None or f.startswith(word))]
 
     stackrec : StackRecorder
 
@@ -1533,7 +1542,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 res_vals = []
                 for (colname, fieldname) in fields:
                     res_keys.append(colname)
-                    res_vals.append(pytype(val[fieldname]))
+                    try:
+                        res_vals.append(pytype(val[fieldname]))
+                    except gdb.MemoryError:
+                        # print(f"Could not get value from field {fieldname} in {var_name}.{steps}")
+                        res_vals.append(None)
                 return res_keys, res_vals
             return local_fields_impl
 
@@ -1567,7 +1580,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         row["__frame"] = frame
         row["__currthreadptid"] = currthreadptid
 
-        for expr in exprs:
+        for expr_index, expr in enumerate(exprs):
             try:
                 if isinstance(expr, list):
                     key, value = expr
@@ -1580,12 +1593,15 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                     for i in range(len(key)):
                         row[key[i]] = value[i]
             except Exception as ex:
-                print("when evaluating expr ", expr, " for table ", table_name)
+                print("when evaluating expr ", expr_index, " ", expr, " for table ", table_name)
                 print(ex)
 
         query = f"INSERT INTO {table_name} VALUES ({column_expr});"
         try:
-            self._db_cur.execute(query, row)
+            try:
+                self._db_cur.execute(query, row)
+            except Exception as ex:
+                print("row not entered", ex)
 
             if rr_event != self._last_saved_event_time:
                 resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
@@ -1603,7 +1619,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 except Exception as ex:
                     print("could not insert stack pieces: ", ex)
                     raise
-
 
         finally:
             self._db_conn.commit()
@@ -1711,7 +1726,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         """)
 
         self._db_cur.execute("""
-            create table gc_ends(
+            create table gc_ends (
                 rr_tick integer,
                 rr_event integer
             );
@@ -1740,7 +1755,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         """)
 
         self._db_cur.execute("""
-            create table nfa_runs(
+            create table nfa_runs (
                 rr_tick integer,
                 rr_event integer,
                 offset integer,
@@ -1778,6 +1793,19 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 idx integer
             );
         """)
+
+        self._db_cur.execute("""
+            create table deopt (
+                tc integer,
+                rr_tick integer,
+                rr_event integer,
+                sf_addr integer,
+                cur_op integer,
+                cand_bc_addr integer,
+                deopt_idx integer
+            );
+        """)
+
 
         self._db_cur.execute("""
             create table meta_info (
@@ -1838,13 +1866,55 @@ class MakeExecutionDatabaseCommand(gdb.Command):
               ], int),
             ], "process_worklist")._extra(store_seq_num))
 
-        if "notrackgc" not in self.flags:
+        if "trackgc" in self.flags:
             gdb.execute("list process_worklist", False, True)
             forwarder_update_lineno = gdb.execute("search item->sc_forward_u.forwarder = new_addr;", False, True).split("\t")[0]
 
             cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:" + forwarder_update_lineno))
         else:
-            print("notrackgc passed. Will not record every object's old and new address.")
+            print("trackgc not passed. Will not record every object's old and new address.")
+
+        if 'deopt' in self.flags:
+            mbc_addr_str = gdb.execute("print/d &MAGIC_BYTECODE", False, True).splitlines()[0]
+            magic_bytecode_addr = int(mbc_addr_str[mbc_addr_str.find(" = ")+3:])
+            def addr_unless_its_magic_bytecode(v : gdb.Value):
+                cur_op_addr = v.dereference()
+                if int(cur_op_addr) == magic_bytecode_addr:
+                    return None
+                else:
+                    return int(cur_op_addr)
+
+            def tryint(v : gdb.Value):
+                try:
+                    return int(v)
+                except gdb.MemoryError:
+                    return None
+
+            cbp.append(SQLRecordingBreakpoint(self, "deopt", "tc rr_tick rr_event sf_addr cand_bc_addr cur_op deopt_idx", [
+                EXP.local_var("tc", "tc", int),
+                EXP.local_field("sf_addr", "tc", ["cur_frame", "static_info"], int),
+                EXP.local_field("cand_bc_addr", "tc", ["cur_frame", "spesh_cand", "body", "bytecode"], tryint),
+                EXP.local_field("cur_op", "tc", ["interp_cur_op"], addr_unless_its_magic_bytecode),
+                ["deopt_idx", None],
+                ], "MVM_spesh_deopt_during_unwind"))
+
+            cbp.append(SQLRecordingBreakpoint(self, "deopt", "tc rr_tick rr_event sf_addr cand_bc_addr cur_op deopt_idx", [
+                EXP.local_var("tc", "tc", int),
+                EXP.local_field("sf_addr", "tc", ["cur_frame", "static_info"], int),
+                EXP.local_field("cand_bc_addr", "tc", ["cur_frame", "spesh_cand", "body", "bytecode"], tryint),
+                EXP.local_field("cur_op", "tc", ["interp_cur_op"], addr_unless_its_magic_bytecode),
+                EXP.local_var("deopt_idx", "deopt_idx", int),
+                ], "MVM_spesh_deopt_one"))
+
+            cbp.append(SQLRecordingBreakpoint(self, "deopt", "tc rr_tick rr_event sf_addr cand_bc_addr cur_op deopt_idx", [
+                EXP.local_var("tc", "tc", int),
+                EXP.local_field("sf_addr", "tc", ["cur_frame", "static_info"], int),
+                EXP.local_field("cand_bc_addr", "tc", ["cur_frame", "spesh_cand", "body", "bytecode"], tryint),
+                EXP.local_field("cur_op", "tc", ["interp_cur_op"], addr_unless_its_magic_bytecode),
+                ["deopt_idx", None],
+                ], "MVM_spesh_deopt_all"))
+        else:
+            print("deoptnot passed. Will not record calls deopt functions.")
 
         #gdb.execute("list MVM_frame_dispatch", False, True)
         #dispatch_trampoline_lineno = gdb.execute("search MVM_jit_code_trampoline(tc);", False, True).split("\t")[0]
@@ -1865,6 +1935,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", "rr_tick rr_event sf_addr bytecode_addr size", [
             EXP.local_field("sf_addr", "p", ["sf"], int),
+            EXP.local_var("candidate", "candidate", int),
             EXP.local_fields("candidate", ["body"], [
                                  ["bytecode_addr", "bytecode"],
                                  ["size", "bytecode_size"]
@@ -1971,10 +2042,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             self.run()
         finally:
             try:
-                gdb.execute("info breakpoints")
-            except:
-                pass
-            try:
                 execution_db = self._db_conn
                 gdb.set_convenience_variable("moar_rrdb_file", self._db_file.name)
             except Exception as e:
@@ -1985,6 +2052,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             # except Exception as ex:
                 # print("Error while trying to dump stackrec profile file :(")
                 # print(ex)
+
+            print("")
+            print("    sqlite3 file can be found at ", self._db_file.name)
+            print("")
+
 
             self.teardown()
 
