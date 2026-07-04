@@ -1691,9 +1691,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 rr_event integer,
                 data_addr integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table staticframes (
                 rr_tick integer,
                 rr_event integer,
@@ -1703,9 +1700,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 cuuid varchar,
                 name varchar
             );
-        """)
-
-        self._db_cur.execute("""
             create table spesh_bytecode (
                 rr_tick integer,
                 rr_event integer,
@@ -1713,9 +1707,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 bytecode_addr integer,
                 size integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table gcs (
                 tc integer,
                 rr_tick integer,
@@ -1723,16 +1714,10 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 gc_seq_number integer,
                 is_full integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table gc_ends (
                 rr_tick integer,
                 rr_event integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table worklist_runs (
                 tc integer,
                 rr_tick integer,
@@ -1742,9 +1727,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 nursery_tospace integer,
                 nursery_fromspace integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table continuation_events (
                 tc integer,
                 rr_tick integer,
@@ -1752,49 +1734,31 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tag integer,
                 is_slice boolean
             );
-        """)
-
-        self._db_cur.execute("""
             create table nfa_runs (
                 rr_tick integer,
                 rr_event integer,
                 offset integer,
                 string integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table event_times (
                 rr_event integer,
                 rr_time float
             );
-        """)
-
-        self._db_cur.execute("""
             create table threadcontexts (
                 rr_event integer,
                 tc integer,
                 tid integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table object_movements (
                 rr_event integer,
                 to_addr integer,
                 from_addr integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table sc_code (
                 sf_addr integer,
                 sc_addr integer,
                 idx integer
             );
-        """)
-
-        self._db_cur.execute("""
             create table deopt (
                 tc integer,
                 rr_tick integer,
@@ -1804,10 +1768,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 cand_bc_addr integer,
                 deopt_idx integer
             );
-        """)
 
-
-        self._db_cur.execute("""
             create table meta_info (
                 key varchar,
                 value varchar
