@@ -46,7 +46,6 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
-from symtable import Symbol
 from array import array
 from sqlite3 import Connection
 from dataclasses import dataclass, field
@@ -55,7 +54,6 @@ from collections.abc import Mapping, Sequence, Set, Callable, Buffer
 from enum import Enum
 import gdb
 from collections import defaultdict
-from itertools import chain
 import math
 import random
 import struct
@@ -1084,6 +1082,14 @@ class SQLRecordingBreakpointWithPrereq(SQLRecordingBreakpoint):
             print("error evaluating bp prereq: ", ex)
         return False
 
+class EventTimeAndStackBreakpoint(AutoResumingBreakpoint):
+    def __init__(self, medbc, *args):
+        super(EventTimeAndStackBreakpoint, self).__init__(*args)
+        self._medbc = medbc # MakeExecutionDatabaseCommand
+
+    def _hit_breakpoint_action(self):
+        self._medbc._register_event_time_and_stack_only()
+
 class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
     def __init__(self, medbc, *args):
         super(ObjectMovementRecordingBreakpoint, self).__init__(*args)
@@ -1092,7 +1098,17 @@ class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
     def _hit_breakpoint_action(self):
         self._medbc._register_object_movement()
 
+#  ____  _             _      ____                        _
+# / ___|| |_ __ _  ___| | __ |  _ \ ___  ___ ___  _ __ __| | ___ _ __
+# \___ \| __/ _` |/ __| |/ / | |_) / _ \/ __/ _ \| '__/ _` |/ _ \ '__|
+#  ___) | || (_| | (__|   <  |  _ <  __/ (_| (_) | | | (_| |  __/ |
+# |____/ \__\__,_|\___|_|\_\ |_| \_\___|\___\___/|_|  \__,_|\___|_|
+#
 class StackRecorder:
+    """Holds state about stacks of op addresses and their corresponding static
+    frame addresses in order to generate a Firefox Profiler UI compatible
+    file."""
+
     @dataclass
     class Func:
         sfaddr : int
@@ -1106,23 +1122,33 @@ class StackRecorder:
 
     pid : int
 
+    # Lookup dictionary from address of staticframe to index into the arrays of
+    # function properties
     func_by_sfaddr  : dict[int, int]
-    func_by_index   : list[Func]
+
+    # List of "stack pieces", where each has an array of child piece indices
+    # and an array of the cur_op addresses of these child pieces.
     stack_pieces    : list[StackPiece]
 
+    # Direct lookup from `cur_op` to the index of a static frame.
     sfidx_by_cur_op  : dict[int, int]
+    # List of static frame index to static frame object pointer.
     sfidx_to_sfaddr  : list
 
+    # Arrays of sample properties:
+
+    # Each sample's stack piece index
     stack_piece_of_sample: array
+    # Each sample's TID
     thread_of_sample : array
 
+    # sqlite3 database connection for looking up rr_event -> rr_time
     conn : Connection
 
     def __init__(self, pid : int, conn : Connection):
         self.pid = pid
 
         self.func_by_sfaddr = dict()
-        self.func_by_index = list()
         self.sfidx_by_cur_op = dict()
         self.sfidx_to_sfaddr = list()
 
@@ -1151,6 +1177,7 @@ class StackRecorder:
             # except:
                 # print(frm)
 
+            # Climb the tree of stack pieces
             try:
                 # print("1")
                 found = tree_pointer.piece_cur_ops.index(frma[0])
@@ -1162,7 +1189,7 @@ class StackRecorder:
                 # reused += 1
             except ValueError:
                 # print("5")
-                if frm[0].address not in self.sfidx_by_cur_op:
+                if frma[0] not in self.sfidx_by_cur_op:
                     # print("6")
                     sfidx = len(self.sfidx_to_sfaddr)
                     # print("7")
@@ -1189,6 +1216,8 @@ class StackRecorder:
         while rr_event >= len(self.stack_piece_of_sample):
             self.stack_piece_of_sample.append(0)
             self.thread_of_sample.append(0)
+        if self.thread_of_sample[rr_event] != 0:
+            print(f"wtf, thread of sample already had something for {rr_event}")
         self.stack_piece_of_sample[rr_event] = stack_piece_index
         self.thread_of_sample[rr_event] = tid
 
@@ -1314,6 +1343,8 @@ class StackRecorder:
                     else:
                         func_index = sfidx_to_func_index[sfidx]
                         index_into_func_array.append(func_index)
+                        ridx = resource_by_func[func_index]
+                        category_id = resource_type_by_idx[ridx]
 
                 else:
                     frame_entry_idx = frame_idx_by_cur_op[cur_op]
@@ -1338,6 +1369,7 @@ class StackRecorder:
         print("... preparing samples ...")
 
         all_tids = sorted(set(self.thread_of_sample))
+        print(f"   ... got samples for {len(all_tids)} TIDs")
 
         stacks_per_thread = {tid: array('L') for tid in all_tids}
         times_per_thread  = {tid: array('d') for tid in all_tids}
@@ -1346,13 +1378,22 @@ class StackRecorder:
         cur.execute("select rr_event, rr_time from event_times;")
         time_of_event = {e[0]: e[1] for e in cur.fetchall()}
 
+        dropped_samples = 0
         for idx in range(len(self.thread_of_sample)):
             tid = self.thread_of_sample[idx]
+            if tid == 0:
+                continue
+
             rr_event = idx
 
-            stacks_per_thread[tid].append(self.stack_piece_of_sample[idx])
+            try:
+                times_per_thread[tid].append(time_of_event[rr_event] * 1000)
+                stacks_per_thread[tid].append(self.stack_piece_of_sample[idx])
+            except KeyError:
+                dropped_samples += 1
 
-            times_per_thread[tid].append(time_of_event.get(rr_event, time_of_event.get(rr_event - 1, 0)) * 1000)
+        if dropped_samples:
+            print(f"   ... dropped {dropped_samples} out of {len(self.stack_piece_of_sample)} samples; have times for {len(time_of_event)} events")
 
 
         def samples_for_thread(tid):
@@ -1509,9 +1550,10 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
       - trackgc      Record every object's old and new addresses when doing GC
       - deopt        Record whenever any frame hits a deopt one, deopt all, or lazy deopt.
+      - stack        Take stack samples on every event.
     """
 
-    allowedflags : Set[str] = {"trackgc", "deopt"}
+    allowedflags : Set[str] = {"trackgc", "deopt", "stack"}
     flags : Set[str]
 
     def __init__(self):
@@ -1556,6 +1598,45 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     _last_saved_event_time = -1
 
+    def _insert_time_and_take_stack(self, rr_event, currthreadptid, conn):
+        # If this is the firs time we see this rr_event time,
+        if rr_event > self._last_saved_event_time:
+            # Store the relative elapsed time in `event_times`
+            resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
+            rr_time  = float(resp[resp.rindex(b' ') + 1:])
+
+            query = f'INSERT INTO event_times VALUES (?, ?)';
+            self._db_cur.execute(query, (rr_event, rr_time))
+            self._last_saved_event_time = rr_event
+
+            # If stack sampling was requested, take a sample and put it in
+            # the stack recorder
+            if "stack" in self.flags:
+                # Record a stack into the stack tree
+                to_insert = stack_for_stack_piece_inserter()
+                try:
+                    if to_insert:
+                        self.stackrec.insert_stack_pieces(to_insert, rr_event=rr_event, tid=currthreadptid)
+                except Exception as ex:
+                    print("could not insert stack pieces: ", ex)
+                    raise
+
+    def _register_event_time_and_stack_only(self):
+        conn = gdb.connections()[0]
+        assert isinstance(conn, gdb.RemoteTargetConnection)
+
+        currthreadptid = conn.send_packet("qC")
+        currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+        rr_event = int(resp[resp.rindex(b' '):])
+
+        try:
+            self._insert_time_and_take_stack(rr_event, currthreadptid, conn)
+
+        finally:
+            self._db_conn.commit()
+
     def _register_event_sql(self, table_name, column_expr, exprs):
         conn = gdb.connections()[0]
         assert isinstance(conn, gdb.RemoteTargetConnection)
@@ -1598,27 +1679,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         query = f"INSERT INTO {table_name} VALUES ({column_expr});"
         try:
+            # Insert row into the database
             try:
                 self._db_cur.execute(query, row)
             except Exception as ex:
                 print("row not entered", ex)
 
-            if rr_event != self._last_saved_event_time:
-                resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
-                rr_time = float(resp[resp.rindex(b' ') + 1:])
-
-                query = f'INSERT INTO event_times VALUES (?, ?)';
-                self._db_cur.execute(query, (rr_event, rr_time))
-                self._last_saved_event_time = rr_event
-
-                # Record a stack into the stack tree
-                to_insert = stack_for_stack_piece_inserter()
-                try:
-                    if to_insert:
-                        self.stackrec.insert_stack_pieces(to_insert, rr_event=rr_event, tid=currthreadptid)
-                except Exception as ex:
-                    print("could not insert stack pieces: ", ex)
-                    raise
+            self._insert_time_and_take_stack(rr_event, currthreadptid, conn)
 
         finally:
             self._db_conn.commit()
@@ -1628,6 +1695,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _last_saved_movement_event = -1
 
     def _register_object_movement(self):
+        # If `trackgc` flag was turned on, store the before and after
+        # addresses of any objects moved by the GC
         to_addr   = int(gdb.parse_and_eval("(uintptr_t)new_addr"))
         from_addr = int(gdb.parse_and_eval("(uintptr_t)item"))
         rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
@@ -1649,6 +1718,10 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         self._last_saved_event_time = -1
 
         def store_seq_num(ev):
+            """After `process_worklist`, store the gc_sequence_number from
+            the MVMInstance in the self._gc_seq_num.
+
+            Also output a short status line every 20 gc runs."""
             prev = self._gc_seq_num
             # self._gc_seq_num = int(gdb.parse_and_eval("tc->instance->gc_seq_number"))
             self._gc_seq_num = int(ev["__frame"].read_var("tc")["instance"]["gc_seq_number"])
@@ -1684,7 +1757,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         print("    sqlite3 file can be found at ", self._db_file.name)
         print("")
 
-        self._db_cur.execute("""
+        self._db_cur.executescript("""
             create table compunits (
                 tc integer,
                 rr_tick integer,
@@ -1805,7 +1878,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                               ("is_full", "gc_full_collect")], int),
             ], "run_gc"))
 
-
         gdb.execute("list finish_gc", False, True)
         finish_gc_orchestrator_signal_completed_lineno = gdb.execute("search uv_cond_broadcast(&tc->instance->cond_gc_completed);", False, True).split("\t")[0]
 
@@ -1876,6 +1948,9 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 ], "MVM_spesh_deopt_all"))
         else:
             print("deoptnot passed. Will not record calls deopt functions.")
+
+        if "stack" in self.flags:
+            cbp.append(EventTimeAndStackBreakpoint(self, "syscall_hook_internal"))
 
         #gdb.execute("list MVM_frame_dispatch", False, True)
         #dispatch_trampoline_lineno = gdb.execute("search MVM_jit_code_trampoline(tc);", False, True).split("\t")[0]
@@ -2009,7 +2084,9 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 print("Could not store the name of the rrdb file in convenience var :(", e)
 
             # try:
-            self.stackrec.dump_as_profile_file()
+            if "stack" in self.flags:
+                self.stackrec.dump_as_profile_file()
+
             # except Exception as ex:
                 # print("Error while trying to dump stackrec profile file :(")
                 # print(ex)
@@ -2033,19 +2110,203 @@ class TimelineEntry:
     earliest_time: float | None
     latest_time: float | None
 
+class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
+    def __init__(self, conn, starting_event, relevant_ptid, mtlc, tc, what, *args):
+        super(InvokeReturnTimelineRecordingBreakpoint, self).__init__(*args)
+        self.conn = conn
+        assert isinstance(conn, gdb.RemoteTargetConnection)
+        self.relevant_ptid = relevant_ptid
+        self.starting_event = starting_event
+        self.mtlc = mtlc
+        self.tc = tc
+        self.what = what
+
+    def stop(self):
+        try:
+            return self.do_stop()
+        except Exception as ex:
+            print("in breakpoint stop impl: ", ex)
+        return True
+
+    def do_stop(self):
+        currthreadptid = self.conn.send_packet("qC")
+        currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+        if currthreadptid != self.relevant_ptid:
+            print(f"Left current thread for breakpoint {self.location}")
+            return True
+
+        resp     = bytes.fromhex(self.conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+        rr_event = int(resp[resp.rindex(b' '):])
+
+        if not (self.starting_event - 2 <= rr_event <= self.starting_event + 2):
+        # if self.starting_event != rr_event:
+            print(f"Left current event for breakpoint {self.location}: {self.starting_event} vs {rr_event}")
+            return True
+
+        resp     = bytes.fromhex(self.conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+        rr_tick  = int(resp[resp.rindex(b' '):])
+
+        stack_depth = 0
+
+        funcname = None
+
+        if self.what == "invoke":
+            stack_depth += 1
+            invoked_sfb = gdb.selected_frame().read_var("code")["body"]["sf"]["body"]
+
+            funcname = mvmstr_to_str(invoked_sfb["name"])
+            if funcname == "":
+                funcname = f"({mvmstr_to_str(invoked_sfb["cuuid"])})"
+
+        cur_frame = MoarStackFrame.from_tc(self.tc)
+        if cur_frame is not None:
+            if funcname is None:
+                funcname = cur_frame.name
+                if funcname == "":
+                    funcname = f"({cur_frame.cuuid})"
+
+            while cur_frame is not None:
+                cur_frame = cur_frame.caller
+                stack_depth += 1
+        else:
+            if funcname is None:
+                funcname = "???"
+
+        self.mtlc.register_timeline_breakpoint(rr_event, rr_tick, self.what, funcname, stack_depth)
+
+        return False
+
+# class ContinuationEventTimelineRecordingBreakpoint(gdb.Breakpoint):
+#     def __init__(self, conn, starting_event, relevant_ptid, mtlc, tc, what, *args):
+#         super(ContinuationEventTimelineRecordingBreakpoint, self).__init__(*args)
+#         self.conn = conn
+#         assert isinstance(conn, gdb.RemoteTargetConnection)
+#         self.relevant_ptid = relevant_ptid
+#         self.starting_event = starting_event
+#         self.mtlc = mtlc
+#         self.tc = tc
+#         self.what = what
+
+#     def stop(self):
+#         try:
+#             return self.do_stop()
+#         except Exception as ex:
+#             print("in breakpoint stop impl: ", ex)
+#         return True
+
+#     def do_stop(self):
+#         currthreadptid = self.conn.send_packet("qC")
+#         currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+#         if currthreadptid != self.relevant_ptid:
+#             print(f"Left current thread for breakpoint {self.location}")
+#             return True
+
+#         resp     = bytes.fromhex(self.conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+#         rr_event = int(resp[resp.rindex(b' '):])
+
+#         # if not (self.starting_event - 2 <= rr_event <= self.starting_event + 2):
+#         if self.starting_event != rr_event:
+#             print(f"Left current event for breakpoint {self.location}: {self.starting_event} vs {rr_event}")
+#             return True
+
+#         resp     = bytes.fromhex(self.conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+#         rr_tick  = int(resp[resp.rindex(b' '):])
+
+#         self.mtlc.register_timeline_breakpoint(rr_event, rr_tick, self.what, None, None)
+
+#         return False
+
+
 class MoarTimelineCommand(gdb.Command):
-    """Show recent and upcoming events from moar rrdb's execution db"""
+    """Show recent and upcoming events from moar rrdb's execution db
+
+    You can pass a number as the only argument to get more or fewer lines
+    around the current time, otherwise you get up to 18.."""
 
     flags : Set[str]
 
     def __init__(self):
         super(MoarTimelineCommand, self).__init__("moar timeline", gdb.COMMAND_STATUS)
 
+    def register_timeline_breakpoint(self, event, tick, thing, func, depth):
+        # print(f"registering timeline event: {event=} {tick=} {thing=} {func=} {depth=}")
+        self.found_entries.append((event, tick, thing, func, depth))
+
     def invoke(self, argument, from_tty):
+        pagination_before = gdb.execute("show pagination", False, True) == "State of pagination is on.\n"
+        gdb.execute("set pagination off", False, False)
+        try:
+            self.do_invoke(argument, from_tty)
+        finally:
+            if pagination_before:
+                gdb.execute("set pagination on", False, True)
+
+    def do_invoke(self, argument : str, from_tty):
+        if argument and argument.isdecimal():
+            event_limit = int(argument)
+            print(f"using {argument=} as the limit ({event_limit=})")
+        else:
+            event_limit = 18
+
+        conn = gdb.connections()[0]
+        assert isinstance(conn, gdb.RemoteTargetConnection)
+
+        tc = find_tc()
+
         execution_db = ensure_execution_db()
 
-        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
-        rr_time  = float(gdb.execute("elapsed-time", False, True).replace("Elapsed Time (s): ", "").replace("\n", ""))
+        self.found_entries = []
+
+        currthreadptid = conn.send_packet("qC")
+        currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+        rr_event = int(resp[resp.rindex(b' '):])
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+        rr_tick  = int(resp[resp.rindex(b' '):])
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
+        rr_time  = float(resp[resp.rindex(b' ') + 1:])
+
+        chkp_res = gdb.execute("checkpoint", False, True)
+        chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+
+        try:
+            return_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "return", "MVM_frame_try_return")
+            invoke_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "invoke", "MVM_frame_dispatch")
+
+            # cont_contr_bp  = ContinuationEventTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
+            # cont_invoke_bp = ContinuationEventTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
+            cont_contr_bp  = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
+            cont_invoke_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
+
+            gdb.execute(f"run {rr_event - 1}")
+
+            resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+            effective_rr_event = int(resp[resp.rindex(b' '):])
+            if effective_rr_event != rr_event - 1:
+                print(f"... Wanted to go to event {rr_event} so issued `run {rr_event - 1}`` but ended up on {effective_rr_event} instead...")
+                gdb.execute(f"run {rr_event - 2}")
+
+                resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+                effective_rr_event = int(resp[resp.rindex(b' '):])
+                print(f"... Wanted to go to event {rr_event} so issued `run {rr_event - 2}`` but ended up on {effective_rr_event} instead...")
+
+            gdb.execute("continue")
+            gdb.execute(f"restart {chkp_id}")
+            gdb.execute(f"delete checkpoint {chkp_id}")
+        except Exception as ex:
+            print("Error trying to get invokes and returns for current event: ", ex)
+        finally:
+            return_bp.delete()
+            invoke_bp.delete()
+            cont_contr_bp.delete()
+            cont_invoke_bp.delete()
+
+        found_entries = [e for e in self.found_entries if e[0] == rr_event]
 
         try:
             cur = execution_db.cursor()
@@ -2088,7 +2349,94 @@ class MoarTimelineCommand(gdb.Command):
             for e in before:
                 gc_event_line(*e)
 
+            frame_events_before = [e for e in found_entries if e[1] < rr_tick]
+            frame_events_after  = [e for e in found_entries if e[1] >= rr_tick]
+
+            total_frame_events_before = len(frame_events_before)
+            total_frame_events_after  = len(frame_events_after)
+
+            few_frame_events_before = frame_events_before[-event_limit:]
+            few_frame_events_after  = frame_events_after [:event_limit]
+
+            if found_entries:
+                total_min_stack_depth = min([e[4] for e in found_entries])
+                min_stack_depth = min([e[4] for e in few_frame_events_before + few_frame_events_after])
+
+                lowest_depth_before = [e for e in frame_events_before if e[4] == total_min_stack_depth]
+                lowest_depth_after  = [e for e in frame_events_after  if e[4] == total_min_stack_depth]
+
+
+            # XXX: This grew organically and really, really, really wants a
+            # full rewrite ...
+            prev_invoke_event_line = (None, None, None, None, None)
+            def invoke_event_line(event, tick, thing, func, depth):
+                nonlocal prev_invoke_event_line
+                if prev_invoke_event_line[2] == "c.ctrl" and thing != "c.ctrl":
+                    # print(f"{event=} {tick=} {thing=} {func=} {depth=} prev: {prev_invoke_event_line=}")
+                    new_prev_line = list(prev_invoke_event_line)
+                    # new_prev_line[2] = "c.ctrl"
+                    # new_prev_line[4] = prev_invoke_event_line[4]
+                    old_prev_invoke_event_line = prev_invoke_event_line
+                    prev_invoke_event_line = tuple(new_prev_line)
+                    new_prev_line[4] = depth
+                    invoke_event_line(*new_prev_line)
+                    prev_invoke_event_line = old_prev_invoke_event_line
+
+                if thing == "invoke":
+                    lastmarker = "├─┬"
+                    # lastmarker = "├─┮"
+                elif thing == "return":
+                    lastmarker = "├─╯"
+                elif thing == "cont_control":
+                    lastmarker = f"control: prev depth {prev_invoke_event_line[4]} vs {depth}"
+                    thing   = "c.ctrl"
+                    # Terrible, terrible hack to attempt to print the line
+                    # again when we have the next line available, where we
+                    # can take the correct depth number
+                    prev_invoke_event_line = (event, tick, thing, func, depth)
+                    return
+                elif thing == "cont_invoke":
+                    lastmarker = f"invoke:  prev depth {prev_invoke_event_line[4]} vs {depth}"
+                    thing   = "c.invk"
+                elif thing == "c.ctrl":
+                    # print(f"making lastmarker: {event=} {tick=} {thing=} {func=} {depth=} prev: {prev_invoke_event_line=}")
+                    lastmarker = "├─" + "┴─" * (prev_invoke_event_line[4] - depth) + "╯"
+                else:
+                    lastmarker = "??? " + thing
+
+                if thing == "return" and func == prev_invoke_event_line[3] and depth == prev_invoke_event_line[4]:
+                    func_output = ""
+                else:
+                    func_output = " " + func
+
+                if depth >= min_stack_depth:
+                    depthmarker = "┊" * (min_stack_depth - total_min_stack_depth) + " " + "│ " * (depth - min_stack_depth) + lastmarker
+                else:
+                    depthmarker = "┊" * (depth - total_min_stack_depth)
+                print(f"{thing}:  {event:6d}.{tick:11d}  - {depthmarker}{func_output}")
+                prev_invoke_event_line = (event, tick, thing, func, depth)
+
+            if total_frame_events_before > len(few_frame_events_before):
+                print(f"{total_frame_events_before - len(few_frame_events_before)} invoke/return events omitted")
+
+            if found_entries and total_min_stack_depth != min_stack_depth and lowest_depth_before:
+                invoke_event_line(*lowest_depth_before[-1])
+                print("...")
+
+            for e in few_frame_events_before:
+                invoke_event_line(*e)
+
             print("you are here: ", rr_time, "        ", rr_event, " <-- you are here")
+
+            for e in few_frame_events_after:
+                invoke_event_line(*e)
+
+            if found_entries and total_min_stack_depth != min_stack_depth and lowest_depth_after:
+                print("...")
+                invoke_event_line(*lowest_depth_after[0])
+
+            if total_frame_events_after > len(few_frame_events_after):
+                print(f"{total_frame_events_after - len(few_frame_events_after)} invoke/return events omitted")
 
             for e in after:
                 gc_event_line(*e)
@@ -2412,7 +2760,7 @@ class MoarStackFrame:
         self._caller_obj = None
 
     @classmethod
-    def from_tc(cls, tc : gdb.Value | None = None):
+    def from_tc(cls, tc : gdb.Value | None = None) -> MoarStackFrame | None:
         """Given an MVMThreadContext *, create a MoarStackFrame from
         its cur_frame"""
         if tc is None:
@@ -2912,6 +3260,7 @@ def register_commands(objfile):
 def say_hello():
     try:
         if gdb.parse_and_eval('$moarvm_gdb_plugin_banner_shown') == 1:
+            print("MoarVM GDB Plugin re-loaded")
             return
     except:
         pass
