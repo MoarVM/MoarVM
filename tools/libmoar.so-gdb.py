@@ -1697,20 +1697,64 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     def _register_object_movement(self):
         # If `trackgc` flag was turned on, store the before and after
         # addresses of any objects moved by the GC
-        to_addr   = int(gdb.parse_and_eval("(uintptr_t)new_addr"))
-        from_addr = int(gdb.parse_and_eval("(uintptr_t)item"))
-        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
+        frame = gdb.selected_frame()
 
-        if self._last_saved_movement_event != rr_event:
-            query = "INSERT INTO object_movements VALUES (?, ?, ?);"
-            self._db_cur.execute(query, (rr_event, from_addr, to_addr))
-            self._db_conn.commit()
-            self._last_saved_movement_event = rr_event
-        else:
-            query = "INSERT INTO object_movements VALUES (null, ?, ?);"
-            self._db_cur.execute(query, (from_addr, to_addr))
-            self._db_conn.commit()
+        conn = gdb.connections()[0]
+        assert isinstance(conn, gdb.RemoteTargetConnection)
 
+        currthreadptid = conn.send_packet("qC")
+        currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
+
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+        rr_event = int(resp[resp.rindex(b' '):])
+
+        scan_ptr  = frame.read_var("tc")["nursery_fromspace"]
+        limit_ptr = frame.read_var('limit')
+        if int(limit_ptr) == int(scan_ptr):
+            return
+
+        nursery_start_addr = int(scan_ptr)
+
+        nursery_memory = gdb.selected_inferior().read_memory(int(scan_ptr), int(limit_ptr) - int(scan_ptr))
+
+        coll_typ = gdb.lookup_type("struct MVMCollectable")
+        coll_typ_sz = coll_typ.sizeof
+        forwarder_valid = int(gdb.lookup_symbol("MVM_CF_FORWARDER_VALID")[0].value())
+
+        # scanned_items = 0
+        # recorded_items = 0
+
+        tuples = []
+
+        scan_idx = 0
+        while scan_idx < len(nursery_memory):
+            item_mem = nursery_memory[scan_idx:scan_idx + coll_typ_sz]
+            item = gdb.Value(item_mem, coll_typ)
+            if int(item["flags2"]) & forwarder_valid:
+                to_addr = int(item["sc_forward_u"]["forwarder"])
+                from_addr = nursery_start_addr + scan_idx
+
+                tuples.append((from_addr, to_addr))
+                # recorded_items += 1
+
+            # scanned_items += 1
+            item_sz = int(item["size"])
+            scan_idx += item_sz
+            if not item_sz:
+                raise ValueError("item with size 0 found?!")
+
+
+        query = "INSERT INTO object_movements VALUES (?, ?, ?, null, null);"
+        self._db_cur.execute(query, (rr_event, nursery_start_addr, int(limit_ptr)))
+
+        if tuples:
+            query = "INSERT INTO object_movements VALUES (null, null, null, ?, ?);"
+            self._db_cur.executemany(query, tuples)
+
+        self._db_conn.commit()
+
+        self._last_saved_movement_event = rr_event
+        # print(f"At event {rr_event}: Scanned {scanned_items:6d} items, recorded {recorded_items:6d} pairs")
 
     def setup(self):
         import sqlite3
@@ -1824,6 +1868,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             );
             create table object_movements (
                 rr_event integer,
+                start_addr integer,
+                end_addr integer,
                 to_addr integer,
                 from_addr integer
             );
@@ -1900,10 +1946,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             ], "process_worklist")._extra(store_seq_num))
 
         if "trackgc" in self.flags:
-            gdb.execute("list process_worklist", False, True)
-            forwarder_update_lineno = gdb.execute("search item->sc_forward_u.forwarder = new_addr;", False, True).split("\t")[0]
-
-            cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:" + forwarder_update_lineno))
+            cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:MVM_gc_collect_free_nursery_uncopied"))
         else:
             print("trackgc not passed. Will not record every object's old and new address.")
 
