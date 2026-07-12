@@ -1030,13 +1030,14 @@ class AutoResumingBreakpoint(gdb.Breakpoint):
     def stop(self):
         try:
             self._hit_breakpoint_action()
-        except Exception:
-            pass
+        except Exception as ex:
+            print(f"exception while evaluating {self}: ", ex)
+            raise
         return False # don't actually stop
 
 class PointInTimeRecordingBreakpoint(AutoResumingBreakpoint):
-    def __init__(self, medbc, event, exprs, *args):
-        super(PointInTimeRecordingBreakpoint, self).__init__(*args)
+    def __init__(self, medbc, event, exprs, *args, **kwargs):
+        super(PointInTimeRecordingBreakpoint, self).__init__(*args, internal=True, **kwargs)
         self._medbc = medbc # MakeExecutionDatabaseCommand
         self._event = event
         self._exprs = exprs
@@ -1052,8 +1053,8 @@ class PointInTimeRecordingBreakpoint(AutoResumingBreakpoint):
         return self
 
 class ArrayEntryRecordingBreakpoint(AutoResumingBreakpoint):
-    def __init__(self, medbc, table_name, exprs, *args):
-        super(ArrayEntryRecordingBreakpoint, self).__init__(*args)
+    def __init__(self, medbc, table_name, exprs, *args, **kwargs):
+        super(ArrayEntryRecordingBreakpoint, self).__init__(*args, internal=True, **kwargs)
         self._medbc = medbc # MakeExecutionDatabaseCommand
         self._table_name = table_name
         self._exprs = exprs
@@ -1069,8 +1070,8 @@ class ArrayEntryRecordingBreakpoint(AutoResumingBreakpoint):
         return self
 
 class SQLRecordingBreakpoint(AutoResumingBreakpoint):
-    def __init__(self, medbc, table_name : str, column_names : str, exprs : Sequence, *args):
-        super(SQLRecordingBreakpoint, self).__init__(*args)
+    def __init__(self, medbc, table_name : str, column_names : str, exprs : Sequence, *args, **kwargs):
+        super(SQLRecordingBreakpoint, self).__init__(*args, internal=True, **kwargs)
         self._medbc = medbc # MakeExecutionDatabaseCommand
         self._table_name = table_name
         self._exprs = exprs
@@ -1097,16 +1098,16 @@ class SQLRecordingBreakpointWithPrereq(SQLRecordingBreakpoint):
         return False
 
 class EventTimeAndStackBreakpoint(AutoResumingBreakpoint):
-    def __init__(self, medbc, *args):
-        super(EventTimeAndStackBreakpoint, self).__init__(*args)
+    def __init__(self, medbc, *args, **kwargs):
+        super(EventTimeAndStackBreakpoint, self).__init__(*args, internal=True, **kwargs)
         self._medbc = medbc # MakeExecutionDatabaseCommand
 
     def _hit_breakpoint_action(self):
         self._medbc._register_event_time_and_stack_only()
 
 class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
-    def __init__(self, medbc, *args):
-        super(ObjectMovementRecordingBreakpoint, self).__init__(*args)
+    def __init__(self, medbc, *args, **kwargs):
+        super(ObjectMovementRecordingBreakpoint, self).__init__(*args, internal=True, **kwargs)
         self._medbc = medbc
 
     def _hit_breakpoint_action(self):
@@ -1612,15 +1613,15 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     _last_saved_event_time = -1
 
-    def _insert_time_and_take_stack(self, rr_event, currthreadptid, conn):
+    def _insert_time_and_take_stack(self, rr_event, rr_tick, currthreadptid, conn):
         # If this is the firs time we see this rr_event time,
         if rr_event > self._last_saved_event_time:
             # Store the relative elapsed time in `event_times`
             resp     = bytes.fromhex(conn.send_packet('qRRCmd:elapsed-time:' + str(currthreadptid)))
             rr_time  = float(resp[resp.rindex(b' ') + 1:])
 
-            query = f'INSERT INTO event_times VALUES (?, ?)';
-            self._db_cur.execute(query, (rr_event, rr_time))
+            query = f'INSERT INTO event_times VALUES (?, ?, ?, ?)';
+            self._db_cur.execute(query, (rr_event, rr_time, rr_tick, currthreadptid))
             self._last_saved_event_time = rr_event
 
             # If stack sampling was requested, take a sample and put it in
@@ -1645,8 +1646,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
         rr_event = int(resp[resp.rindex(b' '):])
 
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+        rr_tick  = int(resp[resp.rindex(b' '):])
+
         try:
-            self._insert_time_and_take_stack(rr_event, currthreadptid, conn)
+            self._insert_time_and_take_stack(rr_event, rr_tick, currthreadptid, conn)
 
         finally:
             self._db_conn.commit()
@@ -1699,7 +1703,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             except Exception as ex:
                 print("row not entered", ex)
 
-            self._insert_time_and_take_stack(rr_event, currthreadptid, conn)
+            self._insert_time_and_take_stack(rr_event, rr_tick, currthreadptid, conn)
 
         finally:
             self._db_conn.commit()
@@ -1809,7 +1813,15 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         self._db_conn = sqlite3.connect(self._db_file.name, autocommit=False, timeout=30)
         self._db_cur = self._db_conn.cursor()
 
+        conn = gdb.connections()[0]
+        assert isinstance(conn, gdb.RemoteTargetConnection)
+
         self.stackrec = StackRecorder(gdb.inferiors()[0].pid, self._db_conn)
+
+        def get_rr_tid(frame_, row):
+            resp   = bytes.fromhex(conn.send_packet('qRRCmd:when-tid:' + str(row["__currthreadptid"])))
+            rr_tid = int(resp[resp.rindex(b' '):])
+            return ["rr_tid", rr_tid]
 
         print("")
         print("    sqlite3 file can be found at ", self._db_file.name)
@@ -1862,7 +1874,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 tc integer,
                 rr_tick integer,
                 rr_event integer,
-                tag integer,
+                callstack_region integer,
                 is_slice boolean
             );
             create table nfa_runs (
@@ -1873,12 +1885,16 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             );
             create table event_times (
                 rr_event integer,
-                rr_time float
+                rr_time float,
+                rr_tick integer,
+                rr_tid integer
             );
             create table threadcontexts (
                 rr_event integer,
                 tc integer,
-                tid integer
+                gdb_tid integer,
+                rr_tid integer,
+                exited_event integer
             );
             create table object_movements (
                 rr_event integer,
@@ -1925,9 +1941,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 bp.enabled = False
                 self._disabled_breakpoints.append(bp)
 
-        cbp.append(SQLRecordingBreakpoint(self, "threadcontexts", "rr_event tc tid", [
+        cbp.append(SQLRecordingBreakpoint(self, "threadcontexts", "rr_event tc gdb_tid rr_tid exited_event", [
             EXP.local_var("tc", "tc", int),
-            lambda _, row: ["tid", row["__currthreadptid"]],
+            lambda _, row: ["gdb_tid", row["__currthreadptid"]],
+            get_rr_tid,
+            ["exited_event", None],
             ], "src/core/threads.c:thread_initial_invoke"))
 
 
@@ -2045,15 +2063,16 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                              ], mvmstr_to_str),
             ], "MVM_validate_static_frame"))
 
-        cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event tag is_slice", [
+
+        cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event callstack_top is_slice", [
             EXP.local_var("tc", "tc", int),
-            EXP.local_var("tag", "tag", int),
+            EXP.local_field("callstack_top", "tc", ["stack_top"], int),
             lambda _, _2: ["is_slice", 0],
             ], "MVM_callstack_continuation_slice"))
 
-        cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event tag is_slice", [
+        cbp.append(SQLRecordingBreakpoint(self, "continuation_events", "tc rr_tick rr_event callstack_top is_slice", [
             EXP.local_var("tc", "tc", int),
-            EXP.local_var("tag", "update_tag", int),
+            EXP.local_var("callstack_top", "stack_top", int),
             lambda _, _2: ["is_slice", 1],
             ], "MVM_callstack_continuation_append"))
 
@@ -2078,9 +2097,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         #    ["subject_kind", "frames"],
         #    EXP.gdb_eval("subject", "returner", int),
         #    ], "callstack.c:exit_frame"))
-
-        conn = gdb.connections()[0]
-        assert isinstance(conn, gdb.RemoteTargetConnection)
 
         last_event = 0
         records_this_event = 0
@@ -2337,8 +2353,9 @@ class MoarTimelineCommand(gdb.Command):
 
             # cont_contr_bp  = ContinuationEventTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
             # cont_invoke_bp = ContinuationEventTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
-            cont_contr_bp  = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
-            cont_invoke_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
+
+            # cont_contr_bp  = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
+            # cont_invoke_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
 
             gdb.execute(f"run {rr_event - 1}")
 
@@ -2360,15 +2377,15 @@ class MoarTimelineCommand(gdb.Command):
         finally:
             return_bp.delete()
             invoke_bp.delete()
-            cont_contr_bp.delete()
-            cont_invoke_bp.delete()
+            # cont_contr_bp.delete()
+            # cont_invoke_bp.delete()
 
         found_entries = [e for e in self.found_entries if e[0] == rr_event]
 
         try:
             cur = execution_db.cursor()
 
-            query = """
+            gcs_query = """
                 select
                    igcs.earliest,
                    eet.rr_time as earliest_time,
@@ -2390,11 +2407,77 @@ class MoarTimelineCommand(gdb.Command):
                 limit ?;
             """
 
+            continuation_query = """
+            select
+              abs(min(start_rr_event - :now_rr_event, end_rr_event - :now_rr_event)) as eventdiff,
+              start_tc,
+              end_tc,
+              start_rr_event,
+              end_rr_event,
+              start_tick,
+              end_tick
+            from
+              (SELECT
+                st.tc AS start_tc,
+                ed.tc AS end_tc,
+                st.rr_event AS start_rr_event,
+                ed.rr_event AS end_rr_event,
+                st.rr_tick AS start_tick,
+                ed.rr_tick AS end_tick,
+                rank() over w as rank
+              FROM
+                continuation_events st
+                INNER JOIN continuation_events ed
+                  ON st.callstack_region = ed.callstack_region
+                  AND (
+                      st.rr_event < ed.rr_event
+                      OR (
+                        st.rr_event = ed.rr_event
+                        AND st.tc = ed.tc
+                        AND st.rr_tick < ed.rr_tick
+                      )
+                  )
+              WHERE
+                st.is_slice = 0
+                AND ed.is_slice = 1
+              WINDOW
+                w AS (
+                    PARTITION BY
+                      st.rr_event,
+                      st.rr_tick,
+                      st.callstack_region,
+                      ed.callstack_region
+                    ORDER BY
+                      st.rr_event ASC,
+                      st.rr_tick ASC,
+                      ed.rr_event ASC,
+                      ed.rr_tick ASC
+                )
+              )
+              where rank = 1
+                and (start_tc = :now_tc
+                     or end_tc = :now_tc)
+              order by 1,2
+              limit :limit;
+            """
+
+                # and start_rr_event = :now_rr_event
 
             timeline_events = []
             for (want_full, limit) in [(0, 8), (1, 4)]:
-                nearby_gcs = cur.execute(query, (rr_event, want_full, limit)).fetchall()
+                nearby_gcs = cur.execute(gcs_query, (rr_event, want_full, limit)).fetchall()
                 timeline_events.extend(nearby_gcs)
+
+            print(f"nearby continuation events: {rr_event=} {rr_tick=} tc={int(tc)} {limit=}")
+            nearby_continuation_events = cur.execute(continuation_query, dict(
+                now_rr_event=rr_event,
+                now_rr_tick=rr_tick,
+                now_tc=int(tc),
+                limit=limit
+            ))
+            cont_events = [e for e in nearby_continuation_events.fetchall()]
+            print(cont_events)
+            cont_events = sorted(cont_events, key=lambda e: (e[2], e[3]))
 
             timeline_events = sorted(timeline_events, key=lambda e: e[0])
             before = [e for e in timeline_events if e[0] <  rr_event]
@@ -2479,6 +2562,9 @@ class MoarTimelineCommand(gdb.Command):
             if found_entries and total_min_stack_depth != min_stack_depth and lowest_depth_before:
                 invoke_event_line(*lowest_depth_before[-1])
                 print("...")
+
+            for e in cont_events:
+                print(e)
 
             for e in few_frame_events_before:
                 invoke_event_line(*e)
@@ -3175,7 +3261,11 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
 
 
 class MoarFrameCommands(gdb.Command):
-    """Get all details of one stack frame on the moarvm stack"""
+    """Get all details of one stack frame on the moarvm stack.
+
+    Pass a pointer starting with * to use inspect a frame explicitly, pass no
+    argument to get the current frame, or a number to get the nth frame on
+    the stack."""
     def __init__(self):
         super(MoarFrameCommands, self).__init__("moar frame", gdb.COMMAND_STACK, prefix=True)
 
