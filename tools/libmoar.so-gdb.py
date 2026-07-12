@@ -16,24 +16,38 @@
 #
 # So far, there's:
 #
-# - A semi-functional pretty-printer for MVMString and MVMString*
-# - A non-working pretty-printer for MVMObject in general
+# - An almost complete pretty-printer for MVMString and MVMString*
+# - A group of commands "moar break" for commonly useful breakpoints.
+# - A command "moar bt" that shows a backtrace including each frame's arguments.
+# - Commands `moar frame N` that lets you get a frame by index on the current
+#   stack, `moar frame up` that lets you move to the last frame's caller, or
+#   `moar frame out` that lets you move to the last frame's outer.
+# - A command `moar tc` that works out the address of the current thread's
+#   MVMThreadContext without getting confused by the occasionally wrong
+#   values you see in gdb's backtrace command.
+#
+# There are some things in the code that are incomplete or not working:
+# - A pretty-printer for MVMObject in general
 # - A command "moar heap" that walks the nursery and gen2 and displays
 #   statistics about the REPRs found in them, as well as a display of
 #   the fragmentation of the gen2 pages.
-# - A command "moar diff-heap" that diffs (so far only) the two last
-#   snapshots of the nursery, or whatever snapshot number you supply
-#   as the argument.
-# - A group of commands "moar break" for commonly useful breakpoints.
-# - A command "moar bt" that shows a backtrace including each frame's arguments.
+#
+#
+# If you're in a replay session with rr (rr-project.org), there are some
+# additional features you can take advantage of:
+#
+# - `moar rrdb` runs the program from start to finish while recording
+#   information from certain interesting events, storing them in a sqlite3
+#   database file. Flags to add more potentially expensive data collection
+#   exist. See `help moar rrdb` for more info.
+# - `moar timeline` shows things that have happened or will happen around
+#   your current position in the replay, including minor and major GC runs
+#   as well as frame invokes and returns during the same rr event (`when`).
+#
 
 # Here's the TODO list:
 #
-# - Figure out if the string pretty-printer is hosed wrt. ropes or if
-#   it's something wrong with MaarVM's ropes in general.
 # - Implement diffing for the gen2 in some sensible manner
-# - The backtrace should also display a backtrace of the interpreter
-#   state. That's relatively easy, as you can just dump_backtrace(tc).
 # - Give the object prety printer a children method that figures
 #   stuff out about attributes of a P6opaque, or CStruct.
 # - Let VMArray and MVMHash be displayed with the right display_hint
@@ -3160,10 +3174,10 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
         print("could not unset obsolete margs convenience vars")
 
 
-class MoarBtFrameCommand(gdb.Command):
+class MoarFrameCommands(gdb.Command):
     """Get all details of one stack frame on the moarvm stack"""
     def __init__(self):
-        super(MoarBtFrameCommand, self).__init__("moar bt frame", gdb.COMMAND_STACK, prefix=True)
+        super(MoarFrameCommands, self).__init__("moar frame", gdb.COMMAND_STACK, prefix=True)
 
     def invoke(self, argument, from_tty):
         stack_idx = None
@@ -3185,10 +3199,10 @@ class MoarBtFrameCommand(gdb.Command):
         do_single_frame_command_stuff(cur_frame, stack_idx)
 
 
-class MoarBtFrameUpCommand(gdb.Command):
+class MoarFrameUpCommand(gdb.Command):
     """Get all details of the current moar stack frame's caller."""
     def __init__(self):
-        super(MoarBtFrameUpCommand, self).__init__("moar bt frame up", gdb.COMMAND_STACK)
+        super(MoarFrameUpCommand, self).__init__("moar frame up", gdb.COMMAND_STACK)
 
     def invoke(self, argument, from_tty):
         frame = gdb.parse_and_eval("$mframe")
@@ -3203,10 +3217,10 @@ class MoarBtFrameUpCommand(gdb.Command):
         else:
             raise ValueError("Convenience Variable $mframe doesn't seem to exist?")
 
-class MoarBtFrameOutCommand(gdb.Command):
+class MoarFrameOutCommand(gdb.Command):
     """Get all details of the current moar stack frame's outer."""
     def __init__(self):
-        super(MoarBtFrameOutCommand, self).__init__("moar bt frame out", gdb.COMMAND_STACK)
+        super(MoarFrameOutCommand, self).__init__("moar frame out", gdb.COMMAND_STACK)
 
     def invoke(self, argument, from_tty):
         frame = gdb.parse_and_eval("$mframe")
@@ -3284,7 +3298,7 @@ def register_commands(objfile):
     print("command moar rrdb registered")
 
     commands.append(MoarTimelineCommand())
-    print("command moar timelineregistered")
+    print("command moar timeline registered")
 
     commands.append(MoarBreakCommands())
     commands.append(MoarBreakInterpRunCommands())
@@ -3292,10 +3306,12 @@ def register_commands(objfile):
     print("moar break commands registered")
 
     commands.append(MoarBtCommands())
-    commands.append(MoarBtFrameCommand())
-    commands.append(MoarBtFrameUpCommand())
-    commands.append(MoarBtFrameOutCommand())
-    print("moar bt commands registered")
+    print("moar bt command registered")
+
+    commands.append(MoarFrameCommands())
+    commands.append(MoarFrameUpCommand())
+    commands.append(MoarFrameOutCommand())
+    print("moar frame commands registered")
 
     commands.append(MoarTCCommand())
     print("moar TC commands registered")
