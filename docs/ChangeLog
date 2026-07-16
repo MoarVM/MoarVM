@@ -1,3 +1,7 @@
+New in 2026.07
+
++ Bump mimalloc to v2.4.1
+
 New in 2026.06.1
 
 + Do not lock up when very long string has invalid utf8
