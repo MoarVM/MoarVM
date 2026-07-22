@@ -1206,43 +1206,24 @@ class StackRecorder:
             assert frm[0].address is not None
             assert frm[1].address is not None
             frma = (int(frm[0].address), int(frm[1].address))
-            # try:
-                # print("addr: ", int(frm[0].address), " ", int(frm[1].address))
-            # except:
-                # print(frm)
 
             # Climb the tree of stack pieces
             try:
-                # print("1")
                 found = tree_pointer.piece_cur_ops.index(frma[0])
-                # print("2")
                 stack_piece_index = tree_pointer.pieces[found]
-                # print("3")
                 tree_pointer = self.stack_pieces[stack_piece_index]
-                # print("4")
                 # reused += 1
             except ValueError:
-                # print("5")
                 if frma[0] not in self.sfidx_by_cur_op:
-                    # print("6")
                     sfidx = len(self.sfidx_to_sfaddr)
-                    # print("7")
                     self.sfidx_by_cur_op[frma[0]] = sfidx
-                    # print("8")
                     self.sfidx_to_sfaddr.append(frm[1])
-                    # print(f"Inserted sfidx-to-sfaddr: {sfidx} -> {frma[1]} for cur_op {frma[0]}")
                 else:
-                    # print("9")
                     sfidx = self.sfidx_by_cur_op[frma[0]]
-                # print("10")
                 new_piece = StackRecorder.StackPiece()
-                # print("11")
                 stack_piece_index = len(self.stack_pieces)
-                # print("12")
                 tree_pointer.pieces.append(stack_piece_index)
-                # print("13")
                 self.stack_pieces.append(new_piece)
-                # print("14")
                 tree_pointer.piece_cur_ops.append(frma[0])
 
                 tree_pointer = new_piece
@@ -1256,7 +1237,6 @@ class StackRecorder:
         self.thread_of_sample[rr_event] = tid
 
         # print(f"reused {reused:3d} / {len(frames):3d} | stack pcs: {len(self.stack_pieces):4d} | cur ops: {len(self.sfidx_by_cur_op):4d} | samples {len(self.stack_piece_of_sample)}")
-        # print("bla")
 
     def dump_as_profile_file(self):
         print("... preparing profile json data ...")
