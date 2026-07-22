@@ -305,7 +305,12 @@ def init_repr_types_and_structs():
     if len(repr_errors):
         print(f"... could not register these: {repr_errors}")
 
-def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
+def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
+    its_st   = val["common"]["st"]
+    its_repr = its_st["REPR"]
+    reprid   = its_repr["ID"]
+    if reprid != repr_infos["MVMString"]["reprid"]:
+        return "<not a string: " + its_repr["name"].string() + " " + its_st["debug_name"].string() + ">"
     try:
         stringtyp = str_t_info[int(val['body']['storage_type'])]
     except KeyError:
