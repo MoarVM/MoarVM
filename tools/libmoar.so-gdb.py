@@ -319,9 +319,18 @@ def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
         data = val['body']['storage'][stringtyp]
         pieces = []
         graphs = int(val['body']['num_graphs'])
+
+        if graphs == 0:
+            return ""
+
         truncated = 0
 
-        graphs = graphs - start
+        elemtype = data.type.target()
+
+        memory = bytes(gdb.selected_inferior().read_memory(data, elemtype.sizeof * graphs))
+        arraytypecode = "b" if elemtype.sizeof == 1 else "i"
+        gdata = array(arraytypecode, memory)
+
         if strlen is not None and strlen > graphs:
             graphs = strlen
 
@@ -330,7 +339,7 @@ def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
             graphs = truncate
 
         for i in range(graphs):
-            pdata = int(data[i])
+            pdata = int(gdata[i])
             if pdata < 0:
                 # XXX synthetics currently not supported
                 pieces.append("\\s{-%x}" % (-pdata))
@@ -346,6 +355,8 @@ def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
     elif stringtyp == "strands":
         data = val['body']['storage'][stringtyp]
         pieces = []
+        start = 0
+
         for p in range(val['body']['num_strands']):
             # XXX probably a good idea to test thoroughly and see that nothing is off-by-one etc
             strand = data[p]
@@ -353,7 +364,6 @@ def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
             graphs_all = graphs_one
             if int(strand['repetitions']) > 0:
                 graphs_all = graphs_one * (int(strand['repetitions']) + 1)
-
 
             # current strand is completely before the spot we're starting at
             if graphs_all < start:
