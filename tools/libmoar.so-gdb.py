@@ -1844,11 +1844,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
             Also output a short status line every 20 gc runs."""
             prev = self._gc_seq_num
-            # self._gc_seq_num = int(gdb.parse_and_eval("tc->instance->gc_seq_number"))
             self._gc_seq_num = int(ev["__frame"].read_var("tc")["instance"]["gc_seq_number"])
-
-            #if self._gc_seq_num not in self._object_movements:
-            #    self._object_movements[self._gc_seq_num] = array.array("Q")
 
             if prev is not None and prev // 20 != self._gc_seq_num // 20:
                 rr_event = ev["rr_event"]
@@ -1860,10 +1856,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 rr_time = float(resp[resp.rindex(b' ') + 1:])
 
                 print(time.strftime("%H:%M:%S"), f" - reached gc run {self._gc_seq_num:4d} - time {rr_time:7.3f} event: {rr_event}")
-                #for s in self._db["subjects"]:
-                #    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
-                #if self._gc_seq_num == 60:
-                #    gdb.Breakpoint("MVM_frame_dispatch")
 
         print(time.strftime("%H:%M:%S"), " - starting")
 
