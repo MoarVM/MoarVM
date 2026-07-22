@@ -1,6 +1,7 @@
 New in 2026.07
 
 + Bump mimalloc to v2.4.1
++ Many improvements and additions to the gdb python plugin
 
 New in 2026.06.1
 
