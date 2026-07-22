@@ -126,6 +126,10 @@ array_storage_types = [
         'u64', 'u32', 'u16', 'u8'
         ]
 
+
+def array_code_for_bytesize(bytesize):
+    return [c for c in "BHILQ" if array(c).itemsize == bytesize][0]
+
 # These are used to display the hilbert curves extra-prettily.
 halfblocks = u"█▀▄ ░▒▓"
 
@@ -1725,8 +1729,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         return row
 
-    _last_saved_movement_event = -1
-
     def _register_object_movement(self):
         # If `trackgc` flag was turned on, store the before and after
         # addresses of any objects moved by the GC
@@ -1740,6 +1742,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
         rr_event = int(resp[resp.rindex(b' '):])
+        resp     = bytes.fromhex(conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+        rr_tick  = int(resp[resp.rindex(b' '):])
 
         scan_ptr  = frame.read_var("tc")["nursery_fromspace"]
         limit_ptr = frame.read_var('limit')
@@ -1758,16 +1762,37 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         # recorded_items = 0
 
         tuples = []
+        froms = []
+        tos = []
+
+        min_to = math.inf
+        max_to = 0
+
+        largest_from_step = 0
 
         scan_idx = 0
+        prev_scan_idx = 0
         while scan_idx < len(nursery_memory):
             item_mem = nursery_memory[scan_idx:scan_idx + coll_typ_sz]
             item = gdb.Value(item_mem, coll_typ)
             if int(item["flags2"]) & forwarder_valid:
                 to_addr = int(item["sc_forward_u"]["forwarder"])
-                from_addr = nursery_start_addr + scan_idx
+                # from_addr = nursery_start_addr + scan_idx
 
-                tuples.append((from_addr, to_addr))
+                step_size = scan_idx - prev_scan_idx
+                froms.append(step_size)
+                prev_scan_idx = scan_idx
+
+                if step_size > largest_from_step:
+                    largest_from_step = step_size
+
+                tos.append(to_addr)
+                if to_addr < min_to:
+                    min_to = to_addr
+                if to_addr > max_to:
+                    max_to = to_addr
+
+                # tuples.append((to_addr, from_addr))
                 # recorded_items += 1
 
             # scanned_items += 1
@@ -1776,18 +1801,37 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             if not item_sz:
                 raise ValueError("item with size 0 found?!")
 
+        if tos:
+            tos = [to - min_to for to in tos]
+            array_bytesize = 8
+            if max_to - min_to < 0xff:
+                array_bytesize = 1
+            elif max_to - min_to < 0xffff:
+                array_bytesize = 2
+            elif max_to - min_to < 0xffffffff:
+                array_bytesize = 4
 
-        query = "INSERT INTO object_movements VALUES (?, ?, ?, null, null);"
-        self._db_cur.execute(query, (rr_event, nursery_start_addr, int(limit_ptr)))
+            tos_array = array(array_code_for_bytesize(array_bytesize), tos)
 
-        if tuples:
-            query = "INSERT INTO object_movements VALUES (null, null, null, ?, ?);"
-            self._db_cur.executemany(query, tuples)
+            array_bytesize = 8
+            if largest_from_step < 0xff:
+                array_bytesize = 1
+            elif largest_from_step < 0xffff:
+                array_bytesize = 2
+            elif largest_from_step < 0xffffffff:
+                array_bytesize = 4
 
-        self._db_conn.commit()
+            froms_array = array(array_code_for_bytesize(array_bytesize), froms)
 
-        self._last_saved_movement_event = rr_event
-        # print(f"At event {rr_event}: Scanned {scanned_items:6d} items, recorded {recorded_items:6d} pairs")
+            query = "INSERT INTO object_movements VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+            self._db_cur.execute(query, (
+                 rr_event, rr_tick,
+                 nursery_start_addr, int(limit_ptr),
+                 froms_array.itemsize, froms_array,
+                 min_to, max_to, tos_array.itemsize, tos_array
+            ))
+
+            self._db_conn.commit()
 
     def setup(self):
         import sqlite3
@@ -1913,10 +1957,15 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             );
             create table object_movements (
                 rr_event integer,
-                start_addr integer,
-                end_addr integer,
-                to_addr integer,
-                from_addr integer
+                rr_tick integer,
+                scan_start_addr integer,
+                scan_end_addr integer,
+                from_address_array_bytesize integer,
+                from_address_steps blob,
+                to_addr_offset integer,
+                to_addr_maximum integer,
+                to_address_array_bytesize integer,
+                to_addresses blob
             );
             create table sc_code (
                 sf_addr integer,
