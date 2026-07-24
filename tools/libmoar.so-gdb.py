@@ -60,6 +60,7 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+from contextlib import contextmanager
 from array import array
 from sqlite3 import Connection
 from dataclasses import dataclass, field
@@ -1045,6 +1046,19 @@ class MoarBreakExceptionAdhoc(MoarBreakCommands):
 # As of right now, the data is not utilised by any commands here.
 #
 
+@contextmanager
+def breakpoints_disabled():
+    disabled_breakpoints = []
+    for bp in gdb.breakpoints():
+        if bp.enabled:
+            bp.enabled = False
+            disabled_breakpoints.append(bp)
+    try:
+        yield
+    finally:
+        for bp in disabled_breakpoints:
+            bp.enabled = True
+
 class AutoResumingBreakpoint(gdb.Breakpoint):
     def stop(self):
         try:
@@ -1968,14 +1982,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         EXP = self._EXP()
 
-        self._disabled_breakpoints = []
         self._created_breakpoints = []
         cbp = self._created_breakpoints
-
-        for bp in gdb.breakpoints():
-            if bp.enabled:
-                bp.enabled = False
-                self._disabled_breakpoints.append(bp)
 
         cbp.append(SQLRecordingBreakpoint(self, "threadcontexts", "rr_event tc gdb_tid rr_tid exited_event", [
             EXP.local_var("tc", "tc", int),
@@ -2162,8 +2170,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     def teardown(self):
         print("Moar RRDB: Finished running. Tearing down breakpoints.")
-        for bp in self._disabled_breakpoints:
-            bp.enabled = True
         for bp in self._created_breakpoints:
             bp.delete()
 
@@ -2184,7 +2190,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         self.dont_repeat()
         self.setup()
         try:
-            self.run()
+            with breakpoints_disabled():
+                self.run()
         finally:
             try:
                 execution_db = self._db_conn
@@ -2207,19 +2214,10 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
             self.teardown()
 
-@dataclass
-class TimelineEntry:
-    pos_event: int
-
-    earliest_event: int | None
-    latest_event: int | None
-
-    pos_time: float
-
-    earliest_time: float | None
-    latest_time: float | None
-
 class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
+    hit_limit: int
+    tick_limit: int | None = None
+
     def __init__(self, conn, starting_event, relevant_ptid, mtlc, tc, what, *args):
         super(InvokeReturnTimelineRecordingBreakpoint, self).__init__(*args)
         self.conn = conn
@@ -2229,6 +2227,8 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
         self.mtlc = mtlc
         self.tc = tc
         self.what = what
+        self.hit_limit = 0
+        self.tick_limit = None
 
     def stop(self):
         try:
@@ -2241,6 +2241,10 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
         currthreadptid = self.conn.send_packet("qC")
         currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
 
+        self.hit_limit -= 1
+        if self.hit_limit == 0:
+            return True
+
         if currthreadptid != self.relevant_ptid:
             print(f"Left current thread for breakpoint {self.location}")
             return True
@@ -2249,12 +2253,15 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
         rr_event = int(resp[resp.rindex(b' '):])
 
         if not (self.starting_event - 2 <= rr_event <= self.starting_event + 2):
-        # if self.starting_event != rr_event:
             print(f"Left current event for breakpoint {self.location}: {self.starting_event} vs {rr_event}")
             return True
 
         resp     = bytes.fromhex(self.conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
         rr_tick  = int(resp[resp.rindex(b' '):])
+
+        if self.tick_limit is not None and rr_tick > self.tick_limit:
+            print(f"hit tick limit: {self.tick_limit} <= {rr_tick}")
+            return True
 
         stack_depth = 0
 
@@ -2383,40 +2390,64 @@ class MoarTimelineCommand(gdb.Command):
         chkp_res = gdb.execute("checkpoint", False, True)
         chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
 
-        try:
-            return_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "return", "MVM_frame_try_return")
-            invoke_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "invoke", "MVM_frame_dispatch")
+        with breakpoints_disabled():
+            return_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "return", "MVM_frame_try_return")
+            invoke_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "invoke", "MVM_frame_dispatch")
 
-            # cont_contr_bp  = ContinuationEventTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
-            # cont_invoke_bp = ContinuationEventTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
+            try:
+                print("skipping backwards to collect invokes/returns")
+                found_stuff = 0
+                seek_offset = 100 * event_limit
 
-            # cont_contr_bp  = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_control", "MVM_continuation_control")
-            # cont_invoke_bp = InvokeReturnTimelineRecordingBreakpoint(conn, rr_event, currthreadptid, self, tc, "cont_invoke", "MVM_continuation_invoke")
+                return_bp.tick_limit = rr_tick
+                invoke_bp.tick_limit = rr_tick
 
-            gdb.execute(f"run {rr_event - 1}")
+                while found_stuff < event_limit:
+                    seek_offset *= 1.2
+                    seek_offset = int(seek_offset)
 
-            resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
-            effective_rr_event = int(resp[resp.rindex(b' '):])
-            if effective_rr_event != rr_event - 1:
-                print(f"... Wanted to go to event {rr_event} so issued `run {rr_event - 1}`` but ended up on {effective_rr_event} instead...")
-                gdb.execute(f"run {rr_event - 2}")
+                    print(f"Hopping backwards to {seek_offset} ticks ago with limit of {return_bp.tick_limit}; found {len(self.found_entries)} entries so far")
+                    gdb.execute(f"seek-ticks {rr_tick - seek_offset}")
 
-                resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
-                effective_rr_event = int(resp[resp.rindex(b' '):])
-                print(f"... Wanted to go to event {rr_event} so issued `run {rr_event - 2}`` but ended up on {effective_rr_event} instead...")
+                    currthreadptid = conn.send_packet("qC")
+                    currthreadptid = int(currthreadptid[currthreadptid.rindex(b".") + 1:], 16)
 
-            gdb.execute("continue")
-            gdb.execute(f"restart {chkp_id}")
-            gdb.execute(f"delete checkpoint {chkp_id}")
-        except Exception as ex:
-            print("Error trying to get invokes and returns for current event: ", ex)
-        finally:
-            return_bp.delete()
-            invoke_bp.delete()
-            # cont_contr_bp.delete()
-            # cont_invoke_bp.delete()
+                    resp     = bytes.fromhex(conn.send_packet('qRRCmd:when:' + str(currthreadptid)))
+                    stopped_rr_event = int(resp[resp.rindex(b' '):])
+
+                    resp     = bytes.fromhex(conn.send_packet('qRRCmd:when-ticks:' + str(currthreadptid)))
+                    stopped_rr_tick  = int(resp[resp.rindex(b' '):])
+
+                    if stopped_rr_event != rr_event:
+                        print(f"seeked to {seek_offset} ticks earlier, but went to wrong event")
+
+                    gdb.execute("continue")
+
+                    found_stuff = len(self.found_entries)
+
+                    return_bp.tick_limit = rr_tick - seek_offset
+                    invoke_bp.tick_limit = rr_tick - seek_offset
+
+                gdb.execute(f"restart {chkp_id}")
+
+                return_bp.hit_limit = event_limit * 2
+                invoke_bp.hit_limit = event_limit * 2
+                return_bp.tick_limit = None
+                invoke_bp.tick_limit = None
+
+                print("Running forwards to collect invokes/returns")
+                gdb.execute("continue")
+            except Exception as ex:
+                print("Error trying to get invokes and returns for current event: ", ex)
+            finally:
+                return_bp.delete()
+                invoke_bp.delete()
+                print("Returning to checkpoint before command started")
+                gdb.execute(f"restart {chkp_id}")
+                gdb.execute(f"delete checkpoint {chkp_id}")
 
         found_entries = [e for e in self.found_entries if e[0] == rr_event]
+        found_entries = sorted(found_entries, key=lambda e: (e[0], e[1]))
 
         try:
             cur = execution_db.cursor()
