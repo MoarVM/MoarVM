@@ -1555,7 +1555,7 @@ def ensure_execution_db() -> Connection:
             return execution_db
         else:
             print("No execution DB seems to exist. run `moar rrdb` first!")
-            print("(Or if you already have one, try `set $moar_rrdb_file = /tmp/...`)")
+            print("""(Or if you already have one, try `set $moar_rrdb_file = "/tmp/..."`)""")
             raise Exception("No execution db (from moar rrdb) seems to exist")
 
     return execution_db
