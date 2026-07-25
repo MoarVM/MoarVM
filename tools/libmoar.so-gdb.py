@@ -3457,20 +3457,23 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
         print("")
 
     print("Arguments:")
+    infoparts = []
     try:
         infoparts = extract_moar_stack_frame_args(cur_frame)
 
         for index, (value, info) in enumerate(infoparts):
             varname = f"margs_{index}"
             gdb.set_convenience_variable(varname, value)
-            print(f"  $margs_{index} = {info}")
+            print(f"  $margs_{index:<2d} = {info}")
     except Exception as ex:
         print("Error trying to get arguments: ", ex)
     print("")
 
-    print("Lexicals:")
     try:
-        for index, (name, typecode, value) in enumerate(cur_frame.lexicals()):
+        lexes = list(cur_frame.lexicals())
+        if lexes:
+            print("Lexicals:")
+        for index, (name, typecode, value) in enumerate(lexes):
             orig_typecode = typecode
             if int(value) != 0:
                 if typecode == "o":
