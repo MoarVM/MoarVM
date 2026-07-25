@@ -334,8 +334,21 @@ def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
     its_st   = val["common"]["st"]
     its_repr = its_st["REPR"]
     reprid   = its_repr["ID"]
-    if reprid != repr_infos["MVMString"]["reprid"]:
-        return "<not a string: " + its_repr["name"].string() + " " + its_st["debug_name"].string() + ">"
+    try:
+        if int(reprid) != repr_infos["MVMString"]["reprid"]:
+            reprname = "??"
+            try:
+                reprname = its_repr["name"].string()
+            except:
+                reprname = "<error finding reprname>"
+            debugname = "??"
+            try:
+                debugname = its_st["debug_name"].string()
+            except:
+                debugname = "<error finding debugname>"
+            return "<not a string: " + reprname + " " + debugname + ">"
+    except gdb.MemoryError as ex:
+        return f"<not a string: {ex}>"
     try:
         stringtyp = str_t_info[int(val['body']['storage_type'])]
     except KeyError:
