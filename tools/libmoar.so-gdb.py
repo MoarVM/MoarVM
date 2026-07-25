@@ -3406,7 +3406,6 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
     to the terminal."""
 
     fn, ln = cur_frame.resolve_annotation()
-    infoparts = extract_moar_stack_frame_args(cur_frame)
 
     name = cur_frame.name
     name = "''" if name == "" else name
@@ -3427,49 +3426,73 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
     print("")
     print(f"Bytecode file: {cur_frame.cufile} ; cuuid {cur_frame.cuuid}")
     print("")
+
     need_space = 0
     if cur_frame.caller is not None:
-        print(f"Caller: $mframe->caller = {cur_frame.caller.ptr} ({cur_frame.caller.name})")
+        cname = None
+        try:
+            cname = cur_frame.caller.name
+            if cname:
+                cname = f"({cname})"
+            else:
+                cname = ""
+        except:
+            cname = "(error getting caller's name)"
+        print(f"Caller: $mframe->caller = {cur_frame.caller.ptr} {cname}")
         need_space = 1
+
     if cur_frame.outer is not None:
-        print(f"Outer:  $mframe->outer  = {cur_frame.outer.ptr} ({cur_frame.outer.name})")
+        try:
+            oname = cur_frame.caller.name
+            if oname:
+                oname = f"({oname})"
+            else:
+                oname = ""
+        except:
+            oname = "(error getting caller's name)"
+        print(f"Outer:  $mframe->outer  = {cur_frame.outer.ptr} {oname}")
         need_space = 1
 
     if need_space:
         print("")
 
     print("Arguments:")
-    for index, (value, info) in enumerate(infoparts):
-        varname = f"margs_{index}"
-        gdb.set_convenience_variable(varname, value)
-        print(f"  $margs_{index} = {info}")
+    try:
+        infoparts = extract_moar_stack_frame_args(cur_frame)
+
+        for index, (value, info) in enumerate(infoparts):
+            varname = f"margs_{index}"
+            gdb.set_convenience_variable(varname, value)
+            print(f"  $margs_{index} = {info}")
+    except Exception as ex:
+        print("Error trying to get arguments: ", ex)
     print("")
 
     print("Lexicals:")
-    for index, (name, typecode, value) in enumerate(cur_frame.lexicals()):
-        orig_typecode = typecode
-        if int(value) != 0:
-            if typecode == "o":
-                (stringified, typename) = stringify_object_arg(value)
-                if stringified is not None:
-                    value = stringified
-                else:
+    try:
+        for index, (name, typecode, value) in enumerate(cur_frame.lexicals()):
+            orig_typecode = typecode
+            if int(value) != 0:
+                if typecode == "o":
+                    (stringified, typename) = stringify_object_arg(value)
+                    if stringified is not None:
+                        value = stringified
+                    else:
+                        value = gdb.printing.make_visualizer(value).to_string()
+
+                    if typename is not None:
+                        typecode = typename
+
+                if isinstance(value, gdb.Value):
                     value = gdb.printing.make_visualizer(value).to_string()
 
-                if typename is not None:
-                    typecode = typename
-
-            if isinstance(value, gdb.Value):
-                value = gdb.printing.make_visualizer(value).to_string()
-
-            print(f"    $mframe->env[{index:2d}].{orig_typecode}: {name}: ({typecode}) = {value}")
-        else:
-            print(f"    {name}: ({typecode}) = <unset>")
+                print(f"    $mframe->env[{index:2d}].{orig_typecode}: {name}: ({typecode}) = {value}")
+            else:
+                print(f"    {name}: ({typecode}) = <unset>")
+    except Exception as ex:
+        print("Error trying to get lexicals: ", ex)
 
     print("")
-
-    csinfo = parse_callsite(cur_frame.params["arg_info"]["callsite"])
-    param_vals = cur_frame.param_vals
 
     prev_margs_cnt = 0
     unset_val = None
@@ -3484,11 +3507,11 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
     gdb.set_convenience_variable("mframe", cur_frame.ptr)
     # print(f"var $mframe set to {cur_frame.ptr}")
 
-    gdb.set_convenience_variable("margs_cnt", len(csinfo))
-    print(f"var $margs_cnt set to {len(csinfo)}")
+    gdb.set_convenience_variable("margs_cnt", len(infoparts))
+    print(f"var $margs_cnt set to {len(infoparts)}")
 
     try:
-        start = len(csinfo)
+        start = len(infoparts)
         end = prev_margs_cnt
         for i in range(start, end):
             varname = f"margs_{i}"
