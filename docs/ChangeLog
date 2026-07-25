@@ -1,3 +1,6 @@
+
++ Switch from Ryu to Żmij for our double-to-ascii implementation
+
 New in 2026.07
 
 + Bump mimalloc to v2.4.1
