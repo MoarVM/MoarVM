@@ -84,6 +84,9 @@ import traceback # debugging
 uint32_t  : gdb.Type | None
 uint32p_t : gdb.Type | None
 
+uint8_t  : gdb.Type | None
+uint8p_t : gdb.Type | None
+
 stooge_t  : gdb.Type | None
 stoogep_t : gdb.Type | None
 mvmstr_t  : gdb.Type | None
@@ -450,6 +453,90 @@ class MVMObjectPPrinter(object):
         else:
             return self.stringify()
 
+class MVMStrHash:
+    val: gdb.Value
+    _control_val: gdb.Value
+    _control_sizeof: int
+
+    def __init__(self, val: gdb.Value):
+        self.val = val
+        control_type = self.val.referenced_value().type
+        self._control_sizeof = control_type.sizeof
+        self._entry_sizeof   = self.val["entry_size"]
+        self._handle_type    = gdb.lookup_type("struct MVMStrHashHandle").pointer()
+
+    @property
+    def official_size(self):
+        return 1 << int(self.val["official_size_log2"])
+
+    def entries(self):
+        control = self.val
+        if int(control) == 0:
+            return
+
+        metadata = control.cast(uint8p_t) + self._control_sizeof
+        data = control.cast(uint8p_t) - self._entry_sizeof
+
+        entry_sizeof = self._entry_sizeof
+
+        kompromat = self.official_size + self.val["max_probe_distance"] - 1
+        for pos in range(1, kompromat + 1):
+            if int(metadata[pos - 1]):
+                entry_val = data - ((pos - 1) * entry_sizeof)
+                yield (pos - 1, int(metadata[pos - 1]), entry_val.cast(self._handle_type))
+
+
+class StrHashCommand(gdb.Command):
+    """Output the contents of an MVMStrHashTable, optionally showing the values
+    in the slots in the right type, if given as a second argument.
+
+    Ex: moar hash tc->instance->sc_weakhash.table
+    Ex: moar hash tc->instance->sc_weakhash.table "struct MVMSerializationContextWeakHashEntry"
+    """
+    def __init__(self):
+        super(StrHashCommand, self).__init__("moar hash", gdb.COMMAND_DATA)
+
+    def invoke(self, arg, from_tty):
+        args = gdb.string_to_argv(arg)
+        val  = gdb.parse_and_eval(args[0])
+        handle_type = None
+        if len(args) > 1:
+            handle_type = gdb.lookup_type(args[1])
+            if handle_type.code != gdb.TYPE_CODE_PTR:
+                handle_type = handle_type.pointer()
+
+        entries : list[gdb.Value] = list(MVMStrHash(val).entries())
+        out_entries = []
+
+        longest_key = 0
+        longest_addr = 0
+
+        for bucket, metadata, e in entries:
+            key = ""
+            if handle_type is not None:
+                ederef = e.cast(handle_type).dereference()
+                result_str = str(ederef)
+                key = mvmstr_to_str(ederef["hash_handle"]["key"])
+                repl_str = "hash_handle = {key = (MVMString *)'" + key + "'}, "
+                result_str = result_str.replace(repl_str, "")
+                ederef = result_str
+                key = repr(key)
+                longest_key = max(longest_key, len(key))
+
+            else:
+                ederef = e.dereference()
+
+            longest_addr = max(len(str(e)), longest_addr)
+
+            out_entries.append((bucket, metadata, key, e, ederef))
+
+        if longest_key:
+            print(f"bkt  meta {"key":{longest_key}s}  {"addr":{longest_addr}s}  value")
+        else:
+            print(f"bkt  meta   {"addr":{longest_addr}s}  entry")
+
+        for (bucket, metadata, key, e, ederef) in out_entries:
+            print((f"{bucket:3x}  [{metadata:2x}] {key:{longest_key}s}  {e}  {ederef}"))
 #                                                _           _
 #      _ __  ___ _ __  ___ _ _ _  _   __ ___ _ _| |_ ___ _ _| |_
 #     | '  \/ -_) '  \/ _ \ '_| || | / _/ _ \ ' \  _/ -_) ' \  _|
@@ -3651,6 +3738,8 @@ def register_commands(objfile):
     #commands.append(DiffHeapCommand())
     #print("command moar diff-heap registered")
 
+    commands.append(StrHashCommand())
+
     commands.append(MakeExecutionDatabaseCommand())
     print("command moar rrdb registered")
 
@@ -3714,6 +3803,9 @@ if __name__ == "__main__":
     try:
         uint32_t  = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
         uint32p_t = uint32_t.pointer()
+
+        uint8_t  = gdb.lookup_symbol("MVMuint8")[0].type.strip_typedefs()
+        uint8p_t = uint8_t.pointer()
 
         stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
         stoogep_t = stooge_t.pointer()
