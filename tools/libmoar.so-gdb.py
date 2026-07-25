@@ -97,6 +97,21 @@ str_t_info = {0: 'blob_32',
               4: 'in_situ_8',
               5: 'in_situ_32'}
 
+type_to_register_member = {
+     1: "i8",   # MVM_reg_int8
+     2: "i16",  # MVM_reg_int16
+     3: "i32",  # MVM_reg_int32
+     4: "i64",  # MVM_reg_int64
+     5: "n32",  # MVM_reg_num32
+     6: "n64",  # MVM_reg_num64
+     7: "s",    # MVM_reg_str
+     8: "o",    # MVM_reg_obj
+    17: "u8",   # MVM_reg_uint8
+    18: "u16",  # MVM_reg_uint16
+    19: "u32",  # MVM_reg_uint32
+    20: "u64",  # MVM_reg_uint64
+}
+
 # How big to make the histograms and such
 PRETTY_WIDTH=50
 
@@ -3167,6 +3182,27 @@ class MoarStackFrame:
 
         return resolve_annotation(sfb, offs, str_cache)
 
+    def lexicals(self):
+        sfb = self._static_info_body
+        num_lexicals = sfb["num_lexicals"]
+
+        # TODO probably not so important to have debug locals here
+        # debug_locals = None
+        # if int(sfb["instrumentation"]) != 0:
+        #     debug_locals = sfb["instrumentation"]["debug_locals"]
+
+        names_list = sfb["lexical_names_list"]
+        types = sfb["lexical_types"]
+        env = self.ptr["env"]
+
+        for i in range(num_lexicals):
+            name = names_list[i]
+            typ  = type_to_register_member[int(types[i])]
+            val  = env[i][typ]
+
+            yield (mvmstr_to_str(name), typ, val)
+
+
 def stack_for_stack_piece_inserter() -> Sequence[tuple[gdb.Value, gdb.Value]]:
     bits = []
     cur_frame : MoarStackFrame = MoarStackFrame.from_tc()
@@ -3177,9 +3213,68 @@ def stack_for_stack_piece_inserter() -> Sequence[tuple[gdb.Value, gdb.Value]]:
 
     return bits
 
+def stringify_object_arg(objptr, str_cache = None):
+    """Given an MVMObject *, try to get a better string representation than just the address.
+
+    Differentiates between STables, Frames, Type Objects, and Instances.
+
+    For P6str instances, gets the string inside."""
+
+    stringified = None
+    typename    = None
+
+    if str_cache is not None and (int(objptr), "arg") in str_cache:
+        stringified = str_cache[(int(objptr), "arg")]
+
+    else:
+        flags1 = int(objptr["header"]["flags1"])
+        if flags1 & 2: # MVM_CF_STABLE
+            is_obj = False
+            pass
+        elif flags1 & 1: # MVM_CF_TYPE_OBJECT
+            is_obj = True
+            is_concrete = False
+        elif flags1 & 4: # MVM_CF_FRAME
+            is_obj = False
+        else:
+            is_obj = True
+            is_concrete = True
+
+        if is_obj:
+            if str_cache is not None and int(objptr["st"]) in str_cache:
+                reprname = str_cache[int(objptr["st"])]
+            else:
+                reprname = objptr["st"]["REPR"]["name"].string()
+                if str_cache is not None:
+                    str_cache[int(objptr["st"])] = reprname
+
+            if is_concrete and reprname == "P6str":
+                #print("casting to p6str? before:")
+                #print(repr(subpart), repr(subpart.type))
+                objptr = objptr.cast(stoogep_t)["data"].cast(mvmstrp_t)
+                #print(repr(subpart), repr(subpart.type))
+                #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
+                spk = (int(objptr), "arg")
+                if str_cache is not None and spk in str_cache:
+                    stringified = str_cache[spk]
+                else:
+                    stringified = "((MVMString *)" + hex(int(objptr)) + ")=" + repr(mvmstr_to_str(objptr, truncate=128))
+                    if str_cache is not None:
+                        str_cache[spk] = stringified
+
+            elif int(objptr["st"]["debug_name"]) != 0:
+                typename = reprname + "#" + objptr["st"]["debug_name"].string()
+                if is_concrete:
+                    typename = typename + ".new"
+
+        if str_cache is not None:
+            str_cache[(int(objptr), "arg")] = stringified
+
+    return (stringified, typename)
+
 def extract_moar_stack_frame_args(cur_frame, str_cache = None):
-    """From a MoarStackFrame, parse the callsite and get a string with
-    information for each of the arguments and its values"""
+    """From a MoarStackFrame, parse the callsite and get a tuple with the
+    gdb.Value and a string with information for each of the arguments"""
     callsite = cur_frame.params["arg_info"]["callsite"]
     if str_cache is not None and int(callsite) in str_cache:
         csinfo = str_cache[int(callsite)]
@@ -3205,65 +3300,22 @@ def extract_moar_stack_frame_args(cur_frame, str_cache = None):
 
         #print("adding arg of", typename, argname, repr(subpart))
         if typename == "obj":
-            if str_cache is not None and (int(subpart), "arg") in str_cache:
-                string_of_subpart = str_cache[(int(subpart), "arg")]
-
-            else:
-                flags1 = int(subpart["header"]["flags1"])
-                if flags1 & 2: # MVM_CF_STABLE
-                    is_obj = False
-                    pass
-                elif flags1 & 1: # MVM_CF_TYPE_OBJECT
-                    is_obj = True
-                    is_concrete = False
-                elif flags1 & 4: # MVM_CF_FRAME
-                    is_obj = False
-                else:
-                    is_obj = True
-                    is_concrete = True
-
-                if is_obj:
-                    if str_cache is not None and int(subpart["st"]) in str_cache:
-                        reprname = str_cache[int(subpart["st"])]
-                    else:
-                        reprname = subpart["st"]["REPR"]["name"].string()
-                        if str_cache is not None:
-                            str_cache[int(subpart["st"])] = reprname
-
-                    if is_concrete and reprname == "P6str":
-                        #print("casting to p6str? before:")
-                        #print(repr(subpart), repr(subpart.type))
-                        subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
-                        #print(repr(subpart), repr(subpart.type))
-                        #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
-                        spk = (int(subpart), "arg")
-                        if str_cache is not None and spk in str_cache:
-                            string_of_subpart = str_cache[spk]
-                        else:
-                            string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
-                            if str_cache is not None:
-                                str_cache[spk] = string_of_subpart
-
-                    elif int(subpart["st"]["debug_name"]) != 0:
-                        typename = reprname + "#" + subpart["st"]["debug_name"].string()
-                        if is_concrete:
-                            typename = typename + ".new"
-
-                if str_cache is not None:
-                    str_cache[(int(subpart), "arg")] = string_of_subpart
-
+            (string_of_subpart, found_typename) = stringify_object_arg(subpart, str_cache)
 
         if string_of_subpart is None:
             string_of_subpart = gdb.printing.make_visualizer(subpart).to_string()
         if string_of_subpart is None:
             string_of_subpart = "<???>"
 
-        infoparts.append(
+        if found_typename is not None:
+            typename = found_typename
+
+        infoparts.append([subpart,
             (argname + "=" if argname else "")
             + typename
             + "("
             + string_of_subpart
-            + ")")
+            + ")"])
 
     return infoparts
 
@@ -3309,7 +3361,7 @@ class MoarBtCommands(gdb.Command):
             if "noargs" not in flags:
                 infoparts = extract_moar_stack_frame_args(cur_frame, str_cache)
 
-                csinfo_str = "args=(" + ", ".join(infoparts) + ")"
+                csinfo_str = "args=(" + ", ".join(p[1] for p in infoparts) + ")"
             else:
                 csinfo_str = ""
 
@@ -3362,25 +3414,58 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
     loc = ""
 
     if fn is None or ln is None:
-        loc = f"{fn} : {ln}"
-    else:
         loc = f"<unknown>:1"
+    else:
+        loc = f"{fn} : {ln}"
 
     if stack_idx is not None:
         print(f"Stack Frame #{stack_idx}")
 
-    print(cur_frame.ptr)
-    print(f"Name: {name} {loc}")
+    print(f"$mframe = (MVMFrame *) {cur_frame.ptr}")
+    print("")
+    print(f"    Name: {name}    ({loc})")
+    print("")
     print(f"Bytecode file: {cur_frame.cufile} ; cuuid {cur_frame.cuuid}")
     print("")
+    need_space = 0
     if cur_frame.caller is not None:
-        print(f"Caller: {cur_frame.caller.ptr}")
+        print(f"Caller: $mframe->caller = {cur_frame.caller.ptr} ({cur_frame.caller.name})")
+        need_space = 1
     if cur_frame.outer is not None:
-        print(f"Outer: {cur_frame.outer.ptr}")
+        print(f"Outer:  $mframe->outer  = {cur_frame.outer.ptr} ({cur_frame.outer.name})")
+        need_space = 1
+
+    if need_space:
+        print("")
 
     print("Arguments:")
-    for info in infoparts:
-        print(f"  {info}")
+    for index, (value, info) in enumerate(infoparts):
+        varname = f"margs_{index}"
+        gdb.set_convenience_variable(varname, value)
+        print(f"  $margs_{index} = {info}")
+    print("")
+
+    print("Lexicals:")
+    for index, (name, typecode, value) in enumerate(cur_frame.lexicals()):
+        orig_typecode = typecode
+        if int(value) != 0:
+            if typecode == "o":
+                (stringified, typename) = stringify_object_arg(value)
+                if stringified is not None:
+                    value = stringified
+                else:
+                    value = gdb.printing.make_visualizer(value).to_string()
+
+                if typename is not None:
+                    typecode = typename
+
+            if isinstance(value, gdb.Value):
+                value = gdb.printing.make_visualizer(value).to_string()
+
+            print(f"    $mframe->env[{index:2d}].{orig_typecode}: {name}: ({typecode}) = {value}")
+        else:
+            print(f"    {name}: ({typecode}) = <unset>")
+
     print("")
 
     csinfo = parse_callsite(cur_frame.params["arg_info"]["callsite"])
@@ -3397,46 +3482,21 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
         print("could not unset obsolete margs convenience vars")
 
     gdb.set_convenience_variable("mframe", cur_frame.ptr)
-    print(f"var $mframe set to {cur_frame.ptr}")
+    # print(f"var $mframe set to {cur_frame.ptr}")
 
     gdb.set_convenience_variable("margs_cnt", len(csinfo))
     print(f"var $margs_cnt set to {len(csinfo)}")
-    for i, csi in enumerate(csinfo):
-        # info = csinfo[i][0]
-        subpart  = csi[1](param_vals[i])
-
-        typename = csi[2][1]
-
-        if typename == "obj":
-            is_obj = False
-            is_concrete = False
-            flags1 = int(subpart["header"]["flags1"])
-            if flags1 & 2: # MVM_CF_STABLE
-                is_obj = False
-            elif flags1 & 1: # MVM_CF_TYPE_OBJECT
-                is_obj = True
-                is_concrete = False
-            elif flags1 & 4: # MVM_CF_FRAME
-                is_obj = False
-            else:
-                is_obj = True
-                is_concrete = True
-
-            if is_obj and is_concrete:
-                reprname = subpart["st"]["REPR"]["name"].string()
-                if reprname in repr_infos:
-                    typ = repr_infos[reprname]["struct"].pointer()
-                    subpart = subpart.cast(typ)
-
-        varname = f"margs_{i}"
-        gdb.set_convenience_variable(varname, subpart)
-        print(f"var ${varname} set to ({subpart.type}) {subpart}")
 
     try:
-        for i in range(len(csinfo), prev_margs_cnt):
+        start = len(csinfo)
+        end = prev_margs_cnt
+        for i in range(start, end):
             varname = f"margs_{i}"
             gdb.set_convenience_variable(varname, unset_val)
-            print(f"var ${varname} unset")
+        if start < end - 1:
+            print(f"cleaned up obsolete $margs_ vals from {start} through {end - 1}")
+        if start == end - 1:
+            print(f"cleaned up obsolete $margs_{end - 1}")
     except:
         print("could not unset obsolete margs convenience vars")
 
