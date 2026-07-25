@@ -311,6 +311,8 @@ def init_repr_types_and_structs():
         print(f"... could not register these: {repr_errors}")
 
 def mvmstr_to_str(val : gdb.Value, strlen=None, truncate=5000):
+    if val.type.code == gdb.TYPE_CODE_PTR and int(val) == 0:
+        return "<nullptr>"
     its_st   = val["common"]["st"]
     its_repr = its_st["REPR"]
     reprid   = its_repr["ID"]
