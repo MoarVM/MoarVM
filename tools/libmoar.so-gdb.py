@@ -521,8 +521,26 @@ class StrHashCommand(gdb.Command):
         entries : list[gdb.Value] = list(MVMStrHash(val).entries())
         out_entries = []
 
-        longest_key = 0
+        var_res_addresses = array(array_code_for_bytesize(8))
+        hash_entry_type = None
+
+        longest_key  = 0
         longest_addr = 0
+
+        for bukit, metadata, e in entries:
+            if handle_type is None:
+                hash_entry_type = e.type
+            var_res_addresses.append(int(e))
+
+        if handle_type is not None:
+            var_res_type = handle_type.vector(len(entries) - 1)
+        elif hash_entry_type:
+            var_res_type = hash_entry_type.vector(len(entries) - 1)
+        else:
+            var_res_type = gdb.lookup_type("uintptr_t").vector(len(entries) - 1)
+
+        result_list = gdb.Value(var_res_addresses, var_res_type)
+        histval = gdb.add_history(result_list)
 
         for bucket, metadata, e in entries:
             key = ""
@@ -535,7 +553,6 @@ class StrHashCommand(gdb.Command):
                 ederef = result_str
                 key = repr(key)
                 longest_key = max(longest_key, len(key))
-
             else:
                 ederef = e.dereference()
 
@@ -543,13 +560,17 @@ class StrHashCommand(gdb.Command):
 
             out_entries.append((bucket, metadata, key, e, ederef))
 
+        longest_index = len(str(len(out_entries) - 1))
+        hist_var_col = len("$[] = ") + len(str(histval)) + longest_index
         if longest_key:
-            print(f"bkt  meta {"key":{longest_key}s}  {"addr":{longest_addr}s}  value")
+            print(f"bkt  meta {"key":{longest_key}s}{" ":{hist_var_col}s} {"addr":{longest_addr}s}  value")
         else:
-            print(f"bkt  meta   {"addr":{longest_addr}s}  entry")
+            print(f"bkt  meta {" ":{hist_var_col}s} {"addr":{longest_addr}s}  entry")
 
-        for (bucket, metadata, key, e, ederef) in out_entries:
-            print((f"{bucket:3x}  [{metadata:2x}] {key:{longest_key}s}  {e}  {ederef}"))
+        for index, (bucket, metadata, key, e, ederef) in enumerate(out_entries):
+            print((f"{bucket:3x}  [{metadata:2x}] {key:{longest_key}s} ${histval}[{index:{longest_index}d}] = {e}  {ederef}"))
+
+
 #                                                _           _
 #      _ __  ___ _ __  ___ _ _ _  _   __ ___ _ _| |_ ___ _ _| |_
 #     | '  \/ -_) '  \/ _ \ '_| || | / _/ _ \ ' \  _/ -_) ' \  _|
