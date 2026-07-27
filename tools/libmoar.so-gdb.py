@@ -2110,6 +2110,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 deopt_idx integer
             );
 
+            create table outputs (
+                rr_tick integer,
+                rr_event integer,
+                stream integer,
+                amount integer
+            );
+
             create table tracked_objects (
                 identifier integer primary key autoincrement,
                 rr_event integer,
@@ -2195,6 +2202,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                               ("nursery_tospace", "nursery_tospace"),
               ], int),
             ], "process_worklist")._extra(store_seq_num))
+
+        cbp.append(SQLRecordingBreakpoint(self, "outputs", "rr_tick rr_event stream amount", [
+            EXP.local_field("stream", "data", ["fd"], int),
+            EXP.local_var("amount", "bytes", int),
+            ], "syncfile.c:perform_write"))
 
         if "trackgc" in self.flags:
             cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:MVM_gc_collect_free_nursery_uncopied"))
@@ -3307,11 +3319,27 @@ class MoarTimelineCommand(gdb.Command):
               order by 2;
             """
 
+            outputs_events_query = """
+                select
+                    abs(rr_event - :now_rr_event) as eventdiff,
+                    o.*
+                from (
+                    select rr_event, rr_tick, stream, sum(amount) over (order by rowid), amount
+                    from outputs
+                ) o
+                order by 1 asc
+                limit 20;
+            """
+
             timeline_events = []
 
             cur.execute(tracked_object_events_query, dict(now_rr_event=rr_event))
             for te in cur.fetchall():
                 timeline_events.append(TimelineTextEvent(te[1], te[2], f"Object {te[0]} ({te[4]}) {te[3]}"))
+
+            cur.execute(outputs_events_query, dict(now_rr_event=rr_event))
+            for te in cur.fetchall():
+                timeline_events.append(TimelineTextEvent(te[1], te[2], f"fd{te[3]} bytes {te[4]} to {int(te[4]) + int(te[5])} written"))
 
             # and start_rr_event = :now_rr_event
 
