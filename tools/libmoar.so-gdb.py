@@ -2888,9 +2888,9 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
 
         rr_event = self.conn.event(currthreadptid)
 
-        if not (self.starting_event - 2 <= rr_event <= self.starting_event + 2):
-            print(f"Left current event for breakpoint {self.location}: {self.starting_event} vs {rr_event}")
-            return True
+        # if not (self.starting_event - 2 <= rr_event <= self.starting_event + 2):
+            # print(f"Left current event for breakpoint {self.location}: {self.starting_event} vs {rr_event}")
+            # return True
 
         rr_tick = self.conn.tick(currthreadptid)
 
