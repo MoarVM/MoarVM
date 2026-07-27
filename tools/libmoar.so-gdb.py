@@ -89,6 +89,8 @@ uint8p_t : gdb.Type | None
 
 stooge_t  : gdb.Type | None
 stoogep_t : gdb.Type | None
+mvmobj_t  : gdb.Type | None
+mvmobjp_t : gdb.Type | None
 mvmstr_t  : gdb.Type | None
 mvmstrp_t : gdb.Type | None
 
@@ -505,19 +507,14 @@ class StrHashCommand(gdb.Command):
 
     Ex: moar hash tc->instance->sc_weakhash.table
     Ex: moar hash tc->instance->sc_weakhash.table "struct MVMSerializationContextWeakHashEntry"
+
+    If you pass an MVMHash object, or an MVMObject with MVMHash REPR, the
+    command takes care of grabbing the right field and entry type for you.
     """
     def __init__(self):
         super(StrHashCommand, self).__init__("moar hash", gdb.COMMAND_DATA)
 
-    def invoke(self, arg, from_tty):
-        args = gdb.string_to_argv(arg)
-        val  = gdb.parse_and_eval(args[0])
-        handle_type = None
-        if len(args) > 1:
-            handle_type = gdb.lookup_type(args[1])
-            if handle_type.code != gdb.TYPE_CODE_PTR:
-                handle_type = handle_type.pointer()
-
+    def display_hashtable(self, val: gdb.Value, handle_type: gdb.Type | None = None):
         entries : list[gdb.Value] = list(MVMStrHash(val).entries())
         out_entries = []
 
@@ -571,6 +568,35 @@ class StrHashCommand(gdb.Command):
             print((f"{bucket:3x}  [{metadata:2x}] {key:{longest_key}s} ${histval}[{index:{longest_index}d}] = {e}  {ederef}"))
 
 
+    def invoke(self, arg, from_tty):
+        args = gdb.string_to_argv(arg)
+        val  = gdb.parse_and_eval(args[0])
+
+        handle_type = None
+        if len(args) > 1:
+            handle_type = gdb.lookup_type(args[1])
+            if handle_type.code != gdb.TYPE_CODE_PTR:
+                handle_type = handle_type.pointer()
+
+            return self.display_hashtable(val, handle_type)
+        else:
+            if str(val.type) in ["struct MVMStrHashTable *", "MVMStrHashTable"]:
+                return self.display_hashtable(val["table"])
+
+            if str(val.type) == "struct MVMStrHashTableControl *":
+                return self.display_hashtable(val)
+
+            if val.type.code == gdb.TYPE_CODE_INT:
+                maybe_obj = is_mvmobj_plausible(val)
+                if maybe_obj is not None:
+                    val = maybe_obj
+
+            if str(val.type) == "MVMObject *":
+                hashval = val.cast(gdb.lookup_type("struct MVMHash").pointer())
+                if hashval["common"]["st"]["REPR"]["ID"] == repr_infos["MVMHash"]["reprid"]:
+                    return self.display_hashtable(hashval["body"]["hashtable"]["table"], gdb.lookup_type("struct MVMHashEntry").pointer())
+
+        raise Exception("Could not figure out how this value is a hash:\n", str(val), str(val.type))
 #                                                _           _
 #      _ __  ___ _ __  ___ _ _ _  _   __ ___ _ _| |_ ___ _ _| |_
 #     | '  \/ -_) '  \/ _ \ '_| || | / _/ _ \ ' \  _/ -_) ' \  _|
@@ -3443,6 +3469,56 @@ def can_read_path(val: gdb.Value, *path: str):
 class EarlyAbortException(Exception):
     pass
 
+def is_mvmobj_plausible(obj: gdb.Value, score : int = 0):
+    """Check if a gdb.Value is plausible as an MVMObject *.
+
+    Returns the """
+    casted = obj.cast(mvmobjp_t)
+
+    def deduct(n):
+        nonlocal score
+        score -= n
+        if score < -500:
+            raise EarlyAbortException("score bottomed out")
+
+    try:
+        try:
+            if int(casted["common"]["header"]["owner"]) > 10000:
+                deduct(100)
+        except gdb.MemoryError:
+            return None
+
+        try:
+            st = casted["st"]
+            if not can_read_path(st, "REPR", "ID"):
+                deduct(200)
+            elif not can_read_path(st, "REPR", "name"):
+                deduct(200)
+
+            if not (4 <= len(st["REPR"]["name"].string()) <= 32):
+                deduct(250)
+
+            if int(st["debug_name"]) != 0:
+                 if len(st["debug_name"].string()) > 100:
+                     deduct(50)
+
+            if int(st["being_repossessed"]) > 1:
+                deduct(50)
+            if int(st["is_mixin_type"]) > 1:
+                deduct(50)
+
+            for f in ["WHAT", "WHO", "HOW"]:
+                if int(st[f]) == 0 or not can_read(st[f]):
+                    deduct(90)
+
+        except gdb.MemoryError:
+            return None
+    except EarlyAbortException:
+        return None
+
+    return casted["common"].address
+
+
 def is_tc_plausible(tc: gdb.Value, depth : int = 0, score : int = 0):
     """Check if a gdb.Value of type MVMThreadContext * is plausible as
     an actual MVMThreadContext, based on contents and its pointers.
@@ -4340,6 +4416,9 @@ if __name__ == "__main__":
 
         stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
         stoogep_t = stooge_t.pointer()
+
+        mvmobj_t = gdb.lookup_symbol("MVMObject")[0].type.strip_typedefs()
+        mvmobjp_t = mvmobj_t.pointer()
 
         mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
         mvmstrp_t = mvmstr_t.pointer()
