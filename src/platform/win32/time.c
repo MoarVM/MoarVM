@@ -56,7 +56,4 @@ void MVM_platform_decodelocaltime(MVMThreadContext *tc, MVMint64 time, MVMint64 
     decoded[3] = tm.tm_mday;
     decoded[4] = tm.tm_mon + 1;
     decoded[5] = tm.tm_year + 1900;
-    decoded[6] = tm.tm_wday;
-    decoded[7] = tm.tm_yday;
-    decoded[8] = tm.tm_isdst;
 }
