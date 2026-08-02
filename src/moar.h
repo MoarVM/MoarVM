@@ -15,6 +15,7 @@
 #include <setjmp.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdalign.h>
 #include <string.h>
 #include <assert.h>
 
@@ -105,16 +106,7 @@ typedef float    MVMnum32;
 typedef double   MVMnum64;
 
 /* Alignment. */
-#if HAVE_ALIGNOF
-/* A GCC extension. */
-#define ALIGNOF(t) __alignof__(t)
-#elif defined _MSC_VER
-/* MSVC extension. */
-#define ALIGNOF(t) __alignof(t)
-#else
-/* Alignment by measuring structure padding. */
-#define ALIGNOF(t) ((char *)(&((struct { char c; t _h; } *)0)->_h) - (char *)0)
-#endif
+#define ALIGNOF(x) alignof(x)
 
 #define MVM_ASSERT_ALIGNED(var, align) assert(!((MVMuint64)(var) % (MVMuint64)(align)))
 
