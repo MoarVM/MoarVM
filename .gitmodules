@@ -19,6 +19,7 @@
 [submodule "3rdparty/zmij"]
 	path = 3rdparty/zmij
 	url = https://github.com/vitaut/zmij
+	ignore = untracked
 [submodule "3rdparty/mimalloc"]
 	path = 3rdparty/mimalloc
 	url = https://github.com/microsoft/mimalloc.git
