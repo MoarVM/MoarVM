@@ -319,6 +319,53 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
     }
 }
 
+/* 1:1 copy of the above, but call MVM_oops_with_blame instead of MVM_oops */
+MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck_blame(MVMThreadContext *tc,
+                                                   MVMStrHashTable *hashtable,
+                                                   MVMString *key, MVMObject *blame) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops_with_blame(tc, blame, "MVM_str_hash_fetch_nocheck called with a stale hashtable pointer");
+    }
+
+    if (MVM_str_hash_is_empty(tc, hashtable)) {
+        return NULL;
+    }
+
+    struct MVM_hash_loop_state ls = MVM_str_hash_create_loop_state(tc, control, key);
+
+    while (1) {
+        if (*ls.metadata == ls.probe_distance) {
+            struct MVMStrHashHandle *entry = (struct MVMStrHashHandle *) ls.entry_raw;
+            if (entry->key == key
+                || (MVM_string_graphs_nocheck(tc, key) == MVM_string_graphs_nocheck(tc, entry->key)
+                    && MVM_string_substrings_equal_nocheck(tc, key, 0,
+                                                           MVM_string_graphs_nocheck(tc, key),
+                                                           entry->key, 0))) {
+                if (MVM_UNLIKELY(control->stale)) {
+                    MVM_oops_with_blame(tc, blame, "MVM_str_hash_fetch_nocheck called with a hashtable pointer that turned stale");
+                }
+                return entry;
+            }
+        }
+        else if (*ls.metadata < ls.probe_distance) {
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops_with_blame(tc, blame, "MVM_str_hash_fetch_nocheck called with a hashtable pointer that turned stale");
+            }
+
+            return NULL;
+        }
+        ls.probe_distance += ls.metadata_increment;
+        ++ls.metadata;
+        ls.entry_raw -= ls.entry_size;
+        assert(ls.probe_distance < (ls.max_probe_distance + 2) * ls.metadata_increment);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + MVM_str_hash_max_items(control));
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + 256);
+    }
+}
+
+
 /* Looks up entry for key, creating it if necessary.
  * Returns the structure we indirect to.
  * If it's freshly allocated, then *entry is NULL (you need to fill this in)
@@ -329,6 +376,11 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
 void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                         MVMStrHashTable *hashtable,
                                         MVMString *key);
+
+void *MVM_str_hash_lvalue_fetch_nocheck_blame(MVMThreadContext *tc,
+                                        MVMStrHashTable *hashtable,
+                                        MVMString *key, MVMObject *blame);
+
 
 void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                                  MVMStrHashTable *hashtable,
@@ -369,6 +421,15 @@ MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch(MVMThreadContext *tc,
     return MVM_str_hash_lvalue_fetch_nocheck(tc, hashtable, key);
 }
 
+MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch_blame(MVMThreadContext *tc,
+                                                  MVMStrHashTable *hashtable,
+                                                  MVMString *key, MVMObject *blame) {
+    if (!MVM_str_hash_key_is_valid(tc, key)) {
+        MVM_str_hash_key_throw_invalid(tc, key);
+    }
+    return MVM_str_hash_lvalue_fetch_nocheck_blame(tc, hashtable, key, blame);
+}
+
 MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
                                            MVMStrHashTable *hashtable,
                                            MVMString *want) {
@@ -376,6 +437,15 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
         MVM_str_hash_key_throw_invalid(tc, want);
     }
     return MVM_str_hash_fetch_nocheck(tc, hashtable, want);
+}
+
+MVM_STATIC_INLINE void *MVM_str_hash_fetch_blame(MVMThreadContext *tc,
+                                           MVMStrHashTable *hashtable,
+                                           MVMString *want, MVMObject *blame) {
+    if (!MVM_str_hash_key_is_valid(tc, want)) {
+        MVM_str_hash_key_throw_invalid(tc, want);
+    }
+    return MVM_str_hash_fetch_nocheck_blame(tc, hashtable, want, blame);
 }
 
 MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
@@ -595,6 +665,18 @@ MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,
     return control ? control->cur_items : 0;
 }
 
+MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count_blame(MVMThreadContext *tc,
+                                                           MVMStrHashTable *hashtable, MVMObject *blame) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops_with_blame(tc, blame, "MVM_str_hash_count called with a stale hashtable pointer");
+    }
+
+    return control ? control->cur_items : 0;
+}
+
+
 /* If this returns 0, then you have not yet called MVM_str_hash_build */
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size(MVMThreadContext *tc,
                                                           MVMStrHashTable *hashtable) {
@@ -602,6 +684,17 @@ MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size(MVMThreadContext *tc,
 
     if (MVM_UNLIKELY(control && control->stale)) {
         MVM_oops(tc, "MVM_str_hash_entry_size called with a stale hashtable pointer");
+    }
+
+    return control ? control->entry_size : 0;
+}
+
+MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size_blame(MVMThreadContext *tc,
+                                                                MVMStrHashTable *hashtable, MVMObject *blame) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops_with_blame(tc, blame, "MVM_str_hash_entry_size called with a stale hashtable pointer");
     }
 
     return control ? control->entry_size : 0;
