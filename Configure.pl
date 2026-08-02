@@ -77,7 +77,9 @@ for my $target (@target_dirs) {
 }
 
 # Download / Update submodules
-my $code = system($^X, 'tools/update-submodules.pl', Cwd::cwd(), @args);
+my @update_args = defined $args{'git-cache-dir'}
+    ? ('--git-cache-dir', $args{'git-cache-dir'}) : ();
+my $code = system($^X, 'tools/update-submodules.pl', @update_args);
 exit 1 if $code >> 8 != 0;
 
 # fiddle with flags
