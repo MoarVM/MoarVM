@@ -56,6 +56,12 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     MVMObject *invokee = thread->body.invokee;
     thread->body.invokee = NULL;
 
+    /* create mimalloc heap for this tc */
+    if (tc->instance->nursery_arena) {
+        // fprintf(stderr, "initial thread invoke creates a nursery_heap!\n");
+        tc->nursery_heap = mi_heap_new_in_arena(tc->instance->nursery_arena);
+    }
+
     /* Create initial frame, which sets up all of the interpreter state also. */
     MVMArgs args = {
         .callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY),

@@ -32,6 +32,15 @@ void *MVM_platform_alloc_pages(size_t size, int page_mode) {
     return allocd;
 }
 
+void *MVM_platform_try_alloc_page_at_exactly(void *addr, size_t size, int page_mode) {
+    int prot_mode = page_mode_to_prot_mode(page_mode);
+    void * allocd = VirtualAlloc(addr, size, MEM_COMMIT | MEM_RESERVE, prot_mode);
+    if (!allocd)
+        return NULL;
+    return allocd;
+}
+
+
 int MVM_platform_set_page_mode(void * pages, size_t size, int page_mode) {
     int prot_mode = page_mode_to_prot_mode(page_mode);
     DWORD oldMode;
