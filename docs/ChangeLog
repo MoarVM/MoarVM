@@ -1,4 +1,5 @@
 
++ Increase initial nursery size x 4 (memory being less of an issue)
 + Bump mimalloc to v3.4.4
 + Switch from Ryu to Żmij for our double-to-ascii implementation
 
