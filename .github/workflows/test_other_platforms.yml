@@ -1,0 +1,95 @@
+name: Test on other platforms
+
+# Build MoarVM and run the NQP test suite on operating systems that GitHub
+# does not provide hosted runners for. The OS runs in a VM on top of an
+# ubuntu-latest runner, so this workflow is independent of the Azure Pipelines
+# matrix and does not delay it.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  dragonflybsd:
+    name: DragonFly BSD
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout MoarVM
+        uses: actions/checkout@v7
+        with:
+          path: MoarVM
+          submodules: recursive
+          # Configure.pl takes the version from `git describe --tags`, and NQP
+          # refuses to build against a MoarVM older than the revision pinned in
+          # its tools/templates/MOAR_REVISION, so both the history and the tags
+          # are needed.
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Checkout NQP
+        uses: actions/checkout@v7
+        with:
+          repository: Raku/nqp
+          path: nqp
+          submodules: recursive
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Build and test in DragonFly BSD
+        uses: vmactions/dragonflybsd-vm@v1
+        with:
+          usesh: true
+          copyback: false
+          cache-after-prepare: true
+          prepare: |
+            pkg install -y perl5 gmake git
+          run: |
+            set -e
+
+            # The work tree is synced in from the runner, so inside the VM it
+            # is owned by a different uid than the one running the build.
+            # Without this, `git describe` and the submodule sync that
+            # Configure.pl runs both fail with "detected dubious ownership".
+            git config --global --add safe.directory '*'
+
+            echo "===== toolchain ====="
+            uname -a
+            perl -v | sed -n '2p'
+            cc --version | sed -n '1p'
+            git --version
+
+            JOBS=`sysctl -n hw.ncpu`
+
+            # --toolchain=gnu because the "bsd" toolchain that build/setup.pm
+            # selects here generates object rules that use `$*.c`, and BSD make
+            # expands `$*` without the directory part, so every compile fails
+            # with "no such file or directory: 'args.c'".
+            #
+            # No -j on the MoarVM build: the vendored dyncall build shells out
+            # to the base system make, which rejects the bare -j that GNU make
+            # puts into MAKEFLAGS for its job server.
+            echo "===== build MoarVM ====="
+            cd MoarVM
+            perl Configure.pl --toolchain=gnu --prefix=../install
+            gmake install
+            ../install/bin/moar --version
+
+            # NQP::Config picks its own make and generates a matching Makefile,
+            # so let NQP's Configure.pl drive the build.
+            echo "===== build NQP ====="
+            cd ../nqp
+            perl Configure.pl --backends=moar --prefix=../install --make-install
+
+            echo "===== test NQP ====="
+            prove -j$JOBS -r -e ../install/bin/nqp \
+              t/nqp t/hll t/qregex t/p5regex t/qast t/moar \
+              t/serialization t/nativecall t/concurrency
