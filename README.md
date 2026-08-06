@@ -15,6 +15,7 @@ contain the third party libraries needed to successfully build MoarVM.
 
 ## Build It
 [![Build Status](https://dev.azure.com/MoarVM/MoarVM/_apis/build/status/MoarVM.MoarVM?branchName=master)](https://dev.azure.com/MoarVM/MoarVM/_build/latest?definitionId=1&branchName=master)
+[![Test on other platforms](https://github.com/MoarVM/MoarVM/actions/workflows/test_other_platforms.yml/badge.svg)](https://github.com/MoarVM/MoarVM/actions/workflows/test_other_platforms.yml)
 
 Building and installing the VM itself takes just:
 
