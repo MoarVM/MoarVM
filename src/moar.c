@@ -463,6 +463,45 @@ MVMInstance * MVM_vm_create_instance(void) {
         else {
             instance->coverage_control = 0;
         }
+
+        /* Parse coverage file filters. */
+        {
+            char *coverage_files = getenv("MVM_COVERAGE_FILES");
+
+            if (coverage_files && coverage_files[0]) {
+                char **filters;
+                char *p;
+                char *tok = coverage_files;
+                MVMuint32 count = 1;
+                MVMuint32 i = 0;
+                int last;
+
+                /* Count comma-delimited substrings. */
+                for (p = coverage_files; *p; p++)
+                    if (*p == ',') count++;
+
+                filters = MVM_malloc(count * sizeof(char *));
+
+                /* Replace commas with \0 and store pointers to non-empty substrings. */
+                for (p = coverage_files; ; p++) {
+                    if (*p == ',' || *p == '\0') {
+                        last = (*p == '\0');
+                        *p = '\0';
+
+                        if (tok[0])
+                            filters[i++] = tok;
+
+                        if (last) break;
+
+                        tok = p + 1;
+                    }
+                }
+
+                /* Assign filters. */
+                instance->coverage_file_filters = filters;
+                instance->coverage_file_filter_count = i;
+            }
+        }
     }
     else {
         instance->coverage_logging = 0;
@@ -769,6 +808,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     if (instance->jit_breakpoints) {
         MVM_VECTOR_DESTROY(instance->jit_breakpoints);
     }
+
+    /* Clean up coverage file filters */
+    MVM_free(instance->coverage_file_filters);
 
     /* Clean up cross-thread-write-logging mutex */
     uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);

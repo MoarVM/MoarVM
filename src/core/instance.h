@@ -552,6 +552,10 @@ struct MVMInstance {
     FILE *coverage_log_fh;
     MVMuint32  coverage_control;
 
+    /* Filters for coverage instrumentation. */
+    char     **coverage_file_filters;
+    MVMuint32  coverage_file_filter_count;
+
     /* The time it takes to run the profiler instrumentation. */
     MVMuint64 profiling_overhead;
 
