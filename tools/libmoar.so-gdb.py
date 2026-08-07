@@ -60,6 +60,10 @@
 # - Offer an HTML rendering of the stats, since gdb insists on printing
 #   a pager header right in between our pretty gen2 graphs most of the time
 
+import select
+import os
+import io
+import subprocess
 from contextlib import contextmanager
 from array import array
 from sqlite3 import Connection
@@ -1247,6 +1251,72 @@ def checkpoint_restored() -> typing.Generator[int, None, None]:
         gdb.execute(f"restart {chkp_id}")
         gdb.execute(f"delete checkpoint {chkp_id}")
 
+class RrSubprocess:
+    proc: subprocess.Popen
+    def __init__(self, start_event: int | None):
+        from pathlib import Path
+
+        # get the recording folder, hopefully
+        fname = gdb.selected_inferior().progspace.executable_filename
+        if fname is None:
+            raise Exception("Couldn't figure out path of recording")
+
+        if start_event is None:
+            start_event = RrGdbConn().event()
+
+        recording_dir = Path(fname).parent
+        self.proc = subprocess.Popen(["rr", "replay", "-q", "-g" + str(start_event), recording_dir, "--", "-i=mi3"],
+                          stdout=subprocess.PIPE, stdin=subprocess.PIPE, encoding=None)
+        print(repr(self.proc.stdout))
+        print(repr(self.proc.stdin))
+        assert isinstance(self.proc.stdout, io.BufferedReader)
+        assert isinstance(self.proc.stdin, io.BufferedWriter)
+
+        while True:
+            line = self.proc.stdout.readline()
+            if line:
+                print(repr(line))
+                if line.startswith(b"*stopped"):
+                    break
+            else:
+                if self.proc.poll():
+                    print("huh, process quit?", self.proc)
+                    break
+
+        print("Yippie, we have a subprocess with RR now!")
+
+    def do_mi_command(self, command):
+        print("running command ", command, " in rr subproc")
+        assert isinstance(self.proc.stdout, io.BufferedReader)
+        assert isinstance(self.proc.stdin, io.BufferedWriter)
+
+        # drain nonsense from subproc output
+        while True:
+            readable, _, _ = select.select([self.proc.stdout], [], [], 0.01)
+            if readable:
+                disc = readable[0].read1(128)
+                print("discarded before command runs: ", repr(disc))
+            else:
+                break
+
+        self.proc.stdin.write(command + b"\n")
+        self.proc.stdin.flush()
+        while True:
+            line = self.proc.stdout.readline()
+            if line:
+                print(repr(line))
+                if line.startswith(b"^done"):
+                    break
+                if line.startswith(b"^error"):
+                    raise Exception("RR subprocess reported error!", line)
+                # if line.startswith(b"(gdb) \n"):
+                #     break
+            else:
+                if self.proc.poll():
+                    print("huh, process quit?", self.proc)
+                    break
+
+
 class RrGdbConn:
     conn: gdb.RemoteTargetConnection
 
@@ -1784,13 +1854,24 @@ def ensure_execution_db() -> Connection:
     """Try to open an execution db sqlite file if $moar_rrdb_file is set."""
     global execution_db
 
+    rrdb_from_env = os.getenv("MOAR_RRDB_FILE")
+    print(f"{rrdb_from_env=}")
+
     if execution_db is None:
-        filename_maybe = gdb.parse_and_eval("$moar_rrdb_file")
+        filename_maybe = None
+        if rrdb_from_env and Path(rrdb_from_env).exists():
+            filename_maybe = rrdb_from_env
+        else:
+            filename_perhaps = gdb.parse_and_eval("$moar_rrdb_file")
+            if str(filename_perhaps) and str(filename_perhaps) != "void" and Path(filename_perhaps.string()).exists():
+                filename_maybe = filename_perhaps.string()
+
         # print(f"Can I load db from $moar_rrdb_file? ({filename_maybe})")
-        if str(filename_maybe) and str(filename_maybe) != "void" and Path(filename_maybe.string()).exists():
+        if filename_maybe:
             import sqlite3
             print("Loading previous execution db from ", filename_maybe)
-            execution_db = sqlite3.connect(filename_maybe.string(), autocommit=False)
+            execution_db = sqlite3.connect(filename_maybe, autocommit=False)
+            os.putenv("MOAR_RRDB_FILE", filename_maybe)
             return execution_db
         else:
             print("No execution DB seems to exist. run `moar rrdb` first!")
@@ -2463,6 +2544,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 self.run()
         finally:
             try:
+                print("setting execution_db value to ", execution_db)
                 execution_db = self._db_conn
                 gdb.set_convenience_variable("moar_rrdb_file", self._db_file.name)
             except Exception as e:
@@ -2964,6 +3046,7 @@ class RecordObjectEventsCommand(gdb.Command):
             cur.close()
             execution_db.commit()
             execution_db.close()
+            print("finally in record object history command: resetting execution_db to None")
             execution_db = None
 
 @dataclass(frozen=True)
@@ -2974,6 +3057,9 @@ class TimelineEvent:
     def fmt(self):
         return "some event"
 
+    def as_mi_dict(self):
+        return dict(type=type(self).__name__, rr_event=self.rr_event, rr_tick=self.rr_tick)
+
 @dataclass(frozen=True)
 class TimelineTextEvent(TimelineEvent):
     text: str
@@ -2981,15 +3067,31 @@ class TimelineTextEvent(TimelineEvent):
     def fmt(self):
         return self.text
 
+    def as_mi_dict(self):
+        d = super(TimelineTextEvent, self).as_mi_dict()
+        d["text"] = self.text
+        return d
+
 @dataclass(frozen=True)
 class YouAreHere(TimelineEvent):
     def fmt(self):
         return "  **  You Are Here  **  "
 
+    def as_mi_dict(self):
+        d = super(YouAreHere, self).as_mi_dict()
+        d["text"] = "you are here"
+        return d
+
 @dataclass(frozen=True)
 class TimelineRange(TimelineEvent):
     end_rr_event: int
     end_rr_tick:  int | None
+
+    def as_mi_dict(self):
+        d = super(TimelineRange, self).as_mi_dict()
+        d["end_rr_event"] = self.end_rr_event
+        d["end_rr_tick"]  = self.end_rr_tick
+        return d
 
 @dataclass(frozen=True)
 class GcTimelineEvent(TimelineRange):
@@ -2999,9 +3101,22 @@ class GcTimelineEvent(TimelineRange):
     def fmt(self):
         return ("Major GC run " if self.is_major else "Minor GC run ") + str(self.gc_seq_num)
 
+    def as_mi_dict(self):
+        d = super(GcTimelineEvent, self).as_mi_dict()
+        d["gc_seq_num"] = self.gc_seq_num
+        d["is_major"]   = self.is_major
+        return d
+
+
 @dataclass(frozen=True)
 class StackTimelineEvent(TimelineEvent):
     stack_depth: int
+
+    def as_mi_dict(self):
+        d = super(StackTimelineEvent, self).as_mi_dict()
+        d["stack_depth"]   = self.stack_depth
+        return d
+
 
 @dataclass(frozen=True)
 class CallTimelineEvent(StackTimelineEvent):
@@ -3014,11 +3129,18 @@ class CallTimelineEvent(StackTimelineEvent):
             return self.func_name + " (exc ret)"
         return self.func_name
 
+    def as_mi_dict(self):
+        d = super(CallTimelineEvent, self).as_mi_dict()
+        d["func_name"]   = self.func_name
+        d["details"]     = self.details
+        d["kind"]        = self.kind
+        return d
 
 class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
     hit_limit: int
     tick_limit: int | None
     conn: RrGdbConn
+    mtlc: MoarTimelineImplementation
 
     def __init__(self, conn, starting_event, relevant_ptid, mtlc, tc, what, *args, **kwargs):
         super(InvokeReturnTimelineRecordingBreakpoint, self).__init__(internal=True, *args, **kwargs)
@@ -3281,25 +3403,17 @@ class TimelineWriter:
 
         return "\n".join([e[1] for e in lines_before_you_are_here + output_lines])
 
-
-class MoarTimelineCommand(gdb.Command):
-    """Show recent and upcoming events from moar rrdb's execution db
-
-    You can pass a number as the only argument to get more or fewer lines
-    around the current time, otherwise you get up to 18.."""
-
+class MoarTimelineImplementation:
     flags : Set[str]
     found_entries: list[TimelineEvent] = []
     time_of_event: dict = {}
 
-    def __init__(self):
-        super(MoarTimelineCommand, self).__init__("moar timeline", gdb.COMMAND_STATUS)
-
     def register_timeline_breakpoint(self, event, tick, thing, func, details, depth):
         # print(f"registering timeline event: {event=} {tick=} {thing=} {func=} {depth=}")
         if event not in self.time_of_event:
-            rr_ptid, rr_event, rr_tick = RrGdbConn().ptid_event_tick()
-            rr_time = RrGdbConn.time(rr_ptid)
+            conn = RrGdbConn()
+            rr_ptid, rr_event, rr_tick = conn.ptid_event_tick()
+            rr_time = conn.time(rr_ptid)
             if event != rr_event:
                 print(f"wtf, register_timeline_breakpoint called with {event} but getting current event gets {rr_event}")
             self.time_of_event[event] = [rr_tick, rr_time, rr_ptid]
@@ -3312,15 +3426,6 @@ class MoarTimelineCommand(gdb.Command):
             delegate_to = gdb.selected_frame().read_var("dispatcher_id")
             delegate_to = mvmstr_to_str(delegate_to)
             self.found_entries.append(TimelineTextEvent(event, tick, "dispatcher delegates to " + delegate_to))
-
-    def invoke(self, argument, from_tty):
-        pagination_before = gdb.execute("show pagination", False, True) == "State of pagination is on.\n"
-        gdb.execute("set pagination off", False, False)
-        try:
-            self.do_invoke(argument, from_tty)
-        finally:
-            if pagination_before:
-                gdb.execute("set pagination on", False, True)
 
     def do_invoke(self, argument : str, from_tty):
         global execution_db
@@ -3341,6 +3446,10 @@ class MoarTimelineCommand(gdb.Command):
 
         currthreadptid, rr_event, rr_tick = rrcon.ptid_event_tick()
         # rr_time  = rrcon.time()
+
+        if "nochild" not in argument:
+            subp = RrSubprocess(rr_event)
+            res = subp.do_mi_command(b'-moar-timeline')
 
         try:
             cur = execution_db.cursor()
@@ -3388,7 +3497,7 @@ class MoarTimelineCommand(gdb.Command):
                     if stopped_rr_event != rr_event:
                         print(f"seeked to {seek_offset} ticks earlier, but went to wrong event (found {found_stuff} entries so far)")
 
-                    gdb.execute("continue")
+                    gdb.execute_mi('-interpreter-exec console "continue"')
 
                     found_stuff = len(self.found_entries)
 
@@ -3421,6 +3530,7 @@ class MoarTimelineCommand(gdb.Command):
         found_entries = sorted(self.found_entries, key=lambda e: (e.rr_event, e.rr_tick))
 
         try:
+            execution_db = ensure_execution_db()
             cur = execution_db.cursor()
 
             gcs_query = """
@@ -3571,7 +3681,7 @@ class MoarTimelineCommand(gdb.Command):
             # times while jumping back and forth in time)
             full_timeline_events = [globals()[type(ev).__name__](**ev.__dict__) for ev in full_timeline_events]
 
-            print(TimelineWriter(full_timeline_events, self.time_of_event, event_limit).stringify())
+            return full_timeline_events, event_limit
 
         except Exception as ex:
             print("Failed to get timeline stuff: ", ex)
@@ -3581,7 +3691,50 @@ class MoarTimelineCommand(gdb.Command):
             cur.close()
             execution_db.commit()
             execution_db.close()
+            print("finally in timeline command: resetting execution_db to None")
             execution_db = None
+
+class MoarTimelineCommand(gdb.Command):
+    """Show recent and upcoming events from moar rrdb's execution db
+
+    You can pass a number as the only argument to get more or fewer lines
+    around the current time, otherwise you get up to 18.."""
+
+    def __init__(self):
+        super(MoarTimelineCommand, self).__init__("moar timeline", gdb.COMMAND_STATUS)
+
+    def invoke(self, argument, from_tty):
+        impl = MoarTimelineImplementation()
+
+        pagination_before = gdb.execute("show pagination", False, True) == "State of pagination is on.\n"
+        gdb.execute("set pagination off", False, False)
+        try:
+            timeline_events, event_limit = impl.do_invoke(argument, from_tty)
+            print(TimelineWriter(timeline_events, impl.time_of_event, event_limit).stringify())
+        finally:
+            if pagination_before:
+                gdb.execute("set pagination on", False, True)
+
+
+class MoarTimelineMiCommand(gdb.MICommand):
+    """MI version of MoarTimelineCommand."""
+    def __init__(self):
+        super(MoarTimelineMiCommand, self).__init__("-moar-timeline")
+
+    def invoke(self, arguments):
+        impl = MoarTimelineImplementation()
+        timeline_events, event_limit = impl.do_invoke("nochild", False)
+
+        print("returning timeline events stuff as MI dict:")
+
+        result = {
+            "timeline_events": [ev.as_mi_dict() for ev in timeline_events],
+            "event_limit": event_limit
+        }
+
+        print(repr(result))
+
+        return result
 
 #     _             _   _                                                     _
 #    | |__  __ _ __| |_| |_ _ _ __ _ __ ___   __ ___ _ __  _ __  __ _ _ _  __| |___
@@ -4495,6 +4648,12 @@ def register_printers(objfile):
 
 commands = []
 def register_commands():
+    try:
+        if gdb.parse_and_eval('$moarvm_gdb_plugin_banner_shown') == 1:
+            print("skipping registering the command classes")
+            return
+    except gdb.error:
+        pass
     commands.append(MoarCommands())
 
     # currently the analyze and diff heap commands don't work
@@ -4509,6 +4668,7 @@ def register_commands():
     commands.append(RecordObjectEventsCommand())
 
     commands.append(MoarTimelineCommand())
+    commands.append(MoarTimelineMiCommand())
 
     commands.append(MoarBreakCommands())
     commands.append(MoarBreakInterpRunCommands())
