@@ -1211,9 +1211,9 @@ class MoarBreakExceptionAdhoc(MoarBreakCommands):
 # As of right now, the data is not utilised by any commands here.
 #
 
-def create_checkpoint():
+def create_checkpoint() -> int:
     chkp_res = gdb.execute("checkpoint", False, True)
-    return chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+    return int(chkp_res[len("Checkpoint "):chkp_res.find(" at ")])
 
 @contextmanager
 def breakpoints_disabled():
@@ -1239,10 +1239,10 @@ def breakpoints_disabled():
             bp.enabled = True
 
 @contextmanager
-def checkpoint_restored():
+def checkpoint_restored() -> typing.Generator[int, None, None]:
     chkp_id = create_checkpoint()
     try:
-        yield
+        yield chkp_id
     finally:
         gdb.execute(f"restart {chkp_id}")
         gdb.execute(f"delete checkpoint {chkp_id}")
@@ -2457,7 +2457,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         self.dont_repeat()
         try:
-            with breakpoints_disabled():
+            with breakpoints_disabled(), checkpoint_restored():
                 self.setup()
 
                 self.run()
@@ -2576,8 +2576,8 @@ class RecordObjectEventsCommand(gdb.Command):
                         raise Exception("Couldn't get this object's st attribute address?")
                     watch_expr = f"*(MVMSTable **)0x{int(watch_addr):x}"
 
-
-                self._created_checkpoints.append(create_checkpoint())
+                chkp_id = create_checkpoint()
+                self._created_checkpoints.append(chkp_id)
 
                 addresses_in_time.append((chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.moved_by_gc, int(prev_val)))
 
@@ -2764,18 +2764,21 @@ class RecordObjectEventsCommand(gdb.Command):
                 slots_attr_watchpoint = gdb.Breakpoint(
                     f"*(void **)0x{int(slots_attr):x}", gdb.BP_WATCHPOINT, gdb.WP_WRITE, True,
                 )
+                slots_attr_watchpoint.silent = True
                 self._created_breakpoints.append(slots_attr_watchpoint)
 
                 elems_attr = casted["body"]["elems"].address
                 elems_attr_watchpoint = gdb.Breakpoint(
                     f"*(MVMuint64*)0x{int(elems_attr):x}", gdb.BP_WATCHPOINT, gdb.WP_WRITE, True,
                 )
+                elems_attr_watchpoint.silent = True
                 self._created_breakpoints.append(elems_attr_watchpoint)
 
                 start_attr = casted["body"]["start"].address
                 start_attr_watchpoint = gdb.Breakpoint(
                     f"*(MVMuint64*)0x{int(start_attr):x}", gdb.BP_WATCHPOINT, gdb.WP_WRITE, True,
                 )
+                start_attr_watchpoint.silent = True
                 self._created_breakpoints.append(start_attr_watchpoint)
 
                 print("attribute breakpoint numbers: ", slots_attr_watchpoint.number, elems_attr_watchpoint.number, start_attr_watchpoint.number)
@@ -3005,9 +3008,12 @@ class StackTimelineEvent(TimelineEvent):
 @dataclass(frozen=True)
 class CallTimelineEvent(StackTimelineEvent):
     func_name: str
-    kind: typing.Literal["invoke"] | typing.Literal["return"]
+    details: object
+    kind: typing.Literal["invoke"] | typing.Literal["return"] | typing.Literal["create_dispatch_record"]
 
     def fmt(self):
+        if self.kind == "return" and self.details == "exc":
+            return self.func_name + " (exc ret)"
         return self.func_name
 
 
@@ -3060,6 +3066,7 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
         stack_depth = 0
 
         funcname = None
+        details = None
 
         if self.what == "invoke":
             stack_depth += 1
@@ -3068,6 +3075,11 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
             funcname = mvmstr_to_str(invoked_sfb["name"])
             if funcname == "":
                 funcname = f"({mvmstr_to_str(invoked_sfb["cuuid"])})"
+        elif self.what == "return":
+            is_exceptional = int(gdb.selected_frame().read_var("exceptional"))
+            if is_exceptional:
+                print("found an exceptional return!")
+                details = "exc"
 
         cur_frame = MoarStackFrame.from_tc(self.tc)
         if cur_frame is not None:
@@ -3083,7 +3095,7 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
             if funcname is None:
                 funcname = "???"
 
-        self.mtlc.register_timeline_breakpoint(rr_event, rr_tick, self.what, funcname, stack_depth)
+        self.mtlc.register_timeline_breakpoint(rr_event, rr_tick, self.what, funcname, details, stack_depth)
 
         return False
 
@@ -3138,7 +3150,10 @@ class TimelineWriter:
         return ("".join(res), (abbrev_stack_depth + new_stack_depth) + effective_stack_diff)
 
     def get_time_of_event(self, event):
-        return self.times_of_events.get(event, math.nan)
+        return self.times_of_events.get(event, [0, math.nan, 0])[1]
+
+    def get_tick_time_tid_of_event(self, event):
+        return self.times_of_events.get(event, [None, None, None])
 
     def stringify(self):
         output_lines = []
@@ -3150,9 +3165,12 @@ class TimelineWriter:
         self.current_stack_depth = 0
         self.event_of_line = []
 
+        yah_event : YouAreHere
+
         calls_before_yah = []
         calls_after_yah  = []
         invoke_search_borders = []
+
         for ev in self.events:
             if isinstance(ev, CallTimelineEvent):
                 calls_after_yah.append(ev)
@@ -3160,8 +3178,11 @@ class TimelineWriter:
                 if ev.text == "Invoke search border":
                     invoke_search_borders.append(ev)
             elif isinstance(ev, YouAreHere):
+                yah_event = ev
                 calls_before_yah = calls_after_yah
                 calls_after_yah = []
+
+        currently_selected_thread: int | None = self.get_tick_time_tid_of_event(yah_event.rr_event)[2]
 
         to_remove = []
         if len(calls_before_yah) > self.limit:
@@ -3222,12 +3243,17 @@ class TimelineWriter:
             elif event > now_event:
                 relpos = "after"
 
-            time = self.get_time_of_event(event)
-            if math.isnan(time):
+            ev_tick, ev_time, ev_tid = self.get_tick_time_tid_of_event(event)
+            if ev_time is None:
                 time = "unknown time"
             else:
-                time = f"{time}s"
-            l(None, f"Event {event} at {time}")
+                time = f"{ev_time}s"
+            if ev_tid != currently_selected_thread:
+                thread_text = " on thread " + str(ev_tid)
+            else:
+                thread_text = ""
+
+            l(None, f"Event {event} at {time}{thread_text}")
 
             any_stacks_in_group = bool([e for e in group if isinstance(e, StackTimelineEvent)])
 
@@ -3270,17 +3296,29 @@ class MoarTimelineCommand(gdb.Command):
     around the current time, otherwise you get up to 18.."""
 
     flags : Set[str]
-    found_entries: list[CallTimelineEvent] = []
+    found_entries: list[TimelineEvent] = []
     time_of_event: dict = {}
 
     def __init__(self):
         super(MoarTimelineCommand, self).__init__("moar timeline", gdb.COMMAND_STATUS)
 
-    def register_timeline_breakpoint(self, event, tick, thing, func, depth):
+    def register_timeline_breakpoint(self, event, tick, thing, func, details, depth):
         # print(f"registering timeline event: {event=} {tick=} {thing=} {func=} {depth=}")
         if event not in self.time_of_event:
-            self.time_of_event[event] = RrGdbConn().time()
-        self.found_entries.append(CallTimelineEvent(event, tick, depth, func, thing))
+            rr_ptid, rr_event, rr_tick = RrGdbConn().ptid_event_tick()
+            rr_time = RrGdbConn.time(rr_ptid)
+            if event != rr_event:
+                print(f"wtf, register_timeline_breakpoint called with {event} but getting current event gets {rr_event}")
+            self.time_of_event[event] = [rr_tick, rr_time, rr_ptid]
+
+        if thing == "invoke" or thing == "return":
+            self.found_entries.append(CallTimelineEvent(event, tick, depth, func, details, thing))
+        elif thing == "create_dispatch_record":
+            self.found_entries.append(TimelineTextEvent(event, tick, "dispatch record allocated"))
+        elif thing == "disp_delegate":
+            delegate_to = gdb.selected_frame().read_var("dispatcher_id")
+            delegate_to = mvmstr_to_str(delegate_to)
+            self.found_entries.append(TimelineTextEvent(event, tick, "dispatcher delegates to " + delegate_to))
 
     def invoke(self, argument, from_tty):
         pagination_before = gdb.execute("show pagination", False, True) == "State of pagination is on.\n"
@@ -3306,25 +3344,30 @@ class MoarTimelineCommand(gdb.Command):
 
         self.found_entries = []
 
-        try:
-            cur = execution_db.cursor()
-            cur.execute("select rr_event, rr_time from event_times;")
-            self.time_of_event = {e[0]: e[1] for e in cur.fetchall()}
-        except:
-            raise Exception("Could not retrieve data from execution db?!")
-
         currthreadptid, rr_event, rr_tick = rrcon.ptid_event_tick()
         rr_time  = rrcon.time()
 
-        chkp_res = gdb.execute("checkpoint", False, True)
-        chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+        try:
+            cur = execution_db.cursor()
+            cur.execute("select rr_event, rr_tick, rr_time, rr_tid from event_times;")
+            self.time_of_event = {e[0]: e[1:] for e in cur.fetchall()}
+
+            if rr_event not in self.time_of_event:
+                rr_time = rrcon.time()
+                cur.execute("insert into event_times (rr_event, rr_tick, rr_time, rr_tid) values (?, ?, ?, ?);",
+                    (rr_event, rr_tick, rr_time, currthreadptid))
+                self.time_of_event[rr_event] = [rr_tick, rr_time, currthreadptid]
+        except:
+            raise Exception("Could not retrieve data from execution db?!")
 
         tick_range_checked = (0, 0)
         event_range_checked = (0, 0)
 
-        with breakpoints_disabled():
-            return_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "return", "MVM_frame_try_return")
+        with breakpoints_disabled(), checkpoint_restored() as chkp_id:
+            return_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "return", "MVM_callstack_unwind_frame")
             invoke_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "invoke", "MVM_frame_dispatch")
+            create_disp_record_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "create_dispatch_record", "MVM_callstack_allocate_dispatch_record")
+            delegate_dispatcher_bp = InvokeReturnTimelineRecordingBreakpoint(rrcon, rr_event, currthreadptid, self, tc, "disp_delegate", "MVM_disp_program_record_delegate")
 
             try:
                 print("skipping backwards to collect invokes/returns")
@@ -3376,9 +3419,8 @@ class MoarTimelineCommand(gdb.Command):
             finally:
                 return_bp.delete()
                 invoke_bp.delete()
-                print("Returning to checkpoint before command started")
-                gdb.execute(f"restart {chkp_id}")
-                gdb.execute(f"delete checkpoint {chkp_id}")
+                create_disp_record_bp.delete()
+                delegate_dispatcher_bp.delete()
 
         # found_entries = [e for e in self.found_entries if e.rr_event == rr_event]
         found_entries = sorted(self.found_entries, key=lambda e: (e.rr_event, e.rr_tick))
