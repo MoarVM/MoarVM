@@ -2596,7 +2596,7 @@ class RecordObjectEventsCommand(gdb.Command):
                 addresses_in_time.append((chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.allocated, addresses_in_time[-1][-1]))
                 success = None
                 break
-            elif "memset" in f.name():
+            elif f.name() is not None and  "memset" in f.name():
                 if not going_forwards:
                     raise Exception("It makes no sense to encounter an object being cleared by GC while going backwards?")
 
@@ -2645,8 +2645,6 @@ class RecordObjectEventsCommand(gdb.Command):
         print("Moar History: Starting up ...")
 
         rrcon = RrGdbConn()
-
-        tc = find_tc()
 
         ptid, rr_event, rr_tick = rrcon.ptid_event_tick()
 
@@ -3204,7 +3202,7 @@ class TimelineWriter:
 
         self.you_are_here = [e for e in self.events if isinstance(e, YouAreHere)][0]
         now_event = self.you_are_here.rr_event
-        now_tick  = self.you_are_here.rr_tick
+        # now_tick  = self.you_are_here.rr_tick
 
         groups = defaultdict(list)
         shallowest_stack_depth_per_group = defaultdict(lambda: math.inf)
@@ -3229,9 +3227,6 @@ class TimelineWriter:
 
         tick_field_len = len(str(highest_tick))
 
-        prev_group = (None, None)
-
-
         for event, group in groups.items():
             shallowest = shallowest_stack_depth_per_group[event]
 
@@ -3255,7 +3250,7 @@ class TimelineWriter:
 
             l(None, f"Event {event} at {time}{thread_text}")
 
-            any_stacks_in_group = bool([e for e in group if isinstance(e, StackTimelineEvent)])
+            # any_stacks_in_group = bool([e for e in group if isinstance(e, StackTimelineEvent)])
 
             prev_line_fmt = ""
 
@@ -3270,7 +3265,7 @@ class TimelineWriter:
                         prev_stack_depth = stack_depth
 
                     (stack_bit, prev_stack_depth) = self.draw_stack(shallowest - 1, prev_stack_depth, stack_depth, ev.kind)
-                except AttributeError as ex:
+                except AttributeError:
                     if event in shallowest_stack_depth_per_group and prev_stack_depth is not None:
                         (stack_bit, prev_stack_depth) = self.draw_stack(shallowest - 1, prev_stack_depth, prev_stack_depth, "nothing")
                     else:
@@ -3283,8 +3278,6 @@ class TimelineWriter:
                     output_lines = []
 
                 prev_ev = ev
-
-            prev_group = (event, group)
 
         return "\n".join([e[1] for e in lines_before_you_are_here + output_lines])
 
@@ -3330,6 +3323,8 @@ class MoarTimelineCommand(gdb.Command):
                 gdb.execute("set pagination on", False, True)
 
     def do_invoke(self, argument : str, from_tty):
+        global execution_db
+
         if argument and argument.isdecimal():
             event_limit = int(argument)
             print(f"using {argument=} as the limit ({event_limit=})")
@@ -3345,7 +3340,7 @@ class MoarTimelineCommand(gdb.Command):
         self.found_entries = []
 
         currthreadptid, rr_event, rr_tick = rrcon.ptid_event_tick()
-        rr_time  = rrcon.time()
+        # rr_time  = rrcon.time()
 
         try:
             cur = execution_db.cursor()
@@ -3884,7 +3879,7 @@ def parse_callsite(cs : gdb.Value):
     for i in range(num_flags):
         flagvar = int(flags[i])
         arg_type_masked = flagvar & 143
-        arg_named_flat_masked = flagvar & 159
+        # arg_named_flat_masked = flagvar & 159
 
         namestr = None
 
@@ -3999,7 +3994,6 @@ class MoarStackFrame:
 
     @property
     def bytecode_offs(self):
-        sfb = self._static_info_body
         bc = frame_effective_bytecode(self.ptr)
         return int(self.cur_op) - int(bc)
 
@@ -4057,7 +4051,7 @@ class MoarStackFrame:
 
 def stack_for_stack_piece_inserter() -> Sequence[tuple[gdb.Value, gdb.Value]]:
     bits = []
-    cur_frame : MoarStackFrame = MoarStackFrame.from_tc()
+    cur_frame : MoarStackFrame | None = MoarStackFrame.from_tc()
 
     while cur_frame is not None:
         bits.append((cur_frame.cur_op, cur_frame._static_info_body))
@@ -4195,7 +4189,7 @@ class MoarBtCommands(gdb.Command):
         str_cache = {}
 
         tc = find_tc()
-        cur_frame : MoarStackFrame = MoarStackFrame.from_tc(tc)
+        cur_frame : MoarStackFrame | None = MoarStackFrame.from_tc(tc)
 
         stack_idx = 0
 
@@ -4263,8 +4257,6 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
     name = cur_frame.name
     name = "''" if name == "" else name
 
-    loc = ""
-
     if fn is None or ln is None:
         loc = f"<unknown>:1"
     else:
@@ -4285,7 +4277,6 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
 
     need_space = 0
     if cur_frame.caller is not None:
-        cname = None
         try:
             cname = cur_frame.caller.name
             if cname:
@@ -4408,6 +4399,11 @@ class MoarFrameCommands(gdb.Command):
                 stack_idx += 1
             if cur_frame is None:
                 print(f"Frame with index {evaled} could not be found; stack exhausted after {stack_idx} steps!")
+                return
+
+        if cur_frame is None:
+            print("Could not get a frame")
+            return
 
         do_single_frame_command_stuff(cur_frame, stack_idx)
 
@@ -4498,7 +4494,7 @@ def register_printers(objfile):
     # print("MoarVM Object pretty printer registered")
 
 commands = []
-def register_commands(objfile):
+def register_commands():
     commands.append(MoarCommands())
 
     # currently the analyze and diff heap commands don't work
@@ -4563,7 +4559,7 @@ if __name__ == "__main__":
             print("    c")
     if the_objfile:
         register_printers(the_objfile)
-    register_commands(the_objfile)
+    register_commands()
 
     try:
         uint32_t  = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
