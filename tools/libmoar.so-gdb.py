@@ -475,6 +475,7 @@ class MVMStrHash:
 
     def __init__(self, val: gdb.Value):
         self.val = val
+        print("making str hash of ", self.val, self.val.type)
         control_type = self.val.referenced_value().type
         self._control_sizeof = control_type.sizeof
         self._entry_sizeof   = self.val["entry_size"]
@@ -1210,18 +1211,41 @@ class MoarBreakExceptionAdhoc(MoarBreakCommands):
 # As of right now, the data is not utilised by any commands here.
 #
 
+def create_checkpoint():
+    chkp_res = gdb.execute("checkpoint", False, True)
+    return chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+
 @contextmanager
 def breakpoints_disabled():
     disabled_breakpoints = []
+    all_breakpoints = list(gdb.breakpoints())
     for bp in gdb.breakpoints():
         if bp.enabled:
+            if bp.number < 0:
+                print("surprised to see an enabled internal BP when disabling breakpoints:")
+                print(f"expr: {bp.expression} location: {bp.location}, number: {bp.number}")
             bp.enabled = False
             disabled_breakpoints.append(bp)
+    print(f" >>>> disabling breakpoints: {len(disabled_breakpoints)} out of {len(all_breakpoints)} <<<< ")
     try:
         yield
     finally:
+        now_all_breakpoints = list(gdb.breakpoints())
+        print(f" >>>> re-enabling breakpoints: {len(disabled_breakpoints)} out of {len(now_all_breakpoints)} (used to be {len(all_breakpoints)}) <<<< ")
         for bp in disabled_breakpoints:
+            if bp.number < 0:
+                print("surprised to see an enabled internal BP when re-enabling breakpoints:")
+                print(f"expr: {bp.expression} location: {bp.location}, number: {bp.number}")
             bp.enabled = True
+
+@contextmanager
+def checkpoint_restored():
+    chkp_id = create_checkpoint()
+    try:
+        yield
+    finally:
+        gdb.execute(f"restart {chkp_id}")
+        gdb.execute(f"delete checkpoint {chkp_id}")
 
 class RrGdbConn:
     conn: gdb.RemoteTargetConnection
@@ -2194,7 +2218,9 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 ( 6, "created from wval" ),
                 ( 7, "element count changed" ),
                 ( 8, "storage reallocated" ),
-                ( 9, "array offset changed" )
+                ( 9, "array offset changed" ),
+                (10, "pushed into queue" ),
+                (11, "shifted from queue" )
                 ;
 
             create table meta_info (
@@ -2467,6 +2493,8 @@ class TrackObjectEventKind(Enum):
     elements_change = 7
     storage_realloc = 8
     array_offset_change = 9
+    pushed_into_queue = 10
+    shifted_from_queue = 11
 
 class RecordObjectEventsCommand(gdb.Command):
     """Record the entire history of an object's life.
@@ -2496,13 +2524,17 @@ class RecordObjectEventsCommand(gdb.Command):
 
                 self.run()
         finally:
+            print("teardown of record object events command")
             self.teardown()
 
-
     def teardown(self):
+        print(f"deleting up to {len(self._created_breakpoints)} breakpoints...")
+        deleted_nums = []
         for bp in self._created_breakpoints:
             if bp.is_valid():
+                deleted_nums.append(bp.number)
                 bp.delete()
+        print(f"deleted {len(deleted_nums)} out of {len(self._created_breakpoints)} breakpoints: {deleted_nums}")
         self._created_breakpoints = []
         for (reg, conn) in self._connected_event_handlers:
             reg.disconnect(conn)
@@ -2511,6 +2543,8 @@ class RecordObjectEventsCommand(gdb.Command):
     def figure_out_what_happened_to_the_object(self, rrcon, addresses_in_time, going_forwards: bool = True):
         ptid, rr_event, rr_tick = rrcon.ptid_event_tick()
 
+        print("going to figure out what happened at this breakpoint")
+
         success = False
 
         the_watchpoint = None
@@ -2518,6 +2552,7 @@ class RecordObjectEventsCommand(gdb.Command):
         f = gdb.selected_frame()
         while f and f.is_valid():
             if f.name() is None:
+                f = f.older()
                 continue
 
             if f.name() == "process_worklist":
@@ -2542,22 +2577,20 @@ class RecordObjectEventsCommand(gdb.Command):
                     watch_expr = f"*(MVMSTable **)0x{int(watch_addr):x}"
 
 
-                chkp_res = gdb.execute("checkpoint", False, True)
-                chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
-                self._created_checkpoints.append(chkp_id)
+                self._created_checkpoints.append(create_checkpoint())
 
                 addresses_in_time.append((chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.moved_by_gc, int(prev_val)))
 
                 the_watchpoint = gdb.Breakpoint(
                     watch_expr, gdb.BP_WATCHPOINT, gdb.WP_WRITE, True, True
                 )
+                the_watchpoint.silent = True
                 self._created_breakpoints.append(the_watchpoint)
 
                 success = True
                 break
             elif f.name() in ("MVM_gc_allocate_object", "fastcreate"):
-                chkp_res = gdb.execute("checkpoint", False, True)
-                chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+                chkp_id = create_checkpoint()
                 self._created_checkpoints.append(chkp_id)
 
                 addresses_in_time.append((chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.allocated, addresses_in_time[-1][-1]))
@@ -2567,8 +2600,7 @@ class RecordObjectEventsCommand(gdb.Command):
                 if not going_forwards:
                     raise Exception("It makes no sense to encounter an object being cleared by GC while going backwards?")
 
-                chkp_res = gdb.execute("checkpoint", False, True)
-                chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+                chkp_id = create_checkpoint()
                 self._created_checkpoints.append(chkp_id)
 
                 addresses_in_time.append((chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.deleted_by_gc, addresses_in_time[-1][-1]))
@@ -2578,18 +2610,26 @@ class RecordObjectEventsCommand(gdb.Command):
                 if not going_forwards:
                     raise Exception("It makes no sense to encounter an object being cleared by GC while going backwards?")
 
-                chkp_res = gdb.execute("checkpoint", False, True)
-                chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+                chkp_id = create_checkpoint()
                 self._created_checkpoints.append(chkp_id)
 
                 addresses_in_time.append((chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.deleted_by_gc, addresses_in_time[-1][-1]))
                 success = None
                 break
-
+            elif f.name() == "MVM_interp_run":
+                break;
+            elif f.name() == "_start":
+                if going_forwards:
+                    raise Exception("did not expect to hit _start while going forwards!?")
+                success = None
+                break
 
             f = f.older()
 
+        print("found out what happened at this breakpoint")
+
         if success == False:
+            print("no success. let's output some help")
             for entry in addresses_in_time:
                 print(entry)
 
@@ -2614,8 +2654,7 @@ class RecordObjectEventsCommand(gdb.Command):
 
         self._created_checkpoints = []
 
-        chkp_res = gdb.execute("checkpoint", False, True)
-        chkp_id = chkp_res[len("Checkpoint "):chkp_res.find(" at ")]
+        chkp_id = create_checkpoint()
         self._created_checkpoints.append(chkp_id)
 
         # Get some info about the object
@@ -2671,13 +2710,53 @@ class RecordObjectEventsCommand(gdb.Command):
 
         print("Now going per repr: ", reprname)
 
+        put_into_queue_bp = None
+        take_from_queue_bp = None
+
+        def make_general_object_breakpoints(val):
+            nonlocal put_into_queue_bp, take_from_queue_bp
+
+            if put_into_queue_bp is not None:
+                put_into_queue_bp.delete()
+            if take_from_queue_bp is not None:
+                take_from_queue_bp.delete()
+
+            gdb.execute("list ConcBlockingQueue.c:push", False, True)
+            after_add_was_made_lineno = gdb.execute("search orig_elems = MVM_incr(&body->elems);", False, True).split("\t")[0]
+            put_into_queue_bp = gdb.Breakpoint(f"ConcBlockingQueue.c:{after_add_was_made_lineno}", internal=True)
+            put_into_queue_bp.condition = "add->value == " + str(int(val))
+            print("put into queue breakpoint number:", put_into_queue_bp.number)
+            print(put_into_queue_bp.location)
+            print(put_into_queue_bp.condition)
+            self._created_breakpoints.append(put_into_queue_bp)
+
+            gdb.execute("list ConcBlockingQueue.c:shift", False, True)
+            after_value_was_assigned_lineno = gdb.execute("search taken->value = NULL;", False, True).split("\t")[0]
+            take_from_queue_bp = gdb.Breakpoint(f"ConcBlockingQueue.c:{after_value_was_assigned_lineno }", internal=True)
+            take_from_queue_bp.condition = "value->o == " + str(int(val))
+            print("take from queue breakpoint number:", take_from_queue_bp.number)
+            self._created_breakpoints.append(take_from_queue_bp)
+            print(take_from_queue_bp.location)
+            print(take_from_queue_bp.condition)
+
         if reprname == "VMArray":
             slots_attr_watchpoint = None
             elems_attr_watchpoint = None
             start_attr_watchpoint = None
 
-            def breakpoints_for_hist_entry(address):
+            def breakpoints_for_address(address):
                 nonlocal slots_attr_watchpoint, elems_attr_watchpoint, start_attr_watchpoint
+
+                if slots_attr_watchpoint is not None:
+                    print("deleting slots attr watchpoint with number ", slots_attr_watchpoint.number)
+                    slots_attr_watchpoint.delete()
+                if elems_attr_watchpoint is not None:
+                    print("deleting elems attr watchpoint with number ", elems_attr_watchpoint.number)
+                    elems_attr_watchpoint.delete()
+                if start_attr_watchpoint is not None:
+                    print("deleting start attr watchpoint with number ", start_attr_watchpoint.number)
+                    start_attr_watchpoint.delete()
+
                 addrval = gdb.Value(address)
                 casted = addrval.cast(repr_infos["VMArray"]["struct"].pointer())
 
@@ -2701,34 +2780,45 @@ class RecordObjectEventsCommand(gdb.Command):
 
                 print("attribute breakpoint numbers: ", slots_attr_watchpoint.number, elems_attr_watchpoint.number, start_attr_watchpoint.number)
 
+                make_general_object_breakpoints(address)
+                print("general object breakpoints created too")
+
             stop_events: list[gdb.StopEvent] | None = []
-            def stop_handler(event):
+            def stop_handler(event, *extra_args):
+                print("stop handler ", extra_args)
                 stop_events.append(event)
+                print("stop handler done")
             gdb.events.stop.connect(stop_handler)
             self._connected_event_handlers.append((gdb.events.stop, stop_handler))
 
-            # gc_breakpoints = [
-            #     gdb.Breakpoint( "MVM_gc_enter_from_interrupt", internal=True ),
-            #     gdb.Breakpoint( "MVM_gc_enter_from_allocator", internal=True )]
-            # self._created_breakpoints.extend(gc_breakpoints)
-
-
-            breakpoints_for_hist_entry(addresses_in_time[-1][-1])
+            breakpoints_for_address(addresses_in_time[-1][-1])
 
             history_index = len(addresses_in_time) - 1
 
             full_attempts = attempts = 200
             cont = True
+            if the_watchpoint is not None:
+                the_watchpoint.delete()
             the_watchpoint = None
 
             while cont:
+                print(f"try to get history entry {history_index}")
                 if history_index == -1:
                     history_entry = None
                 else:
                     history_entry = addresses_in_time[history_index]
 
+                print("emptied out stop events")
                 stop_events = []
-                gdb.execute("continue", False, True)
+
+                print("trying to do a single instruction step for good luck")
+                gdb.execute("stepi")
+                print("cool!")
+
+                print("going to execute continue")
+                gdb.execute("continue")
+
+                print("continue done")
 
                 ptid, rr_event, rr_tick = rrcon.ptid_event_tick()
                 print(f"{ptid=} {rr_event=} {rr_tick=}")
@@ -2746,10 +2836,12 @@ class RecordObjectEventsCommand(gdb.Command):
                 except:
                     print("couldn't get backtrace...")
 
+                print(f"going through {len(stop_events)} stop events")
                 for se in stop_events:
                     if isinstance(se, gdb.BreakpointEvent):
                         print("details: ", repr(se.details))
                         for bp in se.breakpoints:
+                            print(f"breakpoint in stop event: {bp}")
                             value = None
                             if se.details["reason"] == "watchpoint-trigger":
                                 value = se.details["value"]
@@ -2765,19 +2857,37 @@ class RecordObjectEventsCommand(gdb.Command):
                                 if success is not None:
                                     move_entry = (chkp_id, ptid, rr_event, rr_tick, TrackObjectEventKind.moved_by_gc, int(gdb.parse_and_eval(value["new"])))
                                     addresses_in_time.insert(0, move_entry)
-                                    breakpoints_for_hist_entry(move_entry[-1])
+                                    breakpoints_for_address(move_entry[-1])
                                 else:
                                     cont = False
+
+                            elif put_into_queue_bp is not None and bp.number == put_into_queue_bp.number:
+                                print("added to queue")
+                                queue_entry = gdb.selected_frame().read_var("add")
+                                recorded_changes.append((ptid, rr_event, rr_tick, TrackObjectEventKind.pushed_into_queue, queue_entry, backtrace))
+                            elif take_from_queue_bp is not None and bp.number == take_from_queue_bp.number:
+                                print("shifted from queue")
+                                queue_entry = gdb.selected_frame().read_var("taken")
+                                recorded_changes.append((ptid, rr_event, rr_tick, TrackObjectEventKind.shifted_from_queue, queue_entry, backtrace))
+                            else:
+                                print("uhhhh.... what?")
+                                cont = False
 
                     elif isinstance(se, gdb.SignalEvent):
                         print("signal event!")
                         print(se.stop_signal)
                         cont = False
+                        print("going to break out of the loop since program is gone...")
+                        break
+                    elif isinstance(se, gdb.StopEvent):
+                        print("general StopEvent. details: ", se.details)
                     else:
                         print("unclassified stop event:")
                         print(se)
+                print("done with stop events")
 
                 if history_entry is not None:
+                    print("have a history entry: ", history_entry)
                     if rr_event > history_entry[2] or rr_event == history_entry[2] and rr_tick >= history_entry[3]:
                         print(f"Advancing to next history entry: {history_index=}")
                         history_index -= 1
@@ -2795,18 +2905,20 @@ class RecordObjectEventsCommand(gdb.Command):
                             print("forwarder field watchpoint number: ", the_watchpoint.number)
                             print(the_watchpoint)
                         else:
-                            for i in range(3):
-                                self._created_breakpoints.pop().delete()
-                            breakpoints_for_hist_entry(addresses_in_time[history_index][-1])
+                            breakpoints_for_address(addresses_in_time[history_index][-1])
 
                         cont = True
                         attempts = full_attempts
                         continue
 
+                print("decreasing attempts")
+
                 attempts -= 1
                 if attempts == 0:
                     print("Ran out of breakpoint hits")
                     cont = False
+
+                print("another round around the loop")
 
             print("Done with the history!")
 
@@ -2904,8 +3016,8 @@ class InvokeReturnTimelineRecordingBreakpoint(gdb.Breakpoint):
     tick_limit: int | None
     conn: RrGdbConn
 
-    def __init__(self, conn, starting_event, relevant_ptid, mtlc, tc, what, *args):
-        super(InvokeReturnTimelineRecordingBreakpoint, self).__init__(*args)
+    def __init__(self, conn, starting_event, relevant_ptid, mtlc, tc, what, *args, **kwargs):
+        super(InvokeReturnTimelineRecordingBreakpoint, self).__init__(internal=True, *args, **kwargs)
         self.conn = conn
         self.relevant_ptid = relevant_ptid
         self.starting_event = starting_event
@@ -3080,6 +3192,7 @@ class TimelineWriter:
         highest_tick = 0
 
         for ev in self.events:
+            print(ev)
             groups[ev.rr_event].append(ev)
             try:
                 if ev.stack_depth < shallowest_stack_depth_per_group[ev.rr_event]:
@@ -3396,7 +3509,7 @@ class MoarTimelineCommand(gdb.Command):
                      tc=int(find_tc()),
                      want_full=want_full,
                      limit=lim)).fetchall()
-                nearby_gcs = [GcTimelineEvent(e[0], e[1], e[2], None, e[3], bool(e[4])) for e in nearby_gcs]
+                nearby_gcs = [GcTimelineEvent(e[0], e[1], e[2], None, e[3], bool(e[4])) for e in nearby_gcs if e[0] is not None and e[1] is not None]
                 timeline_events.extend(nearby_gcs)
 
             # nearby_continuation_events = cur.execute(continuation_query, dict(
@@ -4122,7 +4235,10 @@ def do_single_frame_command_stuff(cur_frame : MoarStackFrame, stack_idx = None):
     print("")
     print(f"    Name: {name}    ({loc})")
     print("")
-    print(f"Bytecode file: {cur_frame.cufile} ; cuuid {cur_frame.cuuid}")
+    try:
+        print(f"Bytecode file: {cur_frame.cufile} ; cuuid {cur_frame.cuuid}")
+    except ValueError:
+        print("error printing cufile or cuuid")
     print("")
 
     need_space = 0
