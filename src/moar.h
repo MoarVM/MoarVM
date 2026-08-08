@@ -154,8 +154,11 @@ MVM_trycas_AO(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
 #endif
 
 /* Hashes */
-#define HASH_DEBUG_ITER 0
+#ifndef MVM_HASH_RANDOMIZE
 #define MVM_HASH_RANDOMIZE 1
+#endif
+
+#define HASH_DEBUG_ITER 0
 #define MVM_HASH_MAX_PROBE_DISTANCE 255
 #define MVM_HASH_INITIAL_BITS_IN_METADATA 5
 
@@ -304,6 +307,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "profiler/configuration.h"
 #include "instrument/crossthreadwrite.h"
 #include "instrument/line_coverage.h"
+#include "instrument/bb_edge_coverage.h"
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 
