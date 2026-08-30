@@ -213,7 +213,7 @@ struct MVMHeapSnapshotState {
     MVMuint64 ref_from;
 
     /* The seen hash of collectables (including frames). */
-    MVMPtrHashTable seen;
+    MVMPtrHashTable *seen;
 
     /* We sometimes use GC mark functions to find references. Keep a worklist
      * around for those times (much cheaper than allocating it whenever we
@@ -246,10 +246,11 @@ struct MVMHeapSnapshotWorkItem {
     void *target;
 };
 
-MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
-void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config);
-void MVM_profile_heap_take_snapshot(MVMThreadContext *tc);
-MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
+MVM_PUBLIC MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
+MVM_PUBLIC void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config);
+MVM_PUBLIC void MVM_profile_heap_take_snapshot(MVMThreadContext *tc);
+MVM_PUBLIC MVMHeapSnapshotCollection *MVM_profile_heap_make_in_memory_snapshot(MVMThreadContext *tc, MVMPtrHashTable **out_seen_hash);
+MVM_PUBLIC MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
 
 /* API for things that want to contribute more detailed data to the heap
  * profile. */
