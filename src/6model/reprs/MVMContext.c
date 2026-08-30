@@ -332,6 +332,10 @@ static MVMint32 traversal_exists(MVMThreadContext *tc, MVMFrame *base, MVMuint8 
 /* Try to get a context with the specified traversal applied. Ensures that the
  * traversal would lead to a result, and returns a NULL context if not. */
 MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, MVMuint8 traversal) {
+    if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
+        MVM_exception_throw_adhoc(tc, "ctx* ops needs an MVMContext, got %s (%s)",
+            REPR(ctx)->name, MVM_6model_get_debug_name(tc, (MVMObject *)ctx));
+
     /* Ensure we've got a traversable context. */
     if (!ctx->body.traversable)
         MVM_exception_throw_adhoc(tc,
