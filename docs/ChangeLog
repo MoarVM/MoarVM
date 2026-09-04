@@ -1,3 +1,4 @@
++ Fix spesh folding getlexperinvtype_o into unguarded constant, which resolved ::?CLASS to the wrong class in role methods (#2037)
 + Bump mimalloc to v3.5.0
 + Add MVM_COVERAGE_FILES env var for filtering coverage to matching source files
 

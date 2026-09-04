@@ -1136,42 +1136,44 @@ static void optimize_getlexstatic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     }
 }
 
-/* Optimizes away a lexical lookup when we know the value won't change for a
- * given invocant type (this relies on us being in a typed specialization). */
-static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
-                                         MVMSpeshBB *bb, MVMSpeshIns *ins,
-                                         MVMSpeshPlanned *p) {
-    MVMSpeshAnn *ann;
+/* Resolves a getlexperinvtype_o into an indexed sp_getlex_o when the name can
+ * be resolved statically. */
+static void optimize_getlexperinvtype(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                      MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *name_facts;
+    MVMStaticFrame *sf;
+    MVMuint16 outers = 0;
 
-    /* Can only do this when we've specialized on the first argument type and
-     * we have a plan. */
-    if (!p || !g->specialized_on_invocant)
+    /* In a basic block that came from inlining, g->sf is the inliner. */
+    if (bb->inlined)
         return;
 
-    /* Try to find logged offset. */
-    ann = ins->annotations;
-    while (ann) {
-        if (ann->type == MVM_SPESH_ANN_LOGGED)
-            break;
-        ann = ann->next;
-    }
-    if (ann) {
-        MVMuint32 i;
-        for (i = 0; i < p->num_type_stats; i++) {
-            MVMSpeshStatsByType *ts = p->type_stats[i];
-            MVMuint32 j;
-            for (j = 0; j < ts->num_by_offset; j++) {
-                if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
-                    if (ts->by_offset[j].num_types == 1) {
-                        MVMObject *log_obj = ts->by_offset[j].types[0].type;
-                        if (log_obj && !ts->by_offset[j].types[0].type_concrete)
-                            lex_to_constant(tc, g, bb, ins, log_obj);
-                        return;
-                    }
-                    break;
+    /* Must know the name being looked up. */
+    name_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    if (!(name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE))
+        return;
+
+    /* Walk the static outer chain for the first frame declaring the name. */
+    sf = g->sf;
+    while (sf) {
+        if (sf->body.num_lexicals) {
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name_facts->value.s);
+
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                MVMuint16 *lexical_types = sf == g->sf && g->lexical_types
+                    ? g->lexical_types
+                    : sf->body.lexical_types;
+                if (lexical_types[idx] == MVM_reg_obj && idx <= 0xFFFF) {
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->info = MVM_op_get_op(MVM_OP_sp_getlex_o);
+                    ins->operands[1].lex.idx = (MVMuint16)idx;
+                    ins->operands[1].lex.outers = outers;
                 }
+                return;
             }
         }
+        sf = sf->body.outer;
+        outers++;
     }
 }
 
@@ -2271,7 +2273,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_getlexstatic(tc, g, bb, ins);
             break;
         case MVM_OP_getlexperinvtype_o:
-            optimize_getlex_per_invocant(tc, g, bb, ins, p);
+            optimize_getlexperinvtype(tc, g, bb, ins);
             break;
         case MVM_OP_iscont:
         case MVM_OP_isrwcont:

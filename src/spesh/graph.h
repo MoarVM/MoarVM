@@ -114,9 +114,6 @@ struct MVMSpeshGraph {
      * original static frame, the candidate will be stored here. */
     MVMSpeshCandidate *cand;
 
-    /* Did we specialize on the invocant type? */
-    MVMuint8 specialized_on_invocant;
-
     /* Stored in comment annotations to give an ordering of comments */
     MVMuint32 next_annotation_idx;
 

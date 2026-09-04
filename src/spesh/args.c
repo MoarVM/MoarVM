@@ -732,8 +732,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                     if (type_tuple && type_tuple[i].type) {
                         add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
-                        if (i == 0)
-                            g->specialized_on_invocant = 1;
                     }
                 }
                 else if (arg_type == MVM_CALLSITE_ARG_INT) {
