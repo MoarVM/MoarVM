@@ -296,6 +296,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->body.local_types   = sg->local_types;
     candidate->body.lexical_types = sg->lexical_types;
 
+    if (sc->annotations_data)
+        MVM_free(sc->annotations_data);
     MVM_free(sc);
 
     /* Try to JIT compile the optimised graph. The JIT graph hangs from

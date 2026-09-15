@@ -35,7 +35,38 @@ typedef struct {
 
     /* Working deopt users state (so we can allocate it once and re-use it). */
     AllDeoptUsers all_deopt_users;
+
+    /* Bytecode annotations data and count. */
+    MVMuint8 *annotations_data;
+    MVMuint32 num_annotations;
+    MVMuint32 alloc_annotations;
 } SpeshWriterState;
+
+static void add_annotation(SpeshWriterState *ws, MVMuint32 bytecode_pos, MVMuint32 filename_idx, MVMuint32 line_number) {
+    if (ws->num_annotations > 0) {
+        MVMuint8 *last_ann = ws->annotations_data + (ws->num_annotations - 1) * 12;
+        MVMuint32 last_offset = *(MVMuint32 *)last_ann;
+        MVMuint32 last_filename = *(MVMuint32 *)(last_ann + 4);
+        MVMuint32 last_line = *(MVMuint32 *)(last_ann + 8);
+        if (last_filename == filename_idx && last_line == line_number) {
+            return;
+        }
+        if (last_offset == bytecode_pos) {
+            *(MVMuint32 *)(last_ann + 4) = filename_idx;
+            *(MVMuint32 *)(last_ann + 8) = line_number;
+            return;
+        }
+    }
+    if (ws->num_annotations >= ws->alloc_annotations) {
+        ws->alloc_annotations = ws->alloc_annotations ? ws->alloc_annotations * 2 : 16;
+        ws->annotations_data = MVM_realloc(ws->annotations_data, ws->alloc_annotations * 12);
+    }
+    MVMuint8 *dest = ws->annotations_data + ws->num_annotations * 12;
+    *(MVMuint32 *)dest = bytecode_pos;
+    *(MVMuint32 *)(dest + 4) = filename_idx;
+    *(MVMuint32 *)(dest + 8) = line_number;
+    ws->num_annotations++;
+}
 
 /* Write functions; all native endian. */
 static void ensure_space(SpeshWriterState *ws, int bytes) {
@@ -149,6 +180,11 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             case MVM_SPESH_ANN_DEOPT_OSR:
             case MVM_SPESH_ANN_DEOPT_PRE_INS:
                 g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos << 1 | 1;
+                break;
+            case MVM_SPESH_ANN_LINENO:
+                add_annotation(ws, ws->bytecode_pos,
+                               ann->data.lineno.filename_string_index,
+                               ann->data.lineno.line_number);
                 break;
             }
             ann = ann->next;
@@ -410,6 +446,9 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVM_VECTOR_INIT(ws->all_deopt_users.idxs, 0);
     MVM_VECTOR_INIT(ws->all_deopt_users.seen_phis, 0);
     MVM_VECTOR_INIT(ws->deopt_synth_addrs, 0);
+    ws->annotations_data = NULL;
+    ws->num_annotations  = 0;
+    ws->alloc_annotations = 0;
 
     /* Create copy of handlers, and -1 all offsets so we can catch missing
      * updates. */
@@ -498,6 +537,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     res->deopt_usage_info = ws->deopt_usage_info;
     res->deopt_synths     = ws->deopt_synth_addrs;
     res->num_deopt_synths = ws->deopt_synth_addrs_num / 2; /* 2 values per entry */
+    res->annotations_data = ws->annotations_data;
+    res->num_annotations = ws->num_annotations;
 
     /* Cleanup. */
     MVM_free(ws->bb_offsets);

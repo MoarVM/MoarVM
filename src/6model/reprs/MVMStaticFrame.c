@@ -190,7 +190,11 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
-    MVM_free(body->instrumentation);
+    if (body->instrumentation) {
+        if (body->instrumentation->instrumented_annotations_data)
+            MVM_free(body->instrumentation->instrumented_annotations_data);
+        MVM_free(body->instrumentation);
+    }
     MVM_index_hash_demolish(tc, &body->lexical_names);
     MVM_disp_inline_cache_destroy(tc, &(body->inline_cache));
 }
