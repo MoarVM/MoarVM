@@ -769,7 +769,9 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
             size_t i, new_length, num_len = length_of_num_16(codepoint);
             char *new_name = NULL;
             int remove_brack = !strncmp(name, "<CJK", 4) ||
-                !strncmp(name, "<TANGUT", 7) ? 1 : 0;
+                !strncmp(name, "<TANGUT", 7) ||
+                !strncmp(name, "<JURCHEN", 8) ||
+                !strncmp(name, "<SMALL SEAL", 11) ? 1 : 0;
             /* We pad to 4 width, so make sure the number is accurate */
             num_len = num_len < 4 ? 4 : num_len;
             /* The new_length is 1 more than we need since snprintf adds a null */

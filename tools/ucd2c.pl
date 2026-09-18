@@ -1073,7 +1073,7 @@ sub UnicodeData {
         }
 
         # Process First/Last range pairs for points with computed names
-        if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
+        if ($name =~ /(Ideograph|Syllable|Private|Surrogate|Character) (\s|.)*? First/x) {
             # 'First' entry for known range type; start the range
             $point->{name}   =~ s/, First//;
             $ideograph_start = $point;
@@ -1118,6 +1118,14 @@ sub UnicodeData {
                 || $point->{name} eq '<Tangut Ideograph Supplement>') {
                 $point->{name} = '<TANGUT IDEOGRAPH>';
             }
+            elsif ($point->{name} eq '<Jurchen Character>') {
+                $point->{name} = '<JURCHEN CHARACTER>';
+            }
+            elsif ($point->{name} eq '<Seal Character>') {
+                # yes, "Seal" does suddenly become "Small Seal" in some
+                # contexts.
+                $point->{name} = '<SMALL SEAL CHARACTER>';
+            }
             elsif ($point->{name} eq '<Hangul Syllable>') {
                 $point->{name} = '<HANGUL SYLLABLE>';
             }
@@ -1158,6 +1166,8 @@ sub UnicodeData {
              || $point->{name} eq '<private-use>'
              || $point->{name} eq '<HANGUL SYLLABLE>'
              || $point->{name} eq '<TANGUT IDEOGRAPH>'
+             || $point->{name} eq '<JURCHEN CHARACTER>'
+             || $point->{name} eq '<SMALL SEAL CHARACTER>'
              || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>') {
                 # No error, these are all fine
             }
@@ -1639,7 +1649,7 @@ sub grapheme_cluster_break {
 # determining NFC text, you need to test for the presence of GCB=Prepend
 # codepoints immediately before the codepoint.
 #
-# As NFG builds on top of NFC, the NFG_QC property starts of initially set to
+# As NFG builds on top of NFC, the NFG_QC property starts off initially set to
 # the same value as NFC_QC for all codepoints (handled earlier). This function
 # makes the necessary changes for NFG quickchecking. Specifically:
 #
@@ -2691,7 +2701,8 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                     const char *name = codepoint_names[codepoint_table_index];
                     /* We want to skip various placeholder names that are duplicated:
                      * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
-                     * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
+                     * <surrogate> <TANGUT IDEOGRAPH> <JURCHEN CHARACTER>
+                     * <SMALL SEAL CHARACTER> <private-use> */
                     if (name && *name != '<') {
                         MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
                     }
