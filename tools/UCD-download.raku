@@ -1,11 +1,11 @@
 #!/usr/bin/env raku
 # Gets the latest Unicode Data files and extracts them.
 use v6;
-my $unicode-ftp = "ftp://ftp.unicode.org/Public";
-my $UCD-zip     = "$unicode-ftp/UCD/latest/ucd/UCD.zip";
-my $UCA-allkeys = "$unicode-ftp/UCA/latest/allkeys.txt";
-my $UCA-test    = "$unicode-ftp/UCA/latest/CollationTest.zip";
-my $MAPPINGS    = "$unicode-ftp/MAPPINGS";
+my $unicode-base-url = "https://www.unicode.org/Public";
+my $UCD-zip     = "$unicode-base-url/UCD/latest/ucd/UCD.zip";
+my $UCA-allkeys = "$unicode-base-url/UCA/latest/allkeys.txt";
+my $UCA-test    = "$unicode-base-url/UCA/latest/CollationTest.zip";
+my $MAPPINGS    = "$unicode-base-url/MAPPINGS";
 my @CODETABLES  =
     'VENDORS/MICSFT/WINDOWS/CP1252.TXT',
     'VENDORS/MICSFT/WINDOWS/CP1251.TXT';
@@ -47,8 +47,18 @@ sub read-url($url) {
     qqx{curl --ftp-method nocwd -s "$url"}
 }
 
-sub ftp-dir-entries($url) {
-    read-url($url).lines.map(*.split(/' '+/)[8])
+sub get-dir-entries($url) {
+    # find all the directory entries in the HTML output, and pull out just the
+    # names of the files. Also strips the trailing / they put on subdirectories.
+    # This is theoretically fragile, but considering the DOCTYPE is still set to
+    # HTML 3.2 (as of 2026), it seems unlikely to change any time soon.
+
+    # The use of \x3E for the closing angle brackets is just to get current
+    # raku-mode for emacs to stop breaking on them in regexes.
+    read-url($url) ~~ m:g/"<td" <-[\x3E]>* ">" "<img" [<!before PARENTDIR | "\x3E"> .]+ ">"
+                          "</td><td><a href=\"" (<-[\"/]>+) "/"? "\">"/;
+
+    $/».[0]».Str;
 }
 
 sub download-files(+@urls) {
@@ -82,17 +92,17 @@ sub get-emoji(Bool :$allow-draft) {
     my $reorg-emoji-ver = v17.0;
 
     say "\nGetting a listing of available OLD emoji versions (< $reorg-emoji-ver)";
-    my @old-list     = ftp-dir-entries($unicode-ftp ~ '/emoji/');
+    my @old-list     = get-dir-entries($unicode-base-url ~ '/emoji/');
     my @old-versions = @old-list.grep(/^\d/).map({Version.new($_)})
                         .grep($first-emoji-ver <= *).sort;
-    my @downloads    = @old-versions.map({ $_ => "$unicode-ftp/emoji/$_" });
+    my @downloads    = @old-versions.map({ $_ => "$unicode-base-url/emoji/$_" });
     say "OLD emoji versions found: @old-versions[]";
 
     say "\nGetting a listing of available NEW emoji versions (>= $reorg-emoji-ver)";
-    my @new-list     = ftp-dir-entries($unicode-ftp ~ '/');
+    my @new-list     = get-dir-entries($unicode-base-url ~ '/');
     my @new-versions = @new-list.grep(/^\d/).map({Version.new($_)})
                                 .grep($reorg-emoji-ver <= *).sort;
-    @downloads.append: @new-versions.map({ $_ => "$unicode-ftp/$_/emoji" });
+    @downloads.append: @new-versions.map({ $_ => "$unicode-base-url/$_/emoji" });
     say "NEW emoji versions found: @new-versions[]";
 
     my @new-file-list = < ReadMe.txt emoji-sequences.txt
