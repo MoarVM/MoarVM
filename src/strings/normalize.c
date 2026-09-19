@@ -473,12 +473,14 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     while (c_idx < to - 1) {
         /* Do we have a potential LPart? */
         MVMCodepoint LPart = n->buffer[c_idx];
-        if (LPart >= LBase && LPart <= (LBase + LCount)) {
+        /* U+1100..U+1112, or LBase..^(LBase+LCount) */
+        if (LPart >= LBase && LPart < (LBase + LCount)) {
             /* Yes, now see if it's followed by a VPart (always safe to look
              * due to "to - 1" in loop condition above). */
             MVMCodepoint LIndex = LPart - LBase;
             MVMCodepoint VPart  = n->buffer[c_idx + 1];
-            if (VPart >= VBase && VPart <= (VBase + VCount)) {
+            /* U+1161..U+1175, or VBase..^(VBase + VCount) */
+            if (VPart >= VBase && VPart < (VBase + VCount)) {
                 /* Certainly something to compose; compute that. */
                 MVMCodepoint VIndex = VPart - VBase;
                 MVMCodepoint LVIndex = LIndex * NCount + VIndex * TCount;
@@ -488,7 +490,8 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
                 /* Is there a TPart too? */
                 if (c_idx < to - 2) {
                     MVMCodepoint TPart  = n->buffer[c_idx + 2];
-                    if (TPart >= TBase && TPart <= (TBase + TCount)) {
+                    /* U+11A8..U+11C2, or TBase^..^(TBase + TCount) */
+                    if (TPart > TBase && TPart < (TBase + TCount)) {
                         /* We need to compose 3 things. */
                         MVMCodepoint TIndex = TPart - TBase;
                         s += TIndex;
