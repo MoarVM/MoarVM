@@ -549,6 +549,89 @@ MVM_STATIC_INLINE int ng_next_code(MVMThreadContext * tc, MVMNormalizer * norm) 
     return 1;
 }
 
+/* This function handles the <postcore> rule as defined in UAX#29, section 3
+ * (Table 1b). This is used both by <core> and by the main extended grapheme
+ * rule. The return value is a boolean indicating if the rule successfully
+ * matched. 'norm' ends up pointing to the first codepoint after the match when
+ * successful, and where it was initially pointing if it didn't match.
+ */
+static int ng_rule_postcore(MVMThreadContext * tc, MVMNormalizer * norm) {
+    // first alternation we need to check for is conjunct-extension, which
+    // starts with a codepoint that's InCB=Linker *and* GCB=Extend
+    int incb = MVM_unicode_codepoint_get_property_int(
+        tc,
+        norm->next_grapheme_code,
+        MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+
+    if (incb == MVM_UNICODE_PVALUE_INCB_LINKER
+        && norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND) {
+        // start of a conjunct extension. If the rest of this fails, no
+        // backtracking needed since GCB=Extend is allowed as a <postcore> in
+        // general.
+
+        if (!ng_next_code(tc, norm)) {
+            // nothing left to match? Then (as mentioned) it's just the simpler
+            // <postcore> case.
+            return 1;
+        }
+
+        // next we need to look for zero or more InCB=Extend codepoints.
+        incb = MVM_unicode_codepoint_get_property_int(
+            tc,
+            norm->next_grapheme_code,
+            MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+
+        while (incb == MVM_UNICODE_PVALUE_INCB_EXTEND) {
+            if (!ng_next_code(tc, norm)) {
+                // this is a bit tricky to get away with: as of Unicode 18.0.0,
+                // all InCB=Extend codepoints also match the non-conjunct
+                // alternation of <postcore>, so for the /<postcore>*/ step, we
+                // don't need to backtrack. For the <postcore> alternation
+                // inside <core>, this rule *should* only match one
+                // non-conjunct-extension codepoint, but since the only thing
+                // after <core> is /<postcore>*/, we can just barely get away
+                // with not backtracking at all.
+                //
+                // In short: we have to stop early, but we can just barely
+                // pretend we were matching non-conjunct postcore codepoints
+                // this whole time, which means we just have to return
+                // successfully.
+                return 1;
+            }
+
+            incb = MVM_unicode_codepoint_get_property_int(
+                tc,
+                norm->next_grapheme_code,
+                MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+        }
+
+        // to close things out, we just need an InCB=Consonant. If that fails to
+        // match, it's the same trickery inside the prior loop that lets us
+        // return without backtracking. So matching Consonant only tells us to
+        // advance 'norm' one more time before leaving.
+
+        if (incb == MVM_UNICODE_PVALUE_INCB_CONSONANT) {
+            ng_next_code(tc, norm);
+        }
+
+        return 1;
+    }
+
+    // It wasn't a conjunct extension, so now we just look for one of the more
+    // classic postcore options. Only match one, since the next codepoint might
+    // be better matched by the conjunct alternation on another call to this
+    // function.
+    if (norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND
+        || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_ZWJ
+        || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_SPACINGMARK) {
+        ng_next_code(tc, norm);
+        return 1;
+    }
+
+    // at this point, we've run out of options and failed to match.
+    return 0;
+}
+
 /* This function handles the <core> rule as defined in UAX#29, section 3 (Table
  * 1b). This rule handles all the "normal" grapheme clusters, i.e. not control
  * codes. The return value is a boolean indicating if the boundary search can
@@ -698,80 +781,73 @@ static int ng_rule_core(MVMThreadContext * tc, MVMNormalizer * norm) {
         return norm->next_grapheme_cur < norm->next_grapheme_last;
     }
 
-    // alright, not an emoji sequence either. Could it be a conjunct cluster?
+    // alright, not an emoji sequence either. Could it be core-linker-conjunct?
+    // For this, we'll need the InCB property of the codepoint.
     int incb = MVM_unicode_codepoint_get_property_int(
         tc,
         norm->next_grapheme_code,
         MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
 
-    if (incb == MVM_UNICODE_PVALUE_INCB_CONSONANT) {
+    // core-linker-conjunct starts with any InCB=Linker **that is also NOT**
+    // GCB=Extend. As of Unicode 18.0.0, all codepoints matching this condition
+    // can match the next alternation, so no backtracking is needed.
+    if (incb == MVM_UNICODE_PVALUE_INCB_LINKER
+        && norm->next_grapheme_gcb != MVM_UNICODE_PVALUE_GCB_EXTEND) {
         NG_NEXT;
+
         incb = MVM_unicode_codepoint_get_property_int(
             tc,
             norm->next_grapheme_code,
             MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
 
-        // This loop matches the rest of the conjuct cluster. After the initial
-        // InCB=Consonant, it can be followed by any number of InCB=Extend and
-        // InCB=Linker codepoints. If an InCB=Linker shows up anywhere in that
-        // sequence, another InCB=Consonant may join the grapheme and repeat
-        // this loop once more (each Consonant must have a Linker in its
-        // following sequence to pick up another Consonant).
-        //
-        // As of Unicode 17.0.0, every InCB=Extend/Linker codepoint is also
-        // GCB=Extend, so we don't have to backtrack like a regex when the
-        // conjunct cluster stops.
-        while (norm->next_grapheme_cur < norm->next_grapheme_last) {
-            int got_linker = 0;
-
-            while ((incb == MVM_UNICODE_PVALUE_INCB_EXTEND
-                    || incb == MVM_UNICODE_PVALUE_INCB_LINKER)) {
-                if (incb == MVM_UNICODE_PVALUE_INCB_LINKER) { got_linker = 1; }
-
-                NG_NEXT;
-                incb = MVM_unicode_codepoint_get_property_int(
-                    tc,
-                    norm->next_grapheme_code,
-                    MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
-            }
-
-            // we're not at an InCB=Extend/Linker, but if we got a Linker at
-            // some point and we're now at a Consonant, we can take that and
-            // loop around. Otherwise, whatever stopped us stops the whole
-            // conjuct cluster.
-            if (got_linker && incb == MVM_UNICODE_PVALUE_INCB_CONSONANT) {
-                NG_NEXT;
-                incb = MVM_unicode_codepoint_get_property_int(
-                    tc,
-                    norm->next_grapheme_code,
-                    MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
-            } else {
-                break;
-            }
+        // now we want to grab zero or more InCB=Extend codepoints.
+        while (incb == MVM_UNICODE_PVALUE_INCB_EXTEND) {
+            NG_NEXT;
+            incb = MVM_unicode_codepoint_get_property_int(
+                tc,
+                norm->next_grapheme_code,
+                MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
         }
 
-        // as with the emoji sequence case, just in case we happened to exit the
-        // while loop on its normal test condition, make sure the return value
-        // reflects if more searching can be done.
-        return norm->next_grapheme_cur < norm->next_grapheme_last;
+        // finally, we need an InCB=Consonant to finish the sequence. If this
+        // fails, then as of Unicode 18.0.0, all InCB=Extend codepoints will
+        // match <postcore>, so we don't have to backtrack any InCB=Extend
+        // we matched previously.
+
+        if (incb == MVM_UNICODE_PVALUE_INCB_CONSONANT) {
+            NG_NEXT;
+        }
+
+        return 1;
     }
 
     // Alright, nothing's worked, so as long as we're not in front of a Control,
-    // CR, or LF codepoint, we can take it as the sole <core> codepoint. (This
-    // needs to be checked, in the case of a <precore> immediately followed by
-    // one of these codepoints.)
+    // CR, or LF codepoint, or anything intended for <postcore>, we can take it
+    // as the sole <core> codepoint. (This needs to be checked, in the case of a
+    // <precore> immediately followed by one of these codepoints.)
     if (!(norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CR
           || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_LF
-          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CONTROL)) {
+          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_CONTROL
+          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND
+          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_ZWJ
+          || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_SPACINGMARK)) {
         NG_NEXT;
         return 1;
     }
 
+    // The <postcore> alternation allows us to assemble graphemes with just
+    // precore and postcore stuff. This was always implied by the definition of
+    // <core>, but with Unicode 18 the <postcore> rule became too complex to be
+    // left as an implicit alternation.
+    if (ng_rule_postcore(tc, norm)) {
+        return norm->next_grapheme_cur < norm->next_grapheme_last;
+    }
 
-    // If we reached here, that means we hit a CR, LF, or Control. We can't take
-    // it as part of this grapheme cluster, but we can safely move on. The
-    // caller ought to be designed to not take this codepoint as a <postcore>
-    // either, so no special signaling of this hard break is required.
+    // If we reached here we've hit something that can't be taken as part of
+    // <core>, so the grapheme cluster ends. Due to the inclusion of the
+    // <postcore> alternation here, we know that any subsequent attempts to grab
+    // <postcore> will definitely fail, so we don't need to worry about
+    // signaling a failure of the <core> rule.
     return 1;
 
 #undef NG_NEXT
@@ -849,12 +925,10 @@ static MVMint32 next_grapheme(MVMThreadContext * tc, MVMNormalizer * norm, MVMin
         return last;
     }
 
-    // The <postcore> step is mercifully simple, just look for Extend, ZWJ, or
-    // SpacingMark codepoints until we don't get them anymore.
-    while ((norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND
-            || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_ZWJ
-            || norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_SPACINGMARK)) {
-        if (!ng_next_code(tc, norm)) {
+    // And now for the <postcore> step, which is also a factored-out part of the
+    // procedure.
+    while (ng_rule_postcore(tc, norm)) {
+        if (norm->next_grapheme_cur == last) {
             return last;
         }
     }

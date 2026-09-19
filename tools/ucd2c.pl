@@ -1698,8 +1698,8 @@ sub grapheme_cluster_break {
 #       codepoints, NFG_QC=Y codepoints may still combine with following
 #       codepoints into a larger grapheme cluster.
 #
-# This function was last updated for Unicode 17.0.0, consulting
-# <https://www.unicode.org/reports/tr29/tr29-47.html#Grapheme_Cluster_Boundary_Rules>.
+# This function was last updated for Unicode 18.0.0, consulting
+# <https://www.unicode.org/reports/tr29/tr29-49.html#Grapheme_Cluster_Boundary_Rules>.
 # Note that not every Unicode update requires an update to this property.
 #
 sub tweak_nfg_qc {
@@ -1733,10 +1733,10 @@ sub tweak_nfg_qc {
             # SpacingMarks also join with any preceding codepoints. (Rule: GB9a)
             $mark_it = 1;
         } elsif ($incb == $incb_set->{Consonant}
-                 || $incb == $incb_set->{Extend}
-                 || $incb == $incb_set->{Linker}) {
-            # Conjunct clusters. Consonants are on the RHS of rule GB9c, the
-            # others are non-initial LHS parts of the same rule. (Rule: GB9c)
+                 || $incb == $incb_set->{Extend}) {
+            # Conjunct clusters. Consonants are on the RHS of rule GB9c, and
+            # InCB=Extend codepoints are non-initial LHS parts of the same rule.
+            # (Rule: GB9c)
             $mark_it = 1;
         } elsif ($point->{Extended_Pictographic}) {
             # EPs are on the RHS of rule GB11. The Extends and ZWJ on the LHS of
