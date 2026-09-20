@@ -533,6 +533,27 @@ MVM_STATIC_INLINE int ng_get_gcb_for(MVMThreadContext * tc, MVMNormalizer * norm
     return MVM_unicode_codepoint_get_property_int(tc, norm->next_grapheme_code, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
 }
 
+/* Retrieves the Indic_Conjunct_Break property value for a codepoint. Intended
+ * for use in the grapheme boundary search function next_grapheme() and related
+ * functions, it handles synthetics specially: UTF8-C8 graphemes are treated
+ * like they are control codes, and return the "None" property value, while all
+ * other synthetics cause an error.
+ */
+MVM_STATIC_INLINE int ng_get_incb_for(MVMThreadContext * tc, MVMNormalizer * norm) {
+    if (norm->next_grapheme_code < 0) {
+        if (MVM_nfg_get_synthetic_info(tc, norm->next_grapheme_code)->is_utf8_c8) {
+            return MVM_UNICODE_PVALUE_INCB_NONE;
+        }
+
+        MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
+    }
+
+    return MVM_unicode_codepoint_get_property_int(
+        tc,
+        norm->next_grapheme_code,
+        MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+}
+
 /* Grabs the next codepoint for the next_grapheme() search function and related
  * functions. All the relevant input is stored inside 'norm'. Return value is a
  * boolean indicating if a boundary search can continue, or if the end of the
@@ -561,10 +582,7 @@ MVM_STATIC_INLINE int ng_next_code(MVMThreadContext * tc, MVMNormalizer * norm) 
 static int ng_rule_postcore(MVMThreadContext * tc, MVMNormalizer * norm) {
     // first alternation we need to check for is conjunct-extension, which
     // starts with a codepoint that's InCB=Linker *and* GCB=Extend
-    int incb = MVM_unicode_codepoint_get_property_int(
-        tc,
-        norm->next_grapheme_code,
-        MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+    int incb = ng_get_incb_for(tc, norm);
 
     if (incb == MVM_UNICODE_PVALUE_INCB_LINKER
         && norm->next_grapheme_gcb == MVM_UNICODE_PVALUE_GCB_EXTEND) {
@@ -579,10 +597,7 @@ static int ng_rule_postcore(MVMThreadContext * tc, MVMNormalizer * norm) {
         }
 
         // next we need to look for zero or more InCB=Extend codepoints.
-        incb = MVM_unicode_codepoint_get_property_int(
-            tc,
-            norm->next_grapheme_code,
-            MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+        incb = ng_get_incb_for(tc, norm);
 
         while (incb == MVM_UNICODE_PVALUE_INCB_EXTEND) {
             if (!ng_next_code(tc, norm)) {
@@ -602,10 +617,7 @@ static int ng_rule_postcore(MVMThreadContext * tc, MVMNormalizer * norm) {
                 return 1;
             }
 
-            incb = MVM_unicode_codepoint_get_property_int(
-                tc,
-                norm->next_grapheme_code,
-                MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+            incb = ng_get_incb_for(tc, norm);
         }
 
         // to close things out, we just need an InCB=Consonant. If that fails to
@@ -786,10 +798,7 @@ static int ng_rule_core(MVMThreadContext * tc, MVMNormalizer * norm) {
 
     // alright, not an emoji sequence either. Could it be core-linker-conjunct?
     // For this, we'll need the InCB property of the codepoint.
-    int incb = MVM_unicode_codepoint_get_property_int(
-        tc,
-        norm->next_grapheme_code,
-        MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+    int incb = ng_get_incb_for(tc, norm);
 
     // core-linker-conjunct starts with any InCB=Linker **that is also NOT**
     // GCB=Extend. As of Unicode 18.0.0, all codepoints matching this condition
@@ -798,18 +807,12 @@ static int ng_rule_core(MVMThreadContext * tc, MVMNormalizer * norm) {
         && norm->next_grapheme_gcb != MVM_UNICODE_PVALUE_GCB_EXTEND) {
         NG_NEXT;
 
-        incb = MVM_unicode_codepoint_get_property_int(
-            tc,
-            norm->next_grapheme_code,
-            MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+        incb = ng_get_incb_for(tc, norm);
 
         // now we want to grab zero or more InCB=Extend codepoints.
         while (incb == MVM_UNICODE_PVALUE_INCB_EXTEND) {
             NG_NEXT;
-            incb = MVM_unicode_codepoint_get_property_int(
-                tc,
-                norm->next_grapheme_code,
-                MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+            incb = ng_get_incb_for(tc, norm);
         }
 
         // finally, we need an InCB=Consonant to finish the sequence. If this
