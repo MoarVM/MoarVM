@@ -302,8 +302,18 @@ sub transform-array (@array, @order) {
 @composed-arrays.push: "#define codepoint_sequence_no_max $codepoint_sequence_no_max";
 @composed-arrays.push: "#define special_collation_keys_elems @collation-elements.elems()";
 @composed-arrays.push: get-block-data("PropList.txt", ("Unified_Ideograph",), "is_unified_ideograph");
-@composed-arrays.push: get-block-data("Blocks.txt", ("Nushu",), "is_Assigned_Block_Nushu");
-@composed-arrays.push: get-block-data("Blocks.txt", ("Tangut","Tangut Components"), "is_Block_Tangut");
+@composed-arrays.push: get-block-data("Blocks.txt",
+                                      ("Tangut","Tangut Supplement"),
+                                      "is_Block_Tangut_or_Supplement");
+@composed-arrays.push: get-block-data("Blocks.txt",
+                                      ("Tangut Components", "Tangut Components Supplement"),
+                                      "is_Block_Tangut_Components_or_Supplement");
+@composed-arrays.push: get-block-data("Blocks.txt", ("Nushu",), "is_Block_Nushu");
+@composed-arrays.push: get-block-data("Blocks.txt", ("Khitan Small Script",), "is_Block_Khitan_Small_Script");
+@composed-arrays.push: get-block-data("Blocks.txt",
+                                      ("Jurchen", "Jurchen Radicals"),
+                                      "is_Block_Jurchen_or_Radicals");
+@composed-arrays.push: get-block-data("Blocks.txt", ("Seal",), "is_Block_Seal");
 @composed-arrays.push: get-block-data("Blocks.txt", ("CJK Unified Ideographs","CJK Compatibility Ideographs"), "is_Block_CJK_Unified_Ideographs_OR_CJK_Compatibility_Ideographs");
 @composed-arrays.push: compose-array('sub_node', 'main_nodes', transform-array(@main-node».build, $order2));
 @composed-arrays.push: compose-array( 'struct collation_key', 'special_collation_keys', transform-array(@collation-elements, $collation_key_order));
@@ -311,7 +321,7 @@ spurt $out-file, @composed-arrays.join("\n");
 print qq:to/END/;
 Done writing $out-file.
 {'=' x 70}
-MAKE SURE TO RUN `cd \$ROAST_DIR/S32-str; raku CollationTestGen.raku --folder=\$MOARVM_DIR/UNIDATA/UCA/CollationTest --test-only --should-test` to ensure there are ~74 failures only!
+MAKE SURE TO RUN `cd \$ROAST_DIR/S32-str; raku CollationTestGen.raku --folder=\$MOARVM_DIR/UNIDATA/UCA/CollationTest --test` to ensure there are ~74 failures only!
 
 Then paste those failures (if they're ok into CollationTestGen.raku in the \$todo variable). If you get exactly 74 failures then you probably don't need to check anything
 {'=' x 70}

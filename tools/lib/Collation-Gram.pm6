@@ -4,7 +4,7 @@ grammar Collation-Gram {
         <codepoints>
         \s* ';' \s*
         <coll-key>+
-        <comment>
+        <comment>?
         .*
     }
     token codepoints {
@@ -35,7 +35,7 @@ class Collation-Gram::Action {
         @!codepoints = @!codepoints.chrs.ords;
         make %(
             array => @!array,
-            comment => ~$<comment>,
+            comment => ($<comment> // "").Str,
             codepoints => @!codepoints.chrs.ords
         )
     }
