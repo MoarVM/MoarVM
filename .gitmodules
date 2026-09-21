@@ -18,7 +18,7 @@
 	url = https://github.com/MoarVM/libatomic_ops
 [submodule "3rdparty/zmij"]
 	path = 3rdparty/zmij
-	url = https://github.com/vitaut/zmij
+	url = https://github.com/MoarVM/zmij
 	ignore = untracked
 [submodule "3rdparty/mimalloc"]
 	path = 3rdparty/mimalloc
