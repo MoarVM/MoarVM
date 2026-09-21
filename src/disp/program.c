@@ -661,18 +661,19 @@ MVMHLLConfig * MVM_disp_program_record_get_hll(MVMThreadContext *tc) {
  * exception will be thrown. The caller should pass in a pointer to a
  * CapturePath, which will be populated with the path to that capture. */
 typedef struct {
-    MVM_VECTOR_DECL(MVMDispProgramRecordingCapture *, path);
+    MVMDispProgramRecordingCapture *path[64];
+    size_t path_idx;
 } CapturePath;
 static MVMuint32 find_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *current,
         MVMObject *searchee, CapturePath *p) {
-    MVM_VECTOR_PUSH(p->path, current);
+    p->path[p->path_idx++] = current;
     if (current->capture == searchee)
         return 1;
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(current->captures); i++)
         if (find_capture(tc, &(current->captures[i]), searchee, p))
             return 1;
-    (void)MVM_VECTOR_POP(p->path);
+    p->path_idx--;
     return 0;
 }
 static void calculate_capture_path(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
@@ -685,17 +686,14 @@ static void calculate_capture_path(MVMThreadContext *tc, MVMCallStackDispatchRec
             if (find_capture(tc, &(record->rec.resumptions[cur].initial_resume_capture), capture, p))
                 return;
         }
-        MVM_VECTOR_DESTROY(p->path);
         MVM_exception_throw_adhoc(tc,
                 "Can only use manipulate a capture known in this dispatch");
     }
 }
 static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMObject *capture) {
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
-    MVM_VECTOR_DESTROY(p.path);
 }
 
 /* Ensures we have a constant recorded as a value. If there already is such
@@ -968,8 +966,7 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
 
     /* Ensure the incoming capture is known. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* Walk the capture path to resolve the index. We start at the deepest
@@ -978,7 +975,7 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
     MVMuint32 real_index = index;
     MVMint32 found_value_index = -1;
     MVMuint32 is_resume_init_capture = 0;
-    for (i = MVM_VECTOR_ELEMS(p.path) - 1; i >= 0 && found_value_index < 0; i--) {
+    for (i = p.path_idx - 1; i >= 0 && found_value_index < 0; i--) {
         switch (p.path[i]->transformation) {
             case MVMDispProgramRecordingInsert:
                 /* It's an insert. Was the insert at the index we are dealing
@@ -1023,7 +1020,6 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
                 break;
         }
     }
-    MVM_VECTOR_DESTROY(p.path);
 
     /* If we didn't find a value index, then we're referencing the original
      * capture; ensure there's a value index for that. */
@@ -1327,8 +1323,7 @@ MVMObject * MVM_disp_program_record_capture_drop_args(MVMThreadContext *tc, MVMO
     /* Lookup the path to the incoming capture. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
 
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* Calculate the new capture and add the necessary records for it.
@@ -1344,12 +1339,11 @@ MVMObject * MVM_disp_program_record_capture_drop_args(MVMThreadContext *tc, MVMO
         };
 
         MVM_VECTOR_INIT(new_capture_record.captures, 0);
-        MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+        MVMDispProgramRecordingCapture *update = p.path[p.path_idx - 1];
         MVM_VECTOR_PUSH(update->captures, new_capture_record);
-        MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
+        p.path[p.path_idx++] = &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1];
     }
 
-    MVM_VECTOR_DESTROY(p.path);
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
 }
@@ -1363,8 +1357,7 @@ MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
     MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
 
     /* Also look up the path to the incoming capture. */
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* Calculate the new capture and add a record for it. */
@@ -1377,9 +1370,8 @@ MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
         .value_index = value_index
     };
     MVM_VECTOR_INIT(new_capture_record.captures, 0);
-    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVMDispProgramRecordingCapture *update = p.path[p.path_idx - 1];
     MVM_VECTOR_PUSH(update->captures, new_capture_record);
-    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
@@ -1394,8 +1386,7 @@ MVMObject * MVM_disp_program_record_capture_replace_arg(MVMThreadContext *tc,
     MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
 
     /* Also look up the path to the incoming capture. */
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* First, create an entry as if we had dropped the argument.
@@ -1407,9 +1398,9 @@ MVMObject * MVM_disp_program_record_capture_replace_arg(MVMThreadContext *tc,
         .index = idx,
     };
     MVM_VECTOR_INIT(dropped_arg_record.captures, 0);
-    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVMDispProgramRecordingCapture *update = p.path[p.path_idx - 1];
     MVM_VECTOR_PUSH(update->captures, dropped_arg_record);
-    MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
+    p.path[p.path_idx++] = &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1];
 
     MVMTracked *trackobj = (MVMTracked *)tracked;
     MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, trackobj->body.kind, trackobj->body.value);
@@ -1423,9 +1414,8 @@ MVMObject * MVM_disp_program_record_capture_replace_arg(MVMThreadContext *tc,
         .value_index = value_index
     };
     MVM_VECTOR_INIT(new_capture_record.captures, 0);
-    update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    update = p.path[p.path_idx - 1];
     MVM_VECTOR_PUSH(update->captures, new_capture_record);
-    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
@@ -1439,8 +1429,7 @@ MVMObject * MVM_disp_program_record_capture_replace_literal_arg(MVMThreadContext
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
 
     /* Also look up the path to the incoming capture. */
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* Obtain a new value index for the constant. */
@@ -1455,9 +1444,9 @@ MVMObject * MVM_disp_program_record_capture_replace_literal_arg(MVMThreadContext
         .index = idx,
     };
     MVM_VECTOR_INIT(dropped_arg_record.captures, 1);
-    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVMDispProgramRecordingCapture *update = p.path[p.path_idx - 1];
     MVM_VECTOR_PUSH(update->captures, dropped_arg_record);
-    MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
+    p.path[p.path_idx] = &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1];
 
     MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, kind, value);
 
@@ -1470,9 +1459,8 @@ MVMObject * MVM_disp_program_record_capture_replace_literal_arg(MVMThreadContext
         .value_index = value_index
     };
     MVM_VECTOR_INIT(new_capture_record.captures, 0);
-    update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    update = p.path[p.path_idx - 1];
     MVM_VECTOR_PUSH(update->captures, new_capture_record);
-    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
@@ -1485,8 +1473,7 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
         MVMObject *capture, MVMuint32 idx, MVMCallsiteFlags kind, MVMRegister value) {
     /* Lookup the path to the incoming capture. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* Obtain a new value index for the constant. */
@@ -1501,9 +1488,8 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
         .value_index = value_index
     };
     MVM_VECTOR_INIT(new_capture_record.captures, 0);
-    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVMDispProgramRecordingCapture *update = p.path[p.path_idx - 1];
     MVM_VECTOR_PUSH(update->captures, new_capture_record);
-    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
@@ -1521,14 +1507,13 @@ MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
 
     /* Ensure the incoming capture is known and calculate the path. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, capture, &p);
 
     /* Walk the capture path to see where the argument came from. */
     MVMint32 i;
     MVMuint32 real_index = index;
-    for (i = MVM_VECTOR_ELEMS(p.path) - 1; i >= 0; i--) {
+    for (i = p.path_idx - 1; i >= 0; i--) {
         switch (p.path[i]->transformation) {
             case MVMDispProgramRecordingInsert:
                 /* It's an insert. Was the insert at the index we are dealing
@@ -1537,7 +1522,6 @@ MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
                     /* Yes, and so it will have a value index. We can then use
                      * that to see if it's literal. */
                     MVMuint32 idx = p.path[i]->value_index;
-                    MVM_VECTOR_DESTROY(p.path);
                     return record->rec.values[idx].source == MVMDispProgramRecordingLiteralValue;
                 }
                 else {
@@ -1554,7 +1538,6 @@ MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
             case MVMDispProgramRecordingInitial: {
                 /* We have reached the initial capture, and so the index is
                  * for it. See if the callsite at this capture is literal. */
-                MVM_VECTOR_DESTROY(p.path);
                 MVMObject *init_capture = record->rec.initial_capture.capture;
                 MVMCallsite *cs = ((MVMCapture *)init_capture)->body.callsite;
                 return real_index < cs->flag_count &&
@@ -1564,7 +1547,6 @@ MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
                 break;
         }
     }
-    MVM_VECTOR_DESTROY(p.path);
 
     /* If we didn't make a determination by this point, non-literal. */
     return 0;
@@ -2466,8 +2448,7 @@ static void emit_resume_state_guards(MVMThreadContext *tc, compile_state *cs,
 static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         compile_state *cs, MVMuint32 callsite_idx) {
     /* Obtain the path to the capture we'll be invoking with. */
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, record->rec.outcome_capture, &p);
 
     /* Calculate the length of the untouched tail between the incoming capture
@@ -2476,14 +2457,14 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
     MVMCallsite *initial_callsite = ((MVMCapture *)cs->rec->initial_capture.capture)->body.callsite;
     MVMuint32 untouched_tail_length = initial_callsite->flag_count;
     MVMuint32 i;
-    for (i = 0; i < MVM_VECTOR_ELEMS(p.path); i++) {
+    for (i = 0; i < p.path_idx; i++) {
         MVMCapture *cur_capture = (MVMCapture *)p.path[i]->capture;
         MVMint32 skipped_drops = 0;
         while (!cur_capture) {
             assert(p.path[i]->transformation == MVMDispProgramRecordingDrop);
             skipped_drops++;
             i++;
-            assert(i < MVM_VECTOR_ELEMS(p.path));
+            assert(i < p.path_odx);
             cur_capture = (MVMCapture *)p.path[i]->capture;
         }
         /* If the previous loop has run at all, then the entry on the path reached
@@ -2583,7 +2564,7 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
             MVMuint32 real_index = i;
             MVMint32 found_value_index = -1;
             MVMuint32 from_resume_init_capture = 0;
-            for (j = MVM_VECTOR_ELEMS(p.path) - 1; j >= 0 && found_value_index < 0; j--) {
+            for (j = p.path_idx - 1; j >= 0 && found_value_index < 0; j--) {
                 switch (p.path[j]->transformation) {
                     case MVMDispProgramRecordingInsert:
                         if (p.path[j]->index == real_index) {
@@ -2662,9 +2643,6 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
     else {
         MVM_oops(tc, "Impossible untouched arg tail length calculated in dispatch program");
     }
-
-    /* Cleanup. */
-    MVM_VECTOR_DESTROY(p.path);
 }
 static void add_resume_init_temp_to_fake(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingResumption *rec_res, MVMuint32 temp_idx,
@@ -2697,8 +2675,7 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
         MVMCallStackDispatchRecord *record, MVMDispProgramRecordingResumption *rec_res,
         MVMDispProgramResumption *res, MVMCapture *init_capture) {
     /* Obtain the path to the intialization capture. */
-    CapturePath p;
-    MVM_VECTOR_INIT(p.path, 8);
+    CapturePath p = {0};
     calculate_capture_path(tc, record, (MVMObject *)init_capture, &p);
 
     /* Allocate storage for the resumption init value sources according to
@@ -2712,7 +2689,7 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
         MVMuint32 real_index = i;
         MVMint32 found_value_index = -1;
         MVMuint32 is_resume_init_capture = 0;
-        for (j = MVM_VECTOR_ELEMS(p.path) - 1; j >= 0 && found_value_index < 0; j--) {
+        for (j = p.path_idx - 1; j >= 0 && found_value_index < 0; j--) {
             switch (p.path[j]->transformation) {
                 case MVMDispProgramRecordingInsert:
                     if (p.path[j]->index == real_index) {
@@ -2788,7 +2765,6 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
                     }
                     break;
                 default:
-                    MVM_VECTOR_DESTROY(p.path);
                     MVM_exception_throw_adhoc(tc,
                             "Resume init arguments can only come from an initial argument capture or be constants");
             }
@@ -2811,9 +2787,6 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
             init->index = real_index;
         }
     }
-
-    /* Cleanup. */
-    MVM_VECTOR_DESTROY(p.path);
 }
 static void emit_resume_inits(MVMThreadContext *tc, compile_state *cs,
         MVMCallStackDispatchRecord *record, MVMDispProgramRecordingResumption *rec_res,
