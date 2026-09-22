@@ -114,6 +114,16 @@ struct MVMSerializationReader {
     /* The current object we're deserializing. */
     MVMObject *current_object;
 
+    /* Repossession conflicts list, so the lazy demand path records
+     * conflict backups on the same list the main repossess loop uses. */
+    MVMObject *repo_conflicts;
+
+    /* Nonzero from reader setup until the repossession loops have
+     * populated every repossession target slot. While set, lazy object
+     * demands consult the repossession table ahead of interning or
+     * stubbing. */
+    AO_t repossessing;
+
     /* The data, which we may want to free when the SC goes away; a flag
      * indicates when it should be. */
     char      *data;
