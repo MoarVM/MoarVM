@@ -515,22 +515,35 @@ static void canonical_composition(MVMThreadContext *tc, MVMNormalizer *n, MVMint
     }
 }
 
+/* Retrieves some integer property for a codepoint, with special handling for
+ * UTF8-C8 synthetics. Errors out on other synthetics. As the function name
+ * suggests, this is purely intended for the next_grapheme() function's
+ * operations. The 'c8res' parameter specifies what value a UTF8-C8 character
+ * should pretend to have.
+ */
+MVM_STATIC_INLINE MVMint64 ng_get_int_property_for(MVMThreadContext * tc, MVMNormalizer * norm,
+                                                   MVMint64 property_code, MVMint64 c8res) {
+    if (norm->next_grapheme_code < 0) {
+        if (MVM_nfg_get_synthetic_info(tc, norm->next_grapheme_code)->is_utf8_c8) {
+            return c8res;
+        }
+
+        MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
+    }
+
+    return MVM_unicode_codepoint_get_property_int(tc, norm->next_grapheme_code, property_code);
+}
+
 /* Retrieves the Grapheme_Cluster_Break property value for a codepoint. Intended
  * for use in the grapheme boundary search function next_grapheme() and related
  * functions, so it handles synthetics specially: UTF8-C8 graphemes are treated
  * as if they have GCB=Control, while all other synthetics cause an error.
  *
  */
-MVM_STATIC_INLINE int ng_get_gcb_for(MVMThreadContext * tc, MVMNormalizer * norm) {
-    if (norm->next_grapheme_code < 0) {
-        if (MVM_nfg_get_synthetic_info(tc, norm->next_grapheme_code)->is_utf8_c8) {
-            return MVM_UNICODE_PVALUE_GCB_CONTROL;
-        }
-
-        MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
-    }
-
-    return MVM_unicode_codepoint_get_property_int(tc, norm->next_grapheme_code, MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK);
+MVM_STATIC_INLINE MVMint64 ng_get_gcb_for(MVMThreadContext * tc, MVMNormalizer * norm) {
+    return ng_get_int_property_for(tc, norm,
+                                   MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK,
+                                   MVM_UNICODE_PVALUE_GCB_CONTROL);
 }
 
 /* Retrieves the Indic_Conjunct_Break property value for a codepoint. Intended
@@ -539,19 +552,10 @@ MVM_STATIC_INLINE int ng_get_gcb_for(MVMThreadContext * tc, MVMNormalizer * norm
  * like they are control codes, and return the "None" property value, while all
  * other synthetics cause an error.
  */
-MVM_STATIC_INLINE int ng_get_incb_for(MVMThreadContext * tc, MVMNormalizer * norm) {
-    if (norm->next_grapheme_code < 0) {
-        if (MVM_nfg_get_synthetic_info(tc, norm->next_grapheme_code)->is_utf8_c8) {
-            return MVM_UNICODE_PVALUE_INCB_NONE;
-        }
-
-        MVM_exception_throw_adhoc(tc, "Internal error: synthetic grapheme found when computing grapheme segmentation");
-    }
-
-    return MVM_unicode_codepoint_get_property_int(
-        tc,
-        norm->next_grapheme_code,
-        MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK);
+MVM_STATIC_INLINE MVMint64 ng_get_incb_for(MVMThreadContext * tc, MVMNormalizer * norm) {
+    return ng_get_int_property_for(tc, norm,
+                                   MVM_UNICODE_PROPERTY_INDIC_CONJUNCT_BREAK,
+                                   MVM_UNICODE_PVALUE_INCB_NONE);
 }
 
 /* Grabs the next codepoint for the next_grapheme() search function and related
@@ -753,10 +757,7 @@ static int ng_rule_core(MVMThreadContext * tc, MVMNormalizer * norm) {
     }
 
     // Not an RI pair, an emoji sequence perhaps?
-    if (MVM_unicode_codepoint_get_property_int(
-            tc,
-            norm->next_grapheme_code,
-            MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC)) {
+    if (ng_get_int_property_for(tc, norm, MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC, 0)) {
         NG_NEXT;
 
         // we have to pick up / [<Extend>* <ZWJ> <Extended_Pictographic>]* /
@@ -775,10 +776,7 @@ static int ng_rule_core(MVMThreadContext * tc, MVMNormalizer * norm) {
                 // if this is an EP, take it, and allow the while loop to go
                 // round again. Otherwise, the emoji sequence has ended and
                 // we'll break the loop.
-                if (MVM_unicode_codepoint_get_property_int(
-                        tc,
-                        norm->next_grapheme_code,
-                        MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC)) {
+                if (ng_get_int_property_for(tc, norm, MVM_UNICODE_PROPERTY_EXTENDED_PICTOGRAPHIC, 0)) {
                     NG_NEXT;
                 } else {
                     // it wasn't another EP, so this loop stops here
