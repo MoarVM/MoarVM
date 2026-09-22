@@ -105,7 +105,7 @@ static void SCRef_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGC
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_comp_unit));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->codes_list));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->current_object));
-
+        MVM_gc_worklist_add(tc, worklist, &(sc->sr->repo_conflicts));
     }
 }
 
