@@ -2188,10 +2188,19 @@ sub emit_codepoint_extents_and_indexes {
             $span_length = 0;
         }
 
-        # If there is a gap that either crosses a plane boundary or is
-        # longer than GAP_LENGTH_THRESHOLD, compress as a FATE_NULL extent
+        # If there is a gap that either crosses a plane boundary, or is longer
+        # than GAP_LENGTH_THRESHOLD, or follows a FATE_SPAN, compress as a
+        # FATE_NULL extent. We ignore the usual threshold for compressed spans
+        # since those cannot, by definition, describe different kinds of
+        # codepoints, so we must have a change in extents at the start of the
+        # gap. Ignoring the usual gap threshold like this may not be optimal,
+        # but adding in NORMAL fates for too-small gaps in this uncommon
+        # scenario seems like it wouldn't be worth the effort.
+        my $contextual_threshold = ($point->{code} % 0x10000 && $extents->[-1]->{fate_type} != $FATE_SPAN)
+                                 ? $GAP_LENGTH_THRESHOLD
+                                 : 1;
         if ($COMPRESS_CODEPOINTS
-            && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
+            && $last_code < $point->{code} - $contextual_threshold) {
             # 10 = 8 (64-bit pointer) + 2 (bitfield index), per skipped entry
             $bytes_saved += 10 * ($point->{code} - $last_code - 1);
 
