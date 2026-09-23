@@ -2423,7 +2423,7 @@ static const char *bogus = "<BOGUS>"; /* only for table too short; return null s
 
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
-    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMuint32 result_val = 0;
     MVMint32 codepoint_row;
     MVMuint16 bitfield_row = 0;
 
@@ -2439,7 +2439,6 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
         if (0x10FFFF < codepoint)
             return "";
-        result_val = -1;
     }
     else {
         bitfield_row = codepoint_bitfield_indexes[codepoint_row];
@@ -2453,7 +2452,7 @@ END
     chomp(my $int_out = <<'END');
 
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
-    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMuint32 result_val = 0;
     MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
     /* If codepoint is not found in bitfield rows */
@@ -2566,8 +2565,7 @@ END
                 chomp($int_out .= <<"END");
 
                 result_val = $props_bitfield_line
-                return result_val < $esize ? (result_val == -1
-                    ? $enum\[0] : $enum\[result_val]) : 0;
+                return result_val < $esize ? $enum\[result_val] : 0;
 END
             }
             else {
@@ -2587,8 +2585,7 @@ END
 
         if ($is_str) {
             $str_out .= "\n            ";
-            $str_out .= "return result_val < $esize ? (result_val == -1\n"
-                     .  "        ? $enum\[0] : $enum\[result_val]) : bogus;";
+            $str_out .= "return result_val < $esize ? $enum\[result_val] : bogus;";
         }
     }
 
