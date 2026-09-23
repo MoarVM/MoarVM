@@ -2572,7 +2572,7 @@ END
             }
             else {
                 $int_out .= "\n                return $props_bitfield_line";
-                $str_out .= "\n            result_val = $props_bitfield_line";
+                $str_out .= "\n            result_val = $props_bitfield_line" if $is_str;
             }
 
             # XXXX: This code was meant to handle bitfield cell crossings,
