@@ -217,7 +217,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         if (last_line_number == line_number && last_filename == filename_string_index) {
             /* Consecutive BBs with the same line number and filename should
              * share one "already reported" slot. */
-            log_ins->operands[2].lit_i32 = array_slot;
+            log_ins->operands[2].lit_i32 = array_slot - 1;
         } else {
             log_ins->operands[2].lit_i32 = array_slot++;
             last_line_number = line_number;
