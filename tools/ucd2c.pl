@@ -1164,6 +1164,7 @@ sub UnicodeData {
             if ($point->{name} eq '<control>'
              || $point->{name} eq '<surrogate>'
              || $point->{name} eq '<private-use>'
+             || $point->{name} eq '<noncharacter>'
              || $point->{name} eq '<HANGUL SYLLABLE>'
              || $point->{name} eq '<TANGUT IDEOGRAPH>'
              || $point->{name} eq '<JURCHEN CHARACTER>'
@@ -1199,8 +1200,20 @@ sub UnicodeData {
         }
     };
 
-    # Parse each line of the UnicodeData file, plus a special 'Out of Range' marker
+    # Parse each line of the UnicodeData file, plus a special 'Out of Range'
+    # marker, and noncharacters that aren't listed in the file but still need to
+    # be accounted for.
     for_each_line('UnicodeData', $UnicodeDataParser);
+
+    for (my $nc = 0xFDD0; $nc <= 0xFDEF; ++$nc) {
+        $UnicodeDataParser->(sprintf("%04X;<noncharacter>;Cn;0;BN;;;;;N;;;;;", $nc));
+    }
+
+    for (my $nc = 0; $nc <= 0x10; ++$nc) {
+        $UnicodeDataParser->(sprintf("%.0XFFFE;<noncharacter>;Cn;0;BN;;;;;N;;;;;", $nc));
+        $UnicodeDataParser->(sprintf("%.0XFFFF;<noncharacter>;Cn;0;BN;;;;;N;;;;;", $nc));
+    }
+
     $UnicodeDataParser->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
 
     # Register enumerated properties for Case_Change_Index and Decomp_Spec
@@ -2226,6 +2239,16 @@ sub emit_codepoint_extents_and_indexes {
         # Verify the algorithm above has gotten us to a synced position
         croak "last_code $last_code != point->{code} - 1; Point: " . Dumper($point)
             unless $last_code == $point->{code} - 1;
+
+        # To make sure the generated code, which artificially splits the binary
+        # search between BMP and everything else, works properly, we have to
+        # force a split at U+10000. Fortunately this is easily done by just
+        # saying we have a point to add. This won't actually override any
+        # previous setters of this variable, since they all set it to the same
+        # thing this is.
+        if ($point->{code} == 0x10000) {
+            $point_toadd = $point;
+        }
 
         # If there is a pending point from the end of a span or gap compression
         # and it doesn't have a fate yet, it should have FATE_NORMAL and start
