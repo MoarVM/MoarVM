@@ -1362,13 +1362,6 @@ sub compute_collation_weights {
         };
     };
 
-    # Add 0 to a non-character just to make sure it ends up assigned to some codepoint
-    # (or it may not properly end up in the enum)
-    apply_to_cp_range "FFFF", sub {
-        my $point = shift;
-        $point->{$name_tertiary} = 0;
-    };
-
     for my $base ($bases->{$name_primary},
                   $bases->{$name_secondary},
                   $bases->{$name_tertiary}) {
