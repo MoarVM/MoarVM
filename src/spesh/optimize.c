@@ -2070,11 +2070,30 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, 
     }
 }
 
+void optimize_consecutive_bb_entered(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 prev_coverage_bb_id) {
+    MVMuint32 this_one = ins->operands[0].lit_ui32;
+
+    MVMuint32 combined = (prev_coverage_bb_id >> 1) ^ this_one;
+
+    ins->info = MVM_op_get_op(MVM_OP_bb_sp_markedge);
+    ins->operands[0].lit_ui32 = combined;
+}
+
+void insert_bb_entered_final_bb_id_ins(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *last_bb_ins, MVMuint32 prev_coverage_bb_id) {
+    MVMSpeshIns *new_ins = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
+    new_ins->info = MVM_op_get_op(MVM_OP_bb_sp_setlastbb);
+    new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 1);
+    new_ins->operands[0].lit_ui32 = prev_coverage_bb_id;
+
+    MVM_spesh_manipulate_insert_ins(tc, bb, last_bb_ins, new_ins);
+}
+
 static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
     /* Look for instructions that are interesting to optimize. */
     MVMSpeshIns *ins = bb->first_ins;
     MVMSpeshIns *next_ins = ins;
+
     while (ins) {
         next_ins = ins->next;
         switch (ins->info->opcode) {
@@ -2638,6 +2657,12 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                                  PostInlinePassState *pips) {
     MVMint32 i;
 
+    /* If we are doing bb edge coverage reports, keep the first bb_entered we've seen. */
+    MVMuint16 coverage_bb_id_seen = 0;
+    MVMSpeshIns *coverage_bb_ins = NULL;
+    MVMSpeshIns *coverage_setlastbb_ins = NULL;
+    MVMuint32 coverage_bb_id = 0;
+
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
         MVMSpeshIns *next = ins->next;
@@ -2702,8 +2727,33 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             case MVM_OP_throwcatlexotic:
                 optimize_throwcat(tc, g, bb, ins);
                 break;
+            case MVM_OP_bb_entered:
+                coverage_bb_id = ins->operands[0].lit_ui32;
+                if (coverage_bb_id_seen) {
+                    optimize_consecutive_bb_entered(tc, g, bb, ins, coverage_bb_id);
+                    coverage_bb_ins = ins;
+                }
+                coverage_bb_id_seen++;
+                break;
+            case MVM_OP_bb_sp_setlastbb:
+                /* If we've inherited a setlastbb through inlining, we can take
+                 * the bb id. */
+                coverage_bb_id = ins->operands[0].lit_ui32;
+                coverage_setlastbb_ins = ins;
+                break;
         }
         ins = next;
+    }
+
+    if (coverage_bb_id_seen > 1) {
+        /* If we've created "edge" marking ops, we should set the "prev bb id"
+        * in the tc with the extra op so that future bb_entered ops work */
+        insert_bb_entered_final_bb_id_ins(tc, g, bb, coverage_bb_ins, coverage_bb_id);
+
+        if (coverage_setlastbb_ins) {
+            MVM_spesh_manipulate_delete_ins(tc, g, bb, coverage_setlastbb_ins);
+            coverage_setlastbb_ins = NULL;
+        }
     }
 
     /* Visit children. */
