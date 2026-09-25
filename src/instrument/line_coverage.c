@@ -102,6 +102,13 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
             breakpoint_ins->operands[0].lit_i32 = file_bp_idx;
             breakpoint_ins->operands[1].lit_i32 = line_number;
 
+            MVMSpeshAnn *lineno_ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+            lineno_ann->next = breakpoint_ins->annotations;
+            lineno_ann->type = MVM_SPESH_ANN_LINENO;
+            lineno_ann->data.lineno.filename_string_index = filename_string_index;
+            lineno_ann->data.lineno.line_number = line_number;
+            breakpoint_ins->annotations = lineno_ann;
+
             last_filename = filename_string_index;
             last_line_number = line_number;
 
