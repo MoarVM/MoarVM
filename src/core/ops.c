@@ -9526,7 +9526,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         "getlexperinvtype_o",
         2,
         1,
-        0,
+        1,
         0,
         1,
         0,

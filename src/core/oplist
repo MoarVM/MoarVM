@@ -648,7 +648,7 @@ asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 bindpos3d_u         r(obj) r(int64) r(int64) r(int64) r(uint64) :specializable
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 getlexstatic_o      w(obj) r(str) :pure :noinline :specializable :cache
-getlexperinvtype_o  w(obj) r(str) :pure :logged :specializable
+getlexperinvtype_o  w(obj) r(str) :pure :deoptonepoint :logged :specializable
 execname            w(str)
 const_i64_16        w(int64) int16 :pure :confprog
 const_i64_32        w(int64) int32 :pure :confprog
