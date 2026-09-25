@@ -3204,7 +3204,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 }
 
 /* Interpret a dispatch program. */
-#if MVM_CGOTO
+#if MVM_HAS_CGOTO
 #define DISPATCH(op)
 #define OP(name) name
 #define NEXT do { \
@@ -3221,7 +3221,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallStackDispatchRun *record, MVMint32 spesh_cid, MVMuint32 bytecode_offset,
         MVMuint32 dp_index) {
-#if MVM_CGOTO
+#if MVM_HAS_CGOTO
 #include "labels.h"
 #endif
 
@@ -3235,15 +3235,15 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
     MVMuint32 i = 0 ;
     MVMArgs invoke_args;
     MVMDispProgramOp op;
-#if !MVM_CGOTO
+#if !MVM_HAS_CGOTO
     while(i < dp->num_ops)
 #endif
     {
-#if !MVM_CGOTO
+#if !MVM_HAS_CGOTO
         op = dp->ops[i++];
 #endif
         DISPATCH (op.code) {
-#if MVM_CGOTO
+#if MVM_HAS_CGOTO
                NEXT;
 #endif
             /* Resumption related ops. */
@@ -3604,7 +3604,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 MVM_callstack_unwind_dispatch_run(tc);
                 goto accept;
             }
-#if !MVM_CGOTO
+#if !MVM_HAS_CGOTO
             default:
                 MVM_oops(tc, "Unknown dispatch program op %d", op.code);
 #endif

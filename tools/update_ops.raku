@@ -243,6 +243,13 @@ sub MAIN($file = "src/core/oplist") {
     $lf.say(op_labels(@ops));
     $lf.close;
 
+    # Generate header for "musttail" function snippet mode.
+    my $tcof = open('src/core/tailcall_interp_ops.h', :w);
+    $tcof.say("/* This file is generated from $file by tools/update_ops.raku. */");
+    $tcof.say("");
+    $tcof.say(interp_op_funcs(@ops));
+    $tcof.close;
+
     my %op_constants = NQP => op_constants(@ops, "NQP"), Raku => op_constants(@ops, "Raku");
 
     # Generate NQP Ops file.
@@ -411,6 +418,24 @@ sub op_labels(@ops) {
     return "static const void * const LABELS[] = \{\n    {
         join(",\n    ", @labels, @padding, @extlabels)
     }\n\};";
+}
+
+sub interp_op_funcs(@ops) {
+    my @forwards = (@ops.Slip, Op.new(:name("CALL_EXTOP"))).map({ sprintf('static MVM_INTERP_OP_CC MVMuint8 MVM_interp_op_%s(MVM_INTERP_OP_FUNC_ARGS);', $_.name) });
+    my @dispatch = @ops.map({ sprintf('MVM_interp_op_%s', $_.name) });
+    my @padding = 'NULL' xx $EXT_BASE - @ops;
+    my @extlabels = 'MVM_interp_op_CALL_EXTOP' xx $EXT_CU_LIMIT;
+    return qq:to/CODE/;
+#define MVM_INTERP_OP_FUNC_ARGS MVMThreadContext *tc, MVMuint8 **arg_cur_op, MVMuint8 **arg_bytecode_start, MVMRegister **arg_reg_base, MVMCompUnit **arg_cu
+typedef MVMuint8 (MVM_INTERP_OP_CC *MVMInterpOpFuncPtr)(MVM_INTERP_OP_FUNC_ARGS);
+
+{ join("\n", @forwards) }
+
+MVMInterpOpFuncPtr INTERP_OP_FUNCTIONS[] = \{{
+        join(",\n    ", @dispatch, @padding, @extlabels)
+}
+\};
+CODE
 }
 
 # Creates the #defines for the ops.
