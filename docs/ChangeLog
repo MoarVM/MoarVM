@@ -1,5 +1,11 @@
+New in 2026.09:
 + Bump mimalloc to v3.5.0
 + Add MVM_COVERAGE_FILES env var for filtering coverage to matching source files
++ Fix shared coverage slot for same line BBs
++ Install pending object repossession target in demand_object
++ Fix zmij on older GCCs
++ Let spesh see the object at SC index 0, speeding up RakuAST
++ Revert "Allow GC to run while decoding large buffers of utf8/c8" from 2026.06
 
 New in 2026.08
 
