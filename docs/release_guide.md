@@ -64,8 +64,8 @@ but recreate it with the correct internal folder name so you can follow the rema
    extract it, and then in that directory do:
 
         perl Configure.pl --prefix=install
-        make install
-        install/bin/moar --version
+        make -j install
+        ./install/bin/moar --version
 
 10. Provided **step 8** and **9** work, you have a new release! Your git instance must
     sign commits. Now we tag the release. The `-a` option adds a tag while
