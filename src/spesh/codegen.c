@@ -36,14 +36,7 @@ typedef struct {
     /* Working deopt users state (so we can allocate it once and re-use it). */
     AllDeoptUsers all_deopt_users;
 
-    /* Bytecode annotations data and count. Same raw layout as
-     * MVMStaticFrameBody.annotations_data: a run of 12-byte entries
-     * (bytecode offset, filename string heap index, line number), read
-     * generically by MVM_bytecode_resolve_annotation /
-     * MVM_bytecode_advance_annotation. The spesh graph carries several
-     * kinds of annotation (deopt points, line numbers, handlers, ...);
-     * this buffer holds only the MVM_SPESH_ANN_LINENO (file/line) ones,
-     * rebuilt at their new bytecode offsets after codegen. */
+    /* Line number annotations, same layout as in MVMStaticFrameBody. */
     MVMuint8 *annotations_data;
     MVMuint32 num_annotations;
     MVMuint32 alloc_annotations;
@@ -59,9 +52,7 @@ static void add_annotation(SpeshWriterState *ws, MVMuint32 bytecode_pos, MVMuint
             return;
         }
         if (last_offset == bytecode_pos) {
-            /* Multiple lines collapsed onto the same bytecode offset (e.g.
-             * optimized-away instructions). We keep only the last one, so
-             * stack traces/breakpoints for this offset report that line. */
+            /* Same offset; keep the last line. */
             *(MVMuint32 *)(last_ann + 4) = filename_idx;
             *(MVMuint32 *)(last_ann + 8) = line_number;
             return;
