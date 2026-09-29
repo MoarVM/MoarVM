@@ -143,6 +143,11 @@ struct MVMStaticFrameInstrumentation {
     MVMuint32        instrumented_bytecode_size;
     MVMStrHashTable  debug_locals;
 
+    MVMuint8        *instrumented_annotations_data;
+    MVMuint8        *uninstrumented_annotations_data;
+    MVMuint32        instrumented_num_annotations;
+    MVMuint32        uninstrumented_num_annotations;
+
     MVMuint8         profiler_confprog_result;
     MVMuint8         profiler_confprog_version;
 };
