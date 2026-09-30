@@ -1969,6 +1969,9 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
         uv_cond_broadcast(&debugserver->tell_threads);
         uv_mutex_unlock(&debugserver->mutex_cond);
 
+        /* Target may need the lock (instrumentation) or a GC before acking. */
+        uv_mutex_unlock(&debugserver->mutex_network_send);
+        MVM_gc_mark_thread_blocked(dtc);
         while (1) {
             if (MVM_cas(&debugserver->request_data.status,
                     MVM_DebugRequestStatus_receiver_acknowledged,
@@ -1977,7 +1980,10 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                     fprintf(stderr, "debugserver acknowledges thread's acknowledgement.\n");
                 break;
             }
+            MVM_platform_thread_yield();
         }
+        MVM_gc_mark_thread_unblocked(dtc);
+        uv_mutex_lock(&debugserver->mutex_network_send);
 
         communicate_success(dtc, ctx, argument);
 
