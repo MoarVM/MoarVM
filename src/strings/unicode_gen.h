@@ -6,11 +6,11 @@ struct MVMUnicodeNamedValue {
 };
 #define num_unicode_property_keypairs 4380
 
-#define MVM_NUM_UNICODE_EXTENTS 125
+#define MVM_NUM_UNICODE_EXTENTS 148
 
 MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);
 
-#define MVM_CODEPOINT_NAMES_COUNT 64644
+#define MVM_CODEPOINT_NAMES_COUNT 64645
 #define MVM_NUM_PROPERTY_CODES 115
 
 #define num_unicode_seq_keypairs 3680
