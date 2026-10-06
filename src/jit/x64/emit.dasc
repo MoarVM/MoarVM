@@ -709,10 +709,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | throw_adhoc "lexprimspec needs a context";
         |2:
-        | mov ARG2, CONTEXT:TMP1->body.context;
+        | mov ARG2, TMP1;
         | mov ARG3, WORK[name];
         | mov ARG1, TC;
-        | callp &MVM_frame_lexical_primspec;
+        | callp &MVM_context_lexical_primspec;
         | mov WORK[dst], RV;
         break;
     }
