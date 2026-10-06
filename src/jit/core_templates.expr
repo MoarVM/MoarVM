@@ -1854,8 +1854,8 @@
                       (carg (tc) ptr)
                       (carg $1   ptr)) ptr_sz)))
       (do
-        (^setf $type MVMSTable is_mixin_type (const 1 int_sz))
-        (load $type ptr_sz)))))
+        (^setf (^stable $type) MVMSTable is_mixin_type (const 1 int_sz))
+        $type))))
 
 (template: iscompunit
   (flagval
