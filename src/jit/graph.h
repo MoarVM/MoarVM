@@ -139,6 +139,8 @@ struct MVMJitCallArg {
         MVMint16          reg;
         void             *ptr;
     } v;
+    /* The position of a native call argument, for unmarshalling errors */
+    MVMint16 native_idx;
 };
 
 

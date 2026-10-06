@@ -3906,6 +3906,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             : NULL;
 
         for (int i = 1; i < callsite->flag_count; i++) {
+            args[i - 1].native_idx = i - 1;
             if ((body->arg_types[i - 1] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
                 args[i - 1].type = MVM_JIT_REG_ADDR;
                 args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;

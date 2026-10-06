@@ -102,6 +102,7 @@
 |.type STOOGE, MVMObjectStooge
 |.type VMARRAY, MVMArray
 |.type CARRAY, MVMCArray
+|.type ARRAYREPRDATA, MVMArrayREPRData
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
@@ -2605,6 +2606,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
 
 
 
+/* The unmarshal functions throw for an object of the wrong REPR */
+MVM_NO_RETURN static void throw_bad_native_array(MVMThreadContext *tc, MVMObject *value,
+        MVMint64 native_idx, MVMint64 is_vmarray) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void throw_bad_native_array(MVMThreadContext *tc, MVMObject *value,
+        MVMint64 native_idx, MVMint64 is_vmarray) {
+    if (is_vmarray)
+        MVM_nativecall_unmarshal_vmarray(tc, value, native_idx);
+    else
+        MVM_nativecall_unmarshal_carray(tc, value, native_idx);
+    MVM_oops(tc, "JIT: unmarshalling a native call argument of the wrong REPR didn't throw");
+}
+
 /* Call argument decoder */
 static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                           MVMJitCallArg arg) {
@@ -2681,13 +2694,39 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, aword STOOGE:TMP6->data;
         break;
     case MVM_JIT_PARAM_VMARRAY:
-        | mov TMP6, aword WORK[arg.v.lit_i64];
-        | mov TMP6, aword VMARRAY:TMP6->body.slots;
+    case MVM_JIT_PARAM_CARRAY: {
+        /* Like MVM_nativecall_unmarshal_vmarray and _carray, a type object
+         * passes NULL and the wrong REPR throws. Earlier arguments may already
+         * sit in argument registers, so loading the pointer only uses TMP5,
+         * TMP6 and rax. */
+        MVMint32 is_vmarray = arg.type == MVM_JIT_PARAM_VMARRAY;
+        MVMint32 reprid     = is_vmarray ? MVM_REPR_ID_VMArray : MVM_REPR_ID_MVMCArray;
+        | mov TMP5, aword WORK[arg.v.lit_i64];
+        | xor TMP6, TMP6;
+        | test_type_object TMP5;
+        | jnz >1;
+        | cmp_repr_id TMP5, rax, reprid;
+        | jne >2;
+        if (is_vmarray) {
+            /* slots + start * elem_size */
+            | mov TMP6, aword VMARRAY:TMP5->body.start;
+            | mov rax, aword OBJECT:TMP5->st;
+            | mov rax, aword STABLE:rax->REPR_data;
+            | imul TMP6, aword ARRAYREPRDATA:rax->elem_size;
+            | add TMP6, aword VMARRAY:TMP5->body.slots;
+        } else {
+            | mov TMP6, aword CARRAY:TMP5->body.storage;
+        }
+        | jmp >1;
+        |2:
+        | mov ARG2, TMP5;
+        | mov ARG1, TC;
+        | mov ARG3, arg.native_idx;
+        | mov ARG4, is_vmarray;
+        | callp &throw_bad_native_array;
+        |1:
         break;
-    case MVM_JIT_PARAM_CARRAY:
-        | mov TMP6, aword WORK[arg.v.lit_i64];
-        | mov TMP6, aword CARRAY:TMP6->body.storage;
-        break;
+    }
     case MVM_JIT_SPESH_SLOT_VALUE:
         | get_spesh_slot TMP6, arg.v.lit_i64;
         break;
