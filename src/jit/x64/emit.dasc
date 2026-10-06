@@ -2061,7 +2061,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_assignunchecked: {
         MVMint16 cont = ins->operands[0].reg.orig;
         MVMint16 obj  = ins->operands[1].reg.orig;
+        const char *op_name = op == MVM_OP_assign ? "assign" : "assignunchecked";
         | mov ARG2, aword WORK[cont];
+        | test_type_object ARG2;
+        | jz >2;
+        | throw_for_object MVM_exception_throw_not_concrete, op_name, ARG2;
+        |2:
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
         | test FUNCTION, FUNCTION;
