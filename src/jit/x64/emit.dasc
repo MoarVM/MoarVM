@@ -311,6 +311,21 @@ const unsigned char * MVM_jit_actions(void) {
 | cmp dword REPR:tmp->ID, id;
 |.endmacro
 
+/* Throw the interpreter's messages from JIT'd error paths */
+MVM_NO_RETURN static void throw_needs_context(MVMThreadContext *tc, const char *op_name, MVMObject *ctx) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void throw_needs_context(MVMThreadContext *tc, const char *op_name, MVMObject *ctx) {
+    MVM_exception_throw_adhoc(tc, "%s requires a concrete object with REPR MVMContext, got %s (%s)",
+        op_name, REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+}
+
+/* obj goes in first, since it may share a register with ARG1 or ARG2 */
+|.macro throw_for_object, func, op_name, obj
+| mov ARG3, obj
+| mov ARG1, TC
+| mov64 ARG2, (uintptr_t)(op_name)
+| callp &func
+|.endmacro
+
 |.define FRAME_NR, dword [rbp-0x20]
 
 /* A function prologue is always the same in x86 / x64, because
@@ -602,11 +617,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 name = ins->operands[2].reg.orig;
         | mov TMP5, aword WORK[ctx];
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | je >1;
+        | jne >1;
         | test_type_object TMP5;
-        | jz >1;
-        | throw_adhoc "getlexrel needs a context";
+        | jz >2;
         |1:
+        | throw_for_object throw_needs_context, "getlexrel", TMP5;
+        |2:
         | mov ARG1, TC;
         | mov ARG2, TMP5;
         | mov ARG3, aword WORK[name];
@@ -620,11 +636,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 name = ins->operands[2].reg.orig;
         | mov TMP5, aword WORK[ctx];
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | je >1;
+        | jne >1;
         | test_type_object TMP5;
-        | jz >1;
-        | throw_adhoc "getlexreldyn needs a context";
+        | jz >2;
         |1:
+        | throw_for_object throw_needs_context, "getlexreldyn", TMP5;
+        |2:
         | mov ARG1, TC;
         | mov ARG2, TMP5;
         | mov ARG3, aword WORK[name];
@@ -638,11 +655,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 name = ins->operands[2].reg.orig;
         | mov TMP5, aword WORK[ctx];
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | je >1;
+        | jne >1;
         | test_type_object TMP5;
-        | jz >1;
-        | throw_adhoc "getlexrelcaller needs a context";
+        | jz >2;
         |1:
+        | throw_for_object throw_needs_context, "getlexrelcaller", TMP5;
+        |2:
         | mov ARG1, TC;
         | mov ARG2, TMP5;
         | mov ARG3, aword WORK[name];
