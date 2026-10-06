@@ -2148,14 +2148,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 obj = ins->operands[1].reg.orig;
         | mov TMP1, aword WORK[obj];
         | mov TMP2d, dword COLLECTABLE:TMP1->sc_forward_u.sc.sc_idx;
-        | xor TMP3, TMP3;
         | cmp TMP2d, 0;
         | jle >1;
         | mov TMP3, aword TC->instance;
         | mov TMP3, aword MVMINSTANCE:TMP3->all_scs;
         | mov TMP3, aword [TMP3 + TMP2d * 8];
         | mov TMP3, SCREFBODY:TMP3->sc;
+        | test TMP3, TMP3;
+        | jnz >2;
         |1:
+        | get_vmnull TMP3;
+        |2:
         | mov aword WORK[dst], TMP3;
         break;
     }

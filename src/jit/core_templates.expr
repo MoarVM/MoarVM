@@ -1830,10 +1830,11 @@
       (carg $2 ptr))))
 
 (template: getobjsc
-  (call (^func &MVM_sc_get_obj_sc)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)) ptr_sz))
+  (let: (($sc (call (^func &MVM_sc_get_obj_sc)
+                (arglist
+                  (carg (tc) ptr)
+                  (carg $1   ptr)) ptr_sz)))
+    (if (nz $sc) $sc (^vmnull))))
 
 (template: wval
   (call (^func MVM_sc_get_sc_object)
