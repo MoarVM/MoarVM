@@ -918,6 +918,13 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_va(MVMThreadContext *tc, const char
     MVM_exception_throw_adhoc_free_va(tc, NULL, messageFormat, args);
 }
 
+/* Throws the error for an op that was given a type object where it needs a
+ * concrete object. */
+MVM_NO_RETURN void MVM_exception_throw_not_concrete(MVMThreadContext *tc, const char *op_name, MVMObject *object) {
+    MVM_exception_throw_adhoc(tc, "%s requires a concrete object (got a %s type object instead)",
+            op_name, MVM_6model_get_debug_name(tc, object));
+}
+
 /* Throws an ad-hoc (untyped) exception, taking a NULL-terminated array of
  * char pointers to deallocate after message construction. */
 MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **waste, const char *messageFormat, ...) {

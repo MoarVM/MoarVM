@@ -1771,18 +1771,28 @@
       (carg $1 ptr)) ptr_sz))
 
 (template: markcodestatic
-  (ifv (all
-         (^is_conc_obj $0)
-         (^is_repr_id $0 MVM_REPR_ID_MVMCode))
-    (^setf $0 MVMCode body.is_static (const 1 int_sz))
-    (^throw_adhoc "markcodestatic requires a concrete coderef")))
+  (dov
+    (when (^is_type_obj $0)
+      (callv (^func &MVM_exception_throw_not_concrete)
+        (arglist
+          (carg (tc) ptr)
+          (carg (const_ptr "markcodestatic") ptr)
+          (carg $0 ptr))))
+    (when (^not_repr_id $0 MVM_REPR_ID_MVMCode)
+      (^throw_adhoc "markcodestatic requires a coderef"))
+    (^setf $0 MVMCode body.is_static (const 1 int_sz))))
 
 (template: markcodestub
-  (ifv (all
-         (^is_conc_obj $0)
-         (^is_repr_id $0 MVM_REPR_ID_MVMCode))
-    (^setf $0 MVMCode body.is_compiler_stub (const 1 int_sz))
-    (^throw_adhoc "markcodestub requires a concrete coderef")))
+  (dov
+    (when (^is_type_obj $0)
+      (callv (^func &MVM_exception_throw_not_concrete)
+        (arglist
+          (carg (tc) ptr)
+          (carg (const_ptr "markcodestub") ptr)
+          (carg $0 ptr))))
+    (when (^not_repr_id $0 MVM_REPR_ID_MVMCode)
+      (^throw_adhoc "markcodestub requires a coderef"))
+    (^setf $0 MVMCode body.is_compiler_stub (const 1 int_sz))))
 
 (template: iscont
   (if

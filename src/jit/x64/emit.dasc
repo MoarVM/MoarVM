@@ -319,6 +319,18 @@ MVM_NO_RETURN static void throw_needs_context(MVMThreadContext *tc, const char *
         op_name, REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
 }
 
+MVM_NO_RETURN static void throw_needs_mvmcontext(MVMThreadContext *tc, const char *op_name, MVMObject *ctx) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void throw_needs_mvmcontext(MVMThreadContext *tc, const char *op_name, MVMObject *ctx) {
+    MVM_exception_throw_adhoc(tc, "%s needs an MVMContext, got %s (%s)",
+        op_name, REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
+}
+
+MVM_NO_RETURN static void throw_cannot_change_type(MVMThreadContext *tc, const char *op_name, MVMObject *obj) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void throw_cannot_change_type(MVMThreadContext *tc, const char *op_name, MVMObject *obj) {
+    MVM_exception_throw_adhoc(tc, "REPR %s (%s) cannot change type",
+        REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
+}
+
 /* obj goes in first, since it may share a register with ARG1 or ARG2 */
 |.macro throw_for_object, func, op_name, obj
 | mov ARG3, obj
@@ -1048,7 +1060,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV;
         | jmp >2;
         |1:
-        | throw_adhoc "ctxcallerskipthunks needs an MVMContext";
+        | throw_for_object throw_needs_mvmcontext, "ctxcallerskipthunks", TMP5;
         |2:
         break;
     }
@@ -1278,7 +1290,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov rcx, WORK[b];
         | cmp rcx, 0;
         | jnz >1;
-        | throw_adhoc "Division by zero";
+        | throw_adhoc "Modulation by zero";
         |1:
         | cqo;
         | idiv rcx;
@@ -1978,9 +1990,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jnz >1;
         | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
         | je >2;
+        | throw_adhoc "markcodestatic requires a coderef";
         |1:
-        /* else throw */
-        | throw_adhoc "markcodestatic requires a concrete coderef";
+        | throw_for_object MVM_exception_throw_not_concrete, "markcodestatic", TMP1;
         |2:
         /* ((MVMCode *)cr)->body.is_static = 1; */
         | mov word CODE:TMP1->body.is_static, 1;
@@ -1994,9 +2006,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jnz >1;
         | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
         | je >2;
+        | throw_adhoc "markcodestub requires a coderef";
         |1:
-        /* else throw */
-        | throw_adhoc "markcodestub requires a concrete coderef";
+        | throw_for_object MVM_exception_throw_not_concrete, "markcodestub", TMP1;
         |2:
         /* ((MVMCode *)cr)->body.is_compiler_stub = 1; */
         | mov word CODE:TMP1->body.is_compiler_stub, 1;
@@ -2211,7 +2223,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | test_type_object TMP1;
         | jz >2;
         |1:
-        | throw_adhoc "getcodename requires a concrete object";
+        | throw_adhoc "getcodename requires a concrete code object";
         |2:
         | mov TMP2, CODE:TMP1->body.name;
         | mov WORK[obj], TMP2;
@@ -3324,7 +3336,7 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | callp &MVM_spesh_deopt_all;
         | jmp >1;
         |3:
-        | throw_adhoc "REPR cannot change type";
+        | throw_for_object throw_cannot_change_type, "sp_rebless", TMP1;
     }
     /* If we're here, we didn't jump to deopt. Most of the time a guard
      * destination is the same real register, but if not then emit a store
