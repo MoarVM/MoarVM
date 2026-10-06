@@ -2031,14 +2031,16 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP1d, dword TC->sc_wb_disable_depth;
         | add TMP1d, 1;
         | mov dword TC->sc_wb_disable_depth, TMP1d;
+        | movsxd TMP1, TMP1d;
         | mov qword WORK[dst], TMP1;
         break;
     }
     case MVM_OP_scwbenable: {
         MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1d, dword TC->sc_wb_disable_depth; // should do zero-extension
+        | mov TMP1d, dword TC->sc_wb_disable_depth;
         | sub TMP1d, 1;
         | mov dword TC->sc_wb_disable_depth, TMP1d;
+        | movsxd TMP1, TMP1d;
         | mov qword WORK[dst], TMP1;
         break;
     }
