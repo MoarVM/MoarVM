@@ -13,6 +13,8 @@ tools/check.mk
 
 # cached files, for example the clangd index
 .cache/
+tools/lib/.precomp/
+lib/.precomp/
 
 # Releases
 MoarVM-*

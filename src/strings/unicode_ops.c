@@ -241,7 +241,7 @@ static void collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, co
     };
     /* For some reason some Tangut Block items return values, so test that too.
      * Eventually we might want to restructure this code here */
-    if (is_Block_Tangut(cp) || MVM_coll_key.s.primary <= 0 || MVM_coll_key.s.secondary <= 0 || MVM_coll_key.s.tertiary <= 0) {
+    if (is_Block_Tangut_or_Supplement(cp) || is_Block_Tangut_Components_or_Supplement(cp) || MVM_coll_key.s.primary <= 0 || MVM_coll_key.s.secondary <= 0 || MVM_coll_key.s.tertiary <= 0) {
         MVMuint32 AAAA, BBBB;
 #ifdef COLLATION_DEBUG
         char *block_pushed = NULL;
@@ -250,17 +250,41 @@ static void collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, co
             {0, 0x20, 0x2, 0},
             {0, 0x00, 0x0, 0}
         };
-        /* Block=Tangut+Block=Tangut_Components 0x17000..0x18AFF */
-        if (is_Block_Tangut(cp)) {
+        /* Tangut and Tangut Supplement blocks */
+        if (is_Block_Tangut_or_Supplement(cp)) {
             AAAA = 0xFB00;
             BBBB = compute_BBBB_offset(cp, 0x17000);
-            DEBUG_SPECIAL_PUSHED(block_pushed, "Block_Tangut_and_Tangut_Components");
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Blocks_Tangut_and_Tangut_Supplement");
         }
-        /* Assigned_Block=Nushu 0x1B170..1B2FF (*/
-        else if (is_Assigned_Block_Nushu(cp)) {
+        /* Tangut Components and Tangut Components Supplement blocks */
+        if (is_Block_Tangut_Components_or_Supplement(cp)) {
             AAAA = 0xFB01;
+            BBBB = compute_BBBB_offset(cp, 0x18800);
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Blocks_Tangut_Components_and_Tangut_Components_Supplement");
+        }
+        /* Nushu block */
+        else if (is_Block_Nushu(cp)) {
+            AAAA = 0xFB02;
             BBBB = compute_BBBB_offset(cp, 0x1B170);
-            DEBUG_SPECIAL_PUSHED(block_pushed, "Assigned_Block_Nushu");
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Block_Nushu");
+        }
+        /* Khitan Small Script block */
+        else if (is_Block_Khitan_Small_Script(cp)) {
+            AAAA = 0xFB03;
+            BBBB = compute_BBBB_offset(cp, 0x18B00);
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Block_Khitan_Small_Script");
+        }
+        /* Jurchen and Jurchen Radicals block */
+        else if (is_Block_Jurchen_or_Radicals(cp)) {
+            AAAA = 0xFB04;
+            BBBB = compute_BBBB_offset(cp, 0x18E00);
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Blocks_Jurchen_and_Jurchen_Radicals");
+        }
+        /* Seal block */
+        else if (is_Block_Seal(cp)) {
+            AAAA = 0xFB05;
+            BBBB = compute_BBBB_offset(cp, 0x3D000);
+            DEBUG_SPECIAL_PUSHED(block_pushed, "Block_Seal");
         }
         /* Unified_Ideograph=True */
         else if (is_unified_ideograph(cp)) {
@@ -769,7 +793,9 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
             size_t i, new_length, num_len = length_of_num_16(codepoint);
             char *new_name = NULL;
             int remove_brack = !strncmp(name, "<CJK", 4) ||
-                !strncmp(name, "<TANGUT", 7) ? 1 : 0;
+                !strncmp(name, "<TANGUT", 7) ||
+                !strncmp(name, "<JURCHEN", 8) ||
+                !strncmp(name, "<SMALL SEAL", 11) ? 1 : 0;
             /* We pad to 4 width, so make sure the number is accurate */
             num_len = num_len < 4 ? 4 : num_len;
             /* The new_length is 1 more than we need since snprintf adds a null */

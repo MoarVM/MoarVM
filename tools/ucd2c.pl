@@ -1073,7 +1073,7 @@ sub UnicodeData {
         }
 
         # Process First/Last range pairs for points with computed names
-        if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
+        if ($name =~ /(Ideograph|Syllable|Private|Surrogate|Character) (\s|.)*? First/x) {
             # 'First' entry for known range type; start the range
             $point->{name}   =~ s/, First//;
             $ideograph_start = $point;
@@ -1118,6 +1118,14 @@ sub UnicodeData {
                 || $point->{name} eq '<Tangut Ideograph Supplement>') {
                 $point->{name} = '<TANGUT IDEOGRAPH>';
             }
+            elsif ($point->{name} eq '<Jurchen Character>') {
+                $point->{name} = '<JURCHEN CHARACTER>';
+            }
+            elsif ($point->{name} eq '<Seal Character>') {
+                # yes, "Seal" does suddenly become "Small Seal" in some
+                # contexts.
+                $point->{name} = '<SMALL SEAL CHARACTER>';
+            }
             elsif ($point->{name} eq '<Hangul Syllable>') {
                 $point->{name} = '<HANGUL SYLLABLE>';
             }
@@ -1156,8 +1164,11 @@ sub UnicodeData {
             if ($point->{name} eq '<control>'
              || $point->{name} eq '<surrogate>'
              || $point->{name} eq '<private-use>'
+             || $point->{name} eq '<noncharacter>'
              || $point->{name} eq '<HANGUL SYLLABLE>'
              || $point->{name} eq '<TANGUT IDEOGRAPH>'
+             || $point->{name} eq '<JURCHEN CHARACTER>'
+             || $point->{name} eq '<SMALL SEAL CHARACTER>'
              || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>') {
                 # No error, these are all fine
             }
@@ -1189,8 +1200,20 @@ sub UnicodeData {
         }
     };
 
-    # Parse each line of the UnicodeData file, plus a special 'Out of Range' marker
+    # Parse each line of the UnicodeData file, plus a special 'Out of Range'
+    # marker, and noncharacters that aren't listed in the file but still need to
+    # be accounted for.
     for_each_line('UnicodeData', $UnicodeDataParser);
+
+    for (my $nc = 0xFDD0; $nc <= 0xFDEF; ++$nc) {
+        $UnicodeDataParser->(sprintf("%04X;<noncharacter>;Cn;0;BN;;;;;N;;;;;", $nc));
+    }
+
+    for (my $nc = 0; $nc <= 0x10; ++$nc) {
+        $UnicodeDataParser->(sprintf("%.0XFFFE;<noncharacter>;Cn;0;BN;;;;;N;;;;;", $nc));
+        $UnicodeDataParser->(sprintf("%.0XFFFF;<noncharacter>;Cn;0;BN;;;;;N;;;;;", $nc));
+    }
+
     $UnicodeDataParser->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
 
     # Register enumerated properties for Case_Change_Index and Decomp_Spec
@@ -1337,13 +1360,6 @@ sub compute_collation_weights {
                 $point->{$name} = $raws->{$name}; # Comment to make it an int enum
             }
         };
-    };
-
-    # Add 0 to a non-character just to make sure it ends up assigned to some codepoint
-    # (or it may not properly end up in the enum)
-    apply_to_cp_range "FFFF", sub {
-        my $point = shift;
-        $point->{$name_tertiary} = 0;
     };
 
     for my $base ($bases->{$name_primary},
@@ -1639,7 +1655,7 @@ sub grapheme_cluster_break {
 # determining NFC text, you need to test for the presence of GCB=Prepend
 # codepoints immediately before the codepoint.
 #
-# As NFG builds on top of NFC, the NFG_QC property starts of initially set to
+# As NFG builds on top of NFC, the NFG_QC property starts off initially set to
 # the same value as NFC_QC for all codepoints (handled earlier). This function
 # makes the necessary changes for NFG quickchecking. Specifically:
 #
@@ -1688,8 +1704,8 @@ sub grapheme_cluster_break {
 #       codepoints, NFG_QC=Y codepoints may still combine with following
 #       codepoints into a larger grapheme cluster.
 #
-# This function was last updated for Unicode 17.0.0, consulting
-# <https://www.unicode.org/reports/tr29/tr29-47.html#Grapheme_Cluster_Boundary_Rules>.
+# This function was last updated for Unicode 18.0.0, consulting
+# <https://www.unicode.org/reports/tr29/tr29-49.html#Grapheme_Cluster_Boundary_Rules>.
 # Note that not every Unicode update requires an update to this property.
 #
 sub tweak_nfg_qc {
@@ -1723,10 +1739,10 @@ sub tweak_nfg_qc {
             # SpacingMarks also join with any preceding codepoints. (Rule: GB9a)
             $mark_it = 1;
         } elsif ($incb == $incb_set->{Consonant}
-                 || $incb == $incb_set->{Extend}
-                 || $incb == $incb_set->{Linker}) {
-            # Conjunct clusters. Consonants are on the RHS of rule GB9c, the
-            # others are non-initial LHS parts of the same rule. (Rule: GB9c)
+                 || $incb == $incb_set->{Extend}) {
+            # Conjunct clusters. Consonants are on the RHS of rule GB9c, and
+            # InCB=Extend codepoints are non-initial LHS parts of the same rule.
+            # (Rule: GB9c)
             $mark_it = 1;
         } elsif ($point->{Extended_Pictographic}) {
             # EPs are on the RHS of rule GB11. The Extends and ZWJ on the LHS of
@@ -2178,10 +2194,19 @@ sub emit_codepoint_extents_and_indexes {
             $span_length = 0;
         }
 
-        # If there is a gap that either crosses a plane boundary or is
-        # longer than GAP_LENGTH_THRESHOLD, compress as a FATE_NULL extent
+        # If there is a gap that either crosses a plane boundary, or is longer
+        # than GAP_LENGTH_THRESHOLD, or follows a FATE_SPAN, compress as a
+        # FATE_NULL extent. We ignore the usual threshold for compressed spans
+        # since those cannot, by definition, describe different kinds of
+        # codepoints, so we must have a change in extents at the start of the
+        # gap. Ignoring the usual gap threshold like this may not be optimal,
+        # but adding in NORMAL fates for too-small gaps in this uncommon
+        # scenario seems like it wouldn't be worth the effort.
+        my $contextual_threshold = ($point->{code} % 0x10000 && $extents->[-1]->{fate_type} != $FATE_SPAN)
+                                 ? $GAP_LENGTH_THRESHOLD
+                                 : 1;
         if ($COMPRESS_CODEPOINTS
-            && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
+            && $last_code < $point->{code} - $contextual_threshold) {
             # 10 = 8 (64-bit pointer) + 2 (bitfield index), per skipped entry
             $bytes_saved += 10 * ($point->{code} - $last_code - 1);
 
@@ -2207,6 +2232,16 @@ sub emit_codepoint_extents_and_indexes {
         # Verify the algorithm above has gotten us to a synced position
         croak "last_code $last_code != point->{code} - 1; Point: " . Dumper($point)
             unless $last_code == $point->{code} - 1;
+
+        # To make sure the generated code, which artificially splits the binary
+        # search between BMP and everything else, works properly, we have to
+        # force a split at U+10000. Fortunately this is easily done by just
+        # saying we have a point to add. This won't actually override any
+        # previous setters of this variable, since they all set it to the same
+        # thing this is.
+        if ($point->{code} == 0x10000) {
+            $point_toadd = $point;
+        }
 
         # If there is a pending point from the end of a span or gap compression
         # and it doesn't have a fate yet, it should have FATE_NORMAL and start
@@ -2413,7 +2448,7 @@ static const char *bogus = "<BOGUS>"; /* only for table too short; return null s
 
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
-    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMuint32 result_val = 0;
     MVMint32 codepoint_row;
     MVMuint16 bitfield_row = 0;
 
@@ -2429,7 +2464,6 @@ static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 c
     if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
         if (0x10FFFF < codepoint)
             return "";
-        result_val = -1;
     }
     else {
         bitfield_row = codepoint_bitfield_indexes[codepoint_row];
@@ -2443,7 +2477,7 @@ END
     chomp(my $int_out = <<'END');
 
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
-    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMuint32 result_val = 0;
     MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
     /* If codepoint is not found in bitfield rows */
@@ -2556,13 +2590,12 @@ END
                 chomp($int_out .= <<"END");
 
                 result_val = $props_bitfield_line
-                return result_val < $esize ? (result_val == -1
-                    ? $enum\[0] : $enum\[result_val]) : 0;
+                return result_val < $esize ? $enum\[result_val] : 0;
 END
             }
             else {
                 $int_out .= "\n                return $props_bitfield_line";
-                $str_out .= "\n            result_val = $props_bitfield_line";
+                $str_out .= "\n            result_val = $props_bitfield_line" if $is_str;
             }
 
             # XXXX: This code was meant to handle bitfield cell crossings,
@@ -2577,8 +2610,7 @@ END
 
         if ($is_str) {
             $str_out .= "\n            ";
-            $str_out .= "return result_val < $esize ? (result_val == -1\n"
-                     .  "        ? $enum\[0] : $enum\[result_val]) : bogus;";
+            $str_out .= "return result_val < $esize ? $enum\[result_val] : bogus;";
         }
     }
 
@@ -2691,7 +2723,8 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                     const char *name = codepoint_names[codepoint_table_index];
                     /* We want to skip various placeholder names that are duplicated:
                      * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
-                     * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
+                     * <surrogate> <TANGUT IDEOGRAPH> <JURCHEN CHARACTER>
+                     * <SMALL SEAL CHARACTER> <private-use> */
                     if (name && *name != '<') {
                         MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
                     }
