@@ -2474,7 +2474,9 @@ static MVMuint32 conflict_free(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             check = check->prev;
         }
 
-        if (cur_bb->num_pred == 1)
+        /* Without allow_reads a write of reg moves earlier, so stop at a BB
+         * with several successors as another successor may still read reg. */
+        if (cur_bb->num_pred == 1 && (allow_reads || cur_bb->pred[0]->num_succ == 1))
             cur_bb = cur_bb->pred[0];
         else
             return 0;
