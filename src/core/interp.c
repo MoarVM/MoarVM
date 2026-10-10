@@ -82,8 +82,7 @@ typedef union float_memory
 #define CAST_N32(u) (((float_memory)(u)).d)
 
 static void error_concreteness(MVMThreadContext *tc, MVMObject *object, MVMuint16 op) {
-    MVM_exception_throw_adhoc(tc, "%s requires a concrete object (got a %s type object instead)",
-            MVM_op_get_op(op)->name, MVM_6model_get_debug_name(tc, object));
+    MVM_exception_throw_not_concrete(tc, MVM_op_get_op(op)->name, object);
 }
 
 static int tracing_enabled = 0;
