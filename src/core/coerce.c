@@ -225,7 +225,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     }
 
     char *buf = MVM_malloc(zmij_double_buffer_size);
-    const size_t len = zmij_write_double(buf, zmij_double_buffer_size, n);
+    const size_t len = zmij_write(buf, zmij_double_buffer_size, n) - buf;
     return MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buf, len);
 }
 
