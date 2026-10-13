@@ -14,6 +14,9 @@ struct MVMSpeshCode {
 
     MVMint32 *deopt_synths;
     MVMuint64 num_deopt_synths;
+
+    MVMuint8 *annotations_data;
+    MVMuint32 num_annotations;
 };
 
 MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g);

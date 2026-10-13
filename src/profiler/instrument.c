@@ -332,6 +332,7 @@ static void add_instrumentation(MVMThreadContext *tc, MVMStaticFrame *sf) {
     ins->uninstrumented_bytecode_size = sf->body.bytecode_size;
     sf->body.instrumentation = ins;
     MVM_spesh_graph_destroy(tc, sg);
+    MVM_free(sc->annotations_data);
     MVM_free(sc);
 }
 
