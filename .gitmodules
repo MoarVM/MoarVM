@@ -4,9 +4,9 @@
 [submodule "3rdparty/dyncall"]
 	path = 3rdparty/dyncall
 	url = https://github.com/MoarVM/dyncall.git
-[submodule "3rdparty/dynasm"]
-	path = 3rdparty/dynasm
-	url = https://github.com/MoarVM/dynasm.git
+[submodule "3rdparty/luajit"]
+	path = 3rdparty/luajit
+	url = https://github.com/LuaJIT/LuaJIT.git
 [submodule "3rdparty/libtommath"]
 	path = 3rdparty/libtommath
 	url = https://github.com/MoarVM/libtommath

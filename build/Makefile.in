@@ -42,7 +42,7 @@ CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @mimalloc_include@ \
             @zmij_include@ \
-            @ccincsystem@3rdparty/dynasm \
+            @ccincsystem@3rdparty/luajit/dynasm \
             @ccincsystem@3rdparty/cmp \
             @ccincsystem@3rdparty \
             @cincludes@ \
@@ -532,11 +532,11 @@ TOM_OBJECTS = @tomobjects@
 
 THIRDPARTY = @thirdpartylibs@
 
-MINILUA = 3rdparty/dynasm/minilua@exe@
+MINILUA = 3rdparty/luajit/src/host/minilua@exe@
 MINILUA_LDLIBS = -lm
-DYNASM  = $(MINILUA) 3rdparty/dynasm/dynasm.lua
-DYNASM_SCRIPTS = 3rdparty/dynasm/dynasm.lua 3rdparty/dynasm/dasm_x86.lua
-DYNASM_HEADERS = 3rdparty/dynasm/dasm_proto.h 3rdparty/dynasm/dasm_x86.h
+DYNASM  = $(MINILUA) 3rdparty/luajit/dynasm/dynasm.lua
+DYNASM_SCRIPTS = 3rdparty/luajit/dynasm/dynasm.lua 3rdparty/luajit/dynasm/dasm_x64.lua 3rdparty/luajit/dynasm/dasm_x86.lua
+DYNASM_HEADERS = 3rdparty/luajit/dynasm/dasm_proto.h 3rdparty/luajit/dynasm/dasm_x86.h
 
 # 'all' needs to be the first target to be the default. nmake knows nothing about .PHONY and does try to execute it by default if it's first.
 all: moar@exe@ pkgconfig/moar.pc
@@ -667,8 +667,8 @@ src/main@obj@: src/main.c
 src/strings/unicode@obj@: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
 
 # Minilua requires only -lm, no libraries
-$(MINILUA): 3rdparty/dynasm/minilua.c
-	$(CC) $(MINILUA_LDFLAGS) 3rdparty/dynasm/minilua.c $(MINILUA_LDLIBS) -o $@
+$(MINILUA): 3rdparty/luajit/src/host/minilua.c
+	$(CC) $(MINILUA_LDFLAGS) 3rdparty/luajit/src/host/minilua.c $(MINILUA_LDLIBS) -o $@
 
 .dasc.c:
 	$(MSG) preprocessing $<
