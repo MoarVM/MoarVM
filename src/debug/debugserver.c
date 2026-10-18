@@ -541,16 +541,24 @@ static int receive_greeting(MVMSocket *sock) {
     return 0;
 }
 
-static void communicate_error(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
+static void communicate_error_reason(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument, const char *reason) {
     if (argument) {
         if (tc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "communicating an error\n");
-        cmp_write_map(ctx, 2);
+            fprintf(stderr, "communicating an error%s%s\n", reason ? ": " : "", reason ? reason : "");
+        cmp_write_map(ctx, reason ? 3 : 2);
         cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
         cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ErrorProcessingMessage);
+        if (reason) {
+            cmp_write_conststr(ctx, "reason");
+            cmp_write_str(ctx, reason, strlen(reason));
+        }
     }
+}
+
+static void communicate_error(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
+    communicate_error_reason(tc, ctx, argument, NULL);
 }
 
 static void communicate_success(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *argument) {
@@ -1841,7 +1849,8 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     if (!to_do) {
         if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
-        return 1;
+        communicate_error_reason(dtc, ctx, argument, "thread not found");
+        return 2;
     }
 
     tc = to_do->body.tc;
@@ -1849,42 +1858,35 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
-        return 1;
+        communicate_error_reason(dtc, ctx, argument, "thread is not suspended");
+        return 2;
     }
 
     if (!target) {
         if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
-        return 1;
+        communicate_error_reason(dtc, ctx, argument, "handle not found");
+        return 2;
     }
 
     if (REPR(target)->ID != MVM_REPR_ID_MVMCode) {
         if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "object of handle %"PRId64" is not an MVMCode, it's a %s", argument->handle_id, REPR(target)->name);
-        return 1;
+        communicate_error_reason(dtc, ctx, argument, "handle does not refer to an MVMCode object");
+        return 2;
     }
 
     if (debugserver->request_data.kind != MVM_DebugRequest_empty) {
         if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "can't start a debug request when another is currently active.");
-        return 1;
+        communicate_error_reason(dtc, ctx, argument, "another request is currently active");
+        return 2;
     }
 
     if (!tc->debugserver_can_invoke_here) {
         if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "can't request an invocation unless execution is halted at a breakpoint or from stepping.");
-
-        cmp_write_map(ctx, 3);
-
-        cmp_write_conststr(ctx, "id");
-        cmp_write_integer(ctx, argument->id);
-
-        cmp_write_conststr(ctx, "type");
-        cmp_write_integer(ctx, MT_ErrorProcessingMessage);
-
-        cmp_write_conststr(ctx, "reason");
-        cmp_write_conststr(ctx, "execution not halted at a break/step point");
-
+        communicate_error_reason(dtc, ctx, argument, "execution not halted at a break/step point");
         return 2;
     }
 
@@ -1969,6 +1971,12 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
         uv_cond_broadcast(&debugserver->tell_threads);
         uv_mutex_unlock(&debugserver->mutex_cond);
 
+        /* Ack under the lock, so it precedes the Invoke Result. */
+        communicate_success(dtc, ctx, argument);
+
+        /* Target may need the lock (instrumentation) or a GC before acking. */
+        uv_mutex_unlock(&debugserver->mutex_network_send);
+        MVM_gc_mark_thread_blocked(dtc);
         while (1) {
             if (MVM_cas(&debugserver->request_data.status,
                     MVM_DebugRequestStatus_receiver_acknowledged,
@@ -1977,9 +1985,10 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                     fprintf(stderr, "debugserver acknowledges thread's acknowledgement.\n");
                 break;
             }
+            MVM_platform_thread_yield();
         }
-
-        communicate_success(dtc, ctx, argument);
+        MVM_gc_mark_thread_unblocked(dtc);
+        uv_mutex_lock(&debugserver->mutex_network_send);
 
         return 0;
     }
