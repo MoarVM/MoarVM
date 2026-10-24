@@ -847,7 +847,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(cmp_n): {
-                MVMnum64 a = GET_REG(cur_op, 2).n64, b = GET_REG(cur_op, 4).n64;
+                MVMint64 a = (MVMint64)GET_REG(cur_op, 2).n64, b = (MVMint64)GET_REG(cur_op, 4).n64;
+                a ^= ((MVMuint64)(a >> 63) >> 1);
+                b ^= ((MVMuint64)(b >> 63) >> 1);
                 GET_REG(cur_op, 0).i64 = (a > b) - (a < b);
                 cur_op += 6;
                 goto NEXT;
