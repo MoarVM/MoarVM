@@ -61,6 +61,13 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
      * MVM_6model_bootstrap because VMNull doesn't exist yet when the very
      * first tc is created. */
 
+    /* Inherit suppress coverage flag from our parent ... why?
+     * Oh look over there a squirrel! */
+    if (parent)
+        tc->suppress_coverage = parent->suppress_coverage;
+    else if (instance->afl_edge_coverage & MVM_BB_COVERAGE_NO_SUPPRESS_AT_START)
+        tc->suppress_coverage = 0;
+
     return tc;
 }
 

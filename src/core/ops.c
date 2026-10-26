@@ -15569,9 +15569,105 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         { MVM_operand_int32, MVM_operand_int32 }
     },
+    {
+        MVM_OP_bb_entered,
+        "bb_entered",
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_int32 }
+    },
+    {
+        MVM_OP_bb_sp_markedge,
+        "bb_sp_markedge",
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_int32 }
+    },
+    {
+        MVM_OP_bb_sp_setlastbb,
+        "bb_sp_setlastbb",
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_int32 }
+    },
+    {
+        MVM_OP_cmplog_i,
+        "cmplog_i",
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int32, MVM_operand_int16 }
+    },
+    {
+        MVM_OP_cmplog_atkey,
+        "cmplog_atkey",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_int32 }
+    },
+    {
+        MVM_OP_cmplog_findcclass,
+        "cmplog_findcclass",
+        6,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int32, MVM_operand_int16 }
+    },
 };
 
-static const unsigned short MVM_op_counts = 973;
+static const unsigned short MVM_op_counts = 979;
 
 static const MVMuint16 last_op_allowed = 837;
 

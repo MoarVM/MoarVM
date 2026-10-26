@@ -316,6 +316,13 @@ struct MVMThreadContext {
     int nested_interpreter;
 
     MVMArgs *mark_args;
+
+    /* For edge coverage, this stores the ID of the previously entered
+     * BB in order to  */
+    MVMuint64 previous_bb_id;
+
+    /* Whether edge coverage instrumentation should do anything or not. */
+    MVMuint16 suppress_coverage;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);
