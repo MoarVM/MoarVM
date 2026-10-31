@@ -50,16 +50,6 @@ it to build the MoarVM and JVM backends, for example. Just like in the NQP
 `Configure.pl` script, you have the option to supply a `--gen-moar` flag that
 will do all the work for you, including creating an `nqp-m`.
 
-## Status
-
-MoarVM is currently in development. It can run all of the NQP test suite, all
-of the Rakudo sanity tests, and passes more spectests than any other
-Rakudo backend.
-
-Unlike the JVM or JS backend of NQP, the MoarVM repo is not integrated into the
-[NQP source repo](http://github.com/Raku/nqp) but instead can be pulled
-in by running `Configure.pl --gen-moar` configure script in the NQP repo.
-
 ## Feature overview
 
 Some key features provided by MoarVM include:
