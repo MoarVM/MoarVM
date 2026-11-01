@@ -203,8 +203,9 @@ struct MVMCollectable {
         MVMSTable *st;
     } sc_forward_u;
 
-    /* Identifier of the thread that created the object. 0 if this is a
-     * non-heap frame. */
+    /* Identifier of the thread whose nursery or gen2 holds the object;
+     * the GC passes work on the object to that thread. Usually the
+     * thread that created it. 0 if this is a non-heap frame. */
     MVMuint32 owner;
 
     /* Collectable flags (see MVMCollectableFlags). */

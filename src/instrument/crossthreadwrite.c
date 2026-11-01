@@ -169,7 +169,7 @@ static MVMint64 filtered_out(MVMThreadContext *tc, MVMObject *written) {
     return 0;
 }
 
-/* Squeal if the target of the write wasn't allocated by us. */
+/* Squeal if the target of the write isn't owned by us. */
 void MVM_cross_thread_write_check(MVMThreadContext *tc, MVMObject *written, MVMint16 guilty) {
     if (written->header.owner != tc->thread_id && !filtered_out(tc, written)) {
         char *guilty_desc = "did something to";
@@ -212,7 +212,7 @@ void MVM_cross_thread_write_check(MVMThreadContext *tc, MVMObject *written, MVMi
                 break;
         }
         uv_mutex_lock(&(tc->instance->mutex_cross_thread_write_logging));
-        fprintf(stderr, "Thread %d %s an object (%s) allocated by thread %d\n",
+        fprintf(stderr, "Thread %d %s an object (%s) owned by thread %d\n",
             tc->thread_id, guilty_desc, MVM_6model_get_debug_name(tc, written), written->header.owner);
         MVM_dump_backtrace(tc);
         fprintf(stderr, "\n");
