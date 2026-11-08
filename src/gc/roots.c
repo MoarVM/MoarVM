@@ -234,7 +234,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
         for (int from = 0; from < tc->mark_args->callsite->flag_count; from++) {
             if ((tc->mark_args->callsite->arg_flags[from] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_OBJ
                 || (tc->mark_args->callsite->arg_flags[from] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_STR)
-                MVM_gc_worklist_add(tc, worklist, &tc->mark_args->source[tc->mark_args->map[from]].o);
+                add_collectable(tc, worklist, snapshot,
+                    tc->mark_args->source[tc->mark_args->map[from]].o,
+                    "Dispatch resumption initial argument");
         }
     }
 }
