@@ -789,57 +789,81 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
     char *nursery_tmp;
 
     MVMInstance *vm = tc->instance;
-    MVMThread *cur_thread = 0;
+    MVMuint32 attempts;
 
-    /* Ask all threads to suspend on the next chance they get. Like the
-     * debugserver, mark ourselves blocked while holding mutex_threads, so a
-     * GC run started by another thread meanwhile does not wait for us. */
+    /* Ask all other threads to suspend, and wait until they have: each one
+     * is either parked (it never allocates again) or blocked in C with the
+     * request set (it parks when it unblocks, before touching anything
+     * GC-managed), and no GC run is in flight. Then no new run can start:
+     * we are the only thread left that could start one. Like the
+     * debugserver, mark ourselves blocked meanwhile, so a GC run another
+     * thread starts does not wait for us; we are in C code and never reach
+     * a safepoint.
+     *
+     * mutex_threads is held only for one pass over the threads list, never
+     * while waiting: a thread that has already won the gc_start election
+     * needs it for signal_all, and would otherwise never get to finish its
+     * run and park.
+     *
+     * The wait is bounded (about 2 seconds): a thread that never reaches a
+     * safepoint, such as one spinning in native code, is given up on, and
+     * we go on as before this wait existed, on a best-effort basis. */
     MVM_gc_mark_thread_blocked(tc);
-    uv_mutex_lock(&vm->mutex_threads);
+    for (attempts = 0; attempts < 2000; attempts++) {
+        MVMuint32 pending = 0;
+        MVMuint32 in_gc;
+        MVMThread *cur_thread;
 
-    cur_thread = vm->threads;
-    while (cur_thread) {
-       MVMThreadContext *other = cur_thread->body.tc;
-       /* A thread that has been cleaned up already has no tc left. Only ask
-        * threads that are running or blocked; one that is in the middle of a
-        * GC run (or already has a suspend bit) is left alone. */
-       int ask = 0;
-       if (other && other != tc) {
-           AO_t current = MVM_load(&other->gc_status);
-           ask = current == MVMGCStatus_NONE || current == MVMGCStatus_UNABLE;
-       }
-       if (ask) {
-            while (1) {
-                /* Is the thread currently doing completely ordinary code execution? */
-                if (MVM_cas(&other->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
-                        == MVMGCStatus_NONE) {
+        uv_mutex_lock(&vm->mutex_threads);
+
+        /* A GC run sets in_gc while holding mutex_threads and clears it
+         * only after it has destroyed any exiting threads' tcs, so with
+         * in_gc clear under mutex_threads no tc can go away during the
+         * pass. While a run is in flight, just wait for it. */
+        uv_mutex_lock(&vm->mutex_gc_orchestrate);
+        in_gc = vm->in_gc;
+        uv_mutex_unlock(&vm->mutex_gc_orchestrate);
+
+        for (cur_thread = in_gc ? NULL : vm->threads; cur_thread; cur_thread = cur_thread->body.next) {
+            MVMThreadContext *other = cur_thread->body.tc;
+            /* A thread that has been cleaned up already has no tc left. */
+            if (!other || other == tc)
+                continue;
+            switch (MVM_load(&other->gc_status)) {
+                case MVMGCStatus_NONE:
+                    /* Running ordinary code: ask it to suspend at its next
+                     * safepoint. Pending until it has parked. */
+                    MVM_cas(&other->gc_status, MVMGCStatus_NONE,
+                        MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST);
+                    pending++;
                     break;
-                }
-                /* Is the thread in question currently blocked, i.e. spending time in
-                 * some long-running piece of C code, waiting for I/O, etc.?
-                 * If so, just store the suspend request bit so when it unblocks itself
-                 * it'll suspend execution. */
-                if (MVM_cas(&other->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
-                        == MVMGCStatus_UNABLE) {
+                case MVMGCStatus_UNABLE:
+                    /* Blocked in C: store the request so it parks when it
+                     * unblocks. If the status changed under us, look again
+                     * on the next pass. */
+                    if (MVM_cas(&other->gc_status, MVMGCStatus_UNABLE,
+                            MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST) != MVMGCStatus_UNABLE)
+                        pending++;
                     break;
-                }
-                /* Was the thread faster than us? For example by running into
-                 * a breakpoint, completing a step, or encountering an
-                 * unhandled exception? If so, we're done here. */
-                if ((MVM_load(&other->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+                case MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST:
+                case MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED:
+                    /* Blocked with the request set, or parked. */
                     break;
-                }
-                MVM_platform_thread_yield();
+                default:
+                    /* Asked but not yet at a safepoint
+                     * (INTERRUPT | SUSPEND_REQUEST), or in the middle of a
+                     * GC run (INTERRUPT, STOLEN, STOLEN | any suspend bit). */
+                    pending++;
+                    break;
             }
-       }
-       cur_thread = cur_thread->body.next;
+        }
+        uv_mutex_unlock(&vm->mutex_threads);
+
+        if (!pending && !in_gc)
+            break;
+        MVM_platform_nanosleep(1000000);
     }
-
-    uv_mutex_unlock(&vm->mutex_threads);
     MVM_gc_mark_thread_unblocked(tc);
-
-    /* Allow other threads to do a little more work before we continue here */
-    MVM_platform_thread_yield();
 
     /* Fake a nursery collection run by swapping the semi-
      * space nurseries. */
