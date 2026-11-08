@@ -274,6 +274,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                     }
                 }
                 else if (status_bits == MVMGCStatus_INTERRUPT) {
+                    /* A coordinator that was asked to suspend after it won
+                     * the election keeps INTERRUPT | SUSPEND_REQUEST, so it
+                     * parks at its next safepoint; NONE | SUSPEND_REQUEST
+                     * is a state nothing else handles. */
+                    if (suspend_bits == MVMSuspendState_SUSPEND_REQUEST)
+                        break;
                     if (MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT | suspend_bits, MVMGCStatus_NONE | suspend_bits) == (MVMGCStatus_INTERRUPT | suspend_bits)) {
                         break;
                     }
