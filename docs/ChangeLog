@@ -1,3 +1,13 @@
+New in 2026.11:
+
++ Update for Unicode 18.0, support scripts
++ Bump Żmij to v1.2
++ JIT improvements
++ On a full collection, sweep exiting thread's gen2 before transferring it
++ Update line number annotations when instrumenting bytecode
++ Don't move a write across a branch in set elimination
++ Annotate inserted breakpoint instructions with their line number
+
 New in 2026.09:
 + Bump mimalloc to v3.5.0
 + Add MVM_COVERAGE_FILES env var for filtering coverage to matching source files
