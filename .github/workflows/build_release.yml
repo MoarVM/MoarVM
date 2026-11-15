@@ -12,7 +12,7 @@ jobs:
     # Check https://github.com/actions/runner-images#available-images for available GihHub runners
     strategy:
       matrix:
-        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
+        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-15]
 
     runs-on: ${{ matrix.posix-os }}
     if: github.event.ref_type == 'tag'
@@ -109,4 +109,3 @@ jobs:
         artifactErrorsFailBuild: true
         artifacts: "MoarVM_artifacts/MoarVM*/MoarVM*"
         token: ${{ secrets.GITHUB_TOKEN }}
-
