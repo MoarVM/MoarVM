@@ -1,6 +1,7 @@
 New in XXXX:
 
 + Don't run CI on macos-14 because GitHub and Azure are dropping support
++ Add CI for ubuntu-26.04, macos-26, xcode-27
 
 
 New in 2026.11:
