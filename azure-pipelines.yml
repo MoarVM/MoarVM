@@ -53,8 +53,9 @@ stages:
     - job: T
       strategy:
        matrix:
-         # The Windows job names start with '_' so they are lexicographically first. They usually
-         # take the longest to run, so this way we get better pipelining among all the jobs.
+         # The Windows job names start with 'A_' so they are lexicographically
+         # first. They usually take the longest to run, so this way we get
+         # better pipelining among all the jobs.
          A_Win_MVM:
            IMAGE_NAME: 'windows-2022'
            RAKUDO_OPTIONS: ''
