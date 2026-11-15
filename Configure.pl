@@ -462,6 +462,13 @@ push @hllincludes, 'zmij';
 $config{zmij_include} = '@ccincsystem@3rdparty/zmij';
 $config{zmij_object} = '3rdparty/zmij/zmij@obj@';
 
+# ffc.h
+$config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/ffc.h/';
+$config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/ffc.h\"\n"
+                   . "\t\$(CP) 3rdparty/ffc.h/ffc.h \"\$(DESTDIR)\$(PREFIX)/include/ffc.h\"\n";
+push @hllincludes, 'ffc.h';
+$config{ffc_include} = '@ccincsystem@3rdparty/ffc.h';
+
 # mangle library names
 $config{ldlibs} = join ' ',
     $config{lincludes},
