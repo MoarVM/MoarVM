@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "platform/malloc_trim.h"
+#include "platform/time.h"
 
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
@@ -695,6 +696,18 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
 
     if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+        if (!tc->instance->debugserver) {
+            /* Without a debugserver there is no condvar to wait on and
+             * nobody to send a resume: the only issuer of a suspend request
+             * then is MVM_gc_global_destruction, which is tearing the
+             * process down. Park the thread, blocked, until the suspend
+             * bits clear (in practice, until the process exits). */
+            MVM_gc_mark_thread_blocked(tc);
+            while ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE)
+                MVM_platform_nanosleep(1000000);
+            MVM_gc_mark_thread_unblocked(tc);
+            return;
+        }
         if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "thread %d reacting to suspend request\n", tc->thread_id);
         MVM_gc_mark_thread_blocked(tc);
