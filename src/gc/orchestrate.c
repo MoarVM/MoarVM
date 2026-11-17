@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "platform/malloc_trim.h"
+#include "platform/time.h"
 
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
@@ -273,6 +274,12 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
                     }
                 }
                 else if (status_bits == MVMGCStatus_INTERRUPT) {
+                    /* A coordinator that was asked to suspend after it won
+                     * the election keeps INTERRUPT | SUSPEND_REQUEST, so it
+                     * parks at its next safepoint; NONE | SUSPEND_REQUEST
+                     * is a state nothing else handles. */
+                    if (suspend_bits == MVMSuspendState_SUSPEND_REQUEST)
+                        break;
                     if (MVM_cas(&other->gc_status, MVMGCStatus_INTERRUPT | suspend_bits, MVMGCStatus_NONE | suspend_bits) == (MVMGCStatus_INTERRUPT | suspend_bits)) {
                         break;
                     }
@@ -695,6 +702,18 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
 
 
     if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+        if (!tc->instance->debugserver) {
+            /* Without a debugserver there is no condvar to wait on and
+             * nobody to send a resume: the only issuer of a suspend request
+             * then is MVM_gc_global_destruction, which is tearing the
+             * process down. Park the thread, blocked, until the suspend
+             * bits clear (in practice, until the process exits). */
+            MVM_gc_mark_thread_blocked(tc);
+            while ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE)
+                MVM_platform_nanosleep(1000000);
+            MVM_gc_mark_thread_unblocked(tc);
+            return;
+        }
         if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "thread %d reacting to suspend request\n", tc->thread_id);
         MVM_gc_mark_thread_blocked(tc);
@@ -772,15 +791,27 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
     MVMInstance *vm = tc->instance;
     MVMThread *cur_thread = 0;
 
-    /* Ask all threads to suspend on the next chance they get */
+    /* Ask all threads to suspend on the next chance they get. Like the
+     * debugserver, mark ourselves blocked while holding mutex_threads, so a
+     * GC run started by another thread meanwhile does not wait for us. */
+    MVM_gc_mark_thread_blocked(tc);
     uv_mutex_lock(&vm->mutex_threads);
 
     cur_thread = vm->threads;
     while (cur_thread) {
-       if (cur_thread->body.tc != tc) {
+       MVMThreadContext *other = cur_thread->body.tc;
+       /* A thread that has been cleaned up already has no tc left. Only ask
+        * threads that are running or blocked; one that is in the middle of a
+        * GC run (or already has a suspend bit) is left alone. */
+       int ask = 0;
+       if (other && other != tc) {
+           AO_t current = MVM_load(&other->gc_status);
+           ask = current == MVMGCStatus_NONE || current == MVMGCStatus_UNABLE;
+       }
+       if (ask) {
             while (1) {
                 /* Is the thread currently doing completely ordinary code execution? */
-                if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                if (MVM_cas(&other->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
                         == MVMGCStatus_NONE) {
                     break;
                 }
@@ -788,14 +819,14 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
                  * some long-running piece of C code, waiting for I/O, etc.?
                  * If so, just store the suspend request bit so when it unblocks itself
                  * it'll suspend execution. */
-                if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
+                if (MVM_cas(&other->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
                         == MVMGCStatus_UNABLE) {
                     break;
                 }
                 /* Was the thread faster than us? For example by running into
                  * a breakpoint, completing a step, or encountering an
                  * unhandled exception? If so, we're done here. */
-                if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+                if ((MVM_load(&other->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
                     break;
                 }
                 MVM_platform_thread_yield();
@@ -805,6 +836,7 @@ void MVM_gc_global_destruction(MVMThreadContext *tc) {
     }
 
     uv_mutex_unlock(&vm->mutex_threads);
+    MVM_gc_mark_thread_unblocked(tc);
 
     /* Allow other threads to do a little more work before we continue here */
     MVM_platform_thread_yield();
