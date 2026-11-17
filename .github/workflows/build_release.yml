@@ -12,14 +12,14 @@ jobs:
     # Check https://github.com/actions/runner-images#available-images for available GihHub runners
     strategy:
       matrix:
-        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
+        posix-os: [ubuntu-22.04, ubuntu-24.04, ubuntu-26.04, macos-15, macos-26, xcode-27]
 
     runs-on: ${{ matrix.posix-os }}
     if: github.event.ref_type == 'tag'
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-tags: 'true'
           persist-credentials: false
@@ -55,7 +55,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-tags: 'true'
           persist-credentials: false
@@ -109,4 +109,3 @@ jobs:
         artifactErrorsFailBuild: true
         artifacts: "MoarVM_artifacts/MoarVM*/MoarVM*"
         token: ${{ secrets.GITHUB_TOKEN }}
-
