@@ -253,11 +253,18 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             if (item->flags1 & MVM_CF_HAS_OBJECT_ID
                 || item->flags2 & (MVM_CF_NURSERY_SEEN | MVM_CF_REF_FROM_GEN2)) {
                 /* Yes; we should move it to the second generation. Allocate
-                 * space in the second generation. */
+                 * space in the second generation. An object ID slot may be in
+                 * another thread's gen2; its header holds that thread's ID,
+                 * which becomes the owner. */
+                MVMuint32 slot_owner = 0;
                 to_gen2 = 1;
-                new_addr = item->flags1 & MVM_CF_HAS_OBJECT_ID
-                    ? MVM_gc_object_id_use_allocation(tc, item)
-                    : MVM_gc_gen2_allocate(gen2, item->size);
+                if (item->flags1 & MVM_CF_HAS_OBJECT_ID) {
+                    new_addr = MVM_gc_object_id_use_allocation(tc, item);
+                    slot_owner = new_addr->owner;
+                }
+                else {
+                    new_addr = MVM_gc_gen2_allocate(gen2, item->size);
+                }
 
                 /* Add on to the promoted amount (used both to decide when to do
                  * the next full collection, as well as for profiling). Note we
@@ -269,6 +276,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",
                     item, item->size, new_addr);
                 memcpy(new_addr, item, item->size);
+                if (slot_owner && slot_owner != new_addr->owner) {
+                    GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : object %p moved to object ID slot %p owned by thread %d\n",
+                        item, new_addr, slot_owner);
+                    new_addr->owner = slot_owner;
+                }
                 if (new_addr->flags2 & MVM_CF_NURSERY_SEEN)
                     new_addr->flags2 ^= MVM_CF_NURSERY_SEEN;
                 new_addr->flags2 |= MVM_CF_SECOND_GEN;
