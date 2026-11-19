@@ -1002,8 +1002,9 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
 
     /* resize the array if necessary*/
     size_t elem_size = repr_data->elem_size;
-    /* No need to account for start, set_size_internal will take care of that */
-    if (elems * elem_size < offset * elem_size + count) {
+    /* No need to account for start, set_size_internal will take care of that.
+     * Compare in elements first, so that offset * elem_size cannot wrap. */
+    if ((MVMuint64)offset > elems || (elems - offset) * elem_size < count) {
         set_size_internal(tc, body, offset + count, repr_data);
         start = body->start;
     }
@@ -1023,7 +1024,9 @@ static MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf requires an integer type");
     }
 
-    if (offset < 0 || body->elems * elem_size < offset * elem_size + count) {
+    /* Compare in elements first, so that offset * elem_size cannot wrap. */
+    if (offset < 0 || (MVMuint64)offset > body->elems
+            || (body->elems - offset) * elem_size < count) {
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %"PRIi64" start %"PRIi64" elems %"PRIu64" count %"PRIu64, offset, start, body->elems, count);
     }
 
