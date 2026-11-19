@@ -1068,8 +1068,9 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
      * calls and reallocs by adjusting SELF's start, elems0, and
      * count to better match the incoming splice.  In particular,
      * we're seeking to adjust C<count> to as close to C<elems1>
-     * as we can. */
-    if (offset == 0) {
+     * as we can.  Not when splicing SELF into itself: moving start
+     * would move the source too. */
+    if (offset == 0 && from != root) {
         MVMint64 n = elems1 - count;
         start = body->start;
         if (n > start)
