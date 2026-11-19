@@ -1058,9 +1058,13 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     /* Refuse a source copy_elements cannot copy from, before anything is
      * changed. An empty source of any kind copies nothing and is fine. */
     if (elems1 > 0) {
+        MVMArrayREPRData *s_repr_data;
         if (REPR(from)->ID != MVM_REPR_ID_VMArray)
             MVM_exception_throw_adhoc(tc,
                 "MVMArray: Can only splice from a VMArray, got a %s", REPR(from)->name);
+        s_repr_data = (MVMArrayREPRData *)STABLE(from)->REPR_data;
+        if (s_repr_data->elem_size == 0 || repr_data->elem_size == 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
 
     enter_single_user(tc, body);
