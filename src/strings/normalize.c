@@ -87,7 +87,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
     out_body->slots.u32 = (MVMuint32 *)result;
     out_body->start     = 0;
     out_body->elems     = result_pos;
-    out_body->ssize     = result_pos * sizeof(MVMuint32);
+    out_body->ssize     = result_alloc;
 
 }
 MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, MVMCodepoint * cp_v, MVMint64 cp_count) {
