@@ -1905,9 +1905,17 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
 
     /* Stash the encoded data in the VMArray. */
     if (((MVMArray *)buf)->body.slots.any) {
-        MVMuint32 prev_elems = ((MVMArray *)buf)->body.elems;
-        MVM_repr_pos_set_elems(tc, buf, ((MVMArray *)buf)->body.elems + output_size / elem_size);
-        memmove(((MVMArray *)buf)->body.slots.i8 + prev_elems, (MVMint8 *)encoded, output_size);
+        MVMuint64 prev_elems = ((MVMArray *)buf)->body.elems;
+        /* Round up, so that every byte has an element to go into. */
+        MVMuint64 new_elems = (output_size + elem_size - 1) / elem_size;
+        MVMuint8 *dest;
+        MVM_repr_pos_set_elems(tc, buf, prev_elems + new_elems);
+        /* Resizing may have moved the elements to the start of a new
+         * buffer, so locate the end of the old elements only now. */
+        dest = ((MVMArray *)buf)->body.slots.u8
+             + (((MVMArray *)buf)->body.start + prev_elems) * elem_size;
+        memmove(dest, encoded, output_size);
+        memset(dest + output_size, 0, new_elems * elem_size - output_size);
         MVM_free(encoded);
     }
     else {
