@@ -196,6 +196,10 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
         MVM_unicode_normalizer_cleanup(tc, &norm);
     }
 
+    /* Free previous slots array if it exists. */
+    if (((MVMArray *)out)->body.slots.any)
+        MVM_free(((MVMArray *)out)->body.slots.any);
+
     /* Put result into array body. */
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
