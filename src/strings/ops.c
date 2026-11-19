@@ -1919,10 +1919,16 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
         MVM_free(encoded);
     }
     else {
+        /* Round up, as above; the spare bytes of the last element are zero. */
+        MVMuint64 elems = (output_size + elem_size - 1) / elem_size;
+        if (elems * elem_size != output_size) {
+            encoded = MVM_realloc(encoded, elems * elem_size);
+            memset(encoded + output_size, 0, elems * elem_size - output_size);
+        }
         ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
         ((MVMArray *)buf)->body.start    = 0;
-        ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
-        ((MVMArray *)buf)->body.elems    = output_size / elem_size;
+        ((MVMArray *)buf)->body.ssize    = elems;
+        ((MVMArray *)buf)->body.elems    = elems;
     }
 
     return buf;
