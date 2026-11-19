@@ -991,8 +991,8 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     MVMuint64 start = body->start;
     MVMuint64 elems = body->elems;
 
-    /* Throw on invalid slot type */
-    if (repr_data->slot_type < MVM_ARRAY_I64) {
+    /* Throw on invalid slot type, and on the kinds without storage */
+    if (repr_data->slot_type < MVM_ARRAY_I64 || repr_data->elem_size == 0) {
         MVM_exception_throw_adhoc(tc, "MVMArray: write_buf requires an integer type");
     }
     /* Throw on negative offset. */
