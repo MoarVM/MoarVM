@@ -655,7 +655,6 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
             "MVMArray: Can't pop from an empty array");
 
     enter_single_user(tc, body);
-    body->elems--;
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
@@ -720,6 +719,9 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    /* only once the register kind has been checked, so that a rejected
+     * pop leaves the array as it was */
+    body->elems--;
     zero_slots(tc, body, slot, slot + 1, repr_data->slot_type);
     exit_single_user(tc, body);
 }
