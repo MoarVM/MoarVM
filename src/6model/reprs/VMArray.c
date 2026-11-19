@@ -945,10 +945,12 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
                 && s_repr_data->elem_size == d_repr_data->elem_size
                 && (d_repr_data->slot_type != MVM_ARRAY_OBJ || !d_needs_barrier)
                 && d_repr_data->slot_type  != MVM_ARRAY_STR) {
-            /* Optimized for copying from a VMArray with same slot type */
+            /* Optimized for copying from a VMArray with same slot type.
+             * src may be dest (a splice of an array into itself), so the
+             * ranges may overlap. */
             MVMint64 s_start = s_body->start;
             MVMint64 d_start = d_body->start;
-            memcpy( d_body->slots.u8 + (d_start + d_offset) * d_repr_data->elem_size,
+            memmove(d_body->slots.u8 + (d_start + d_offset) * d_repr_data->elem_size,
                     s_body->slots.u8  + (s_start + s_offset) * s_repr_data->elem_size,
                     d_repr_data->elem_size * elems
             );
