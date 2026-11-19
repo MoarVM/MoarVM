@@ -1326,8 +1326,23 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         MVMObject *type = MVM_repr_at_key_o(tc, info, str_consts.type);
         if (!MVM_is_null(tc, type)) {
             const MVMStorageSpec *spec = REPR(type)->get_storage_spec(tc, STABLE(type));
+            /* Work out the element kind; an object type (no boxed
+             * primitive) gives object slots. */
+            MVMArrayREPRData kind;
+            kind.slot_type = MVM_ARRAY_OBJ;
+            kind.elem_size = sizeof(MVMObject *);
+            spec_to_repr_data(tc, &kind, spec);
+            /* Arrays of this type may already exist; they were laid out for
+             * the current kind, so once an element type has been composed,
+             * the kind may not change. */
+            if (repr_data->elem_type && (kind.slot_type != repr_data->slot_type
+                    || kind.elem_size != repr_data->elem_size))
+                MVM_exception_throw_adhoc(tc,
+                    "MVMArray: Type %s is already composed with another element kind",
+                    MVM_6model_get_stable_debug_name(tc, st));
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->elem_type, type);
-            spec_to_repr_data(tc, repr_data, spec);
+            repr_data->slot_type = kind.slot_type;
+            repr_data->elem_size = kind.elem_size;
         }
     }
 }
