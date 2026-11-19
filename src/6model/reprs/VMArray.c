@@ -1055,6 +1055,14 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
                 "MVMArray: Illegal splice offset");
     }
 
+    /* Refuse a source copy_elements cannot copy from, before anything is
+     * changed. An empty source of any kind copies nothing and is fine. */
+    if (elems1 > 0) {
+        if (REPR(from)->ID != MVM_REPR_ID_VMArray)
+            MVM_exception_throw_adhoc(tc,
+                "MVMArray: Can only splice from a VMArray, got a %s", REPR(from)->name);
+    }
+
     enter_single_user(tc, body);
 
     /* When offset == 0, then we may be able to reduce the memmove
