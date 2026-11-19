@@ -341,7 +341,7 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
     /* Visit each gen2 root and... */
     for (i = 0; i < num_roots; i++) {
         /* Count items on worklist before we mark it. */
-        MVMuint32 items_before_mark  = worklist->items;
+        MVMuint64 items_before_mark  = worklist->items;
 
         /* Put things it references into the worklist; since the worklist will
          * be set not to include gen2 things, only nursery things will make it
