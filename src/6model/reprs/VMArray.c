@@ -1023,7 +1023,7 @@ static MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, v
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf requires an integer type");
     }
 
-    if (offset < 0 || (start + body->elems) * elem_size < offset * elem_size + count) {
+    if (offset < 0 || body->elems * elem_size < offset * elem_size + count) {
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %"PRIi64" start %"PRIi64" elems %"PRIu64" count %"PRIu64, offset, start, body->elems, count);
     }
 
