@@ -958,11 +958,16 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
         else {
             MVMuint16 target_kind = slot_type_to_kind(d_repr_data->slot_type);
             MVMuint16 source_kind = slot_type_to_kind(s_repr_data->slot_type);
+            /* When src is dest and the target range lies above the source
+             * range, copy from the last element down, so that no element is
+             * overwritten before it has been read (as memmove does above). */
+            MVMuint8  backwards   = src == dest && d_offset > s_offset;
             for (i = 0; i < elems; i++) {
+                MVMint64    j = backwards ? elems - 1 - i : i;
                 MVMRegister to_copy;
-                REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + i, &to_copy, source_kind);
+                REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + j, &to_copy, source_kind);
                 /* actually should coerce between source_kind and target_kind here */
-                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, target_kind);
+                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + j, to_copy, target_kind);
             }
         }
     }
