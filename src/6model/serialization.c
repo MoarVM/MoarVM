@@ -2347,9 +2347,15 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
                 MVM_ASSIGN_REF(tc, &(f->header), lex->s,
                     MVM_serialization_read_str(tc, reader));
                 break;
-            default:
-                MVM_ASSIGN_REF(tc, &(f->header), lex->o,
-                    MVM_serialization_read_ref(tc, reader));
+            default: {
+                /* Reading a reference may block on another SC's mutex, and
+                 * a collection run meanwhile must see the frame. */
+                MVMObject *value;
+                MVMROOT(tc, f) {
+                    value = MVM_serialization_read_ref(tc, reader);
+                }
+                MVM_ASSIGN_REF(tc, &(f->header), lex->o, value);
+            }
         }
     }
 
