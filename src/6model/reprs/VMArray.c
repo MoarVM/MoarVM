@@ -655,7 +655,6 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
             "MVMArray: Can't pop from an empty array");
 
     enter_single_user(tc, body);
-    body->elems--;
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
@@ -720,6 +719,9 @@ static void pop(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    /* only once the register kind has been checked, so that a rejected
+     * pop leaves the array as it was */
+    body->elems--;
     zero_slots(tc, body, slot, slot + 1, repr_data->slot_type);
     exit_single_user(tc, body);
 }
@@ -753,72 +755,73 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         zero_slots(tc, body, 0, n, repr_data->slot_type);
     }
 
-    /* Now do the unshift */
-    body->start--;
+    /* Now do the unshift; start is moved only once the register kind has
+     * been checked, so that a rejected unshift leaves the array as it was */
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected object register");
-            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start], value.o);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start - 1], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected string register");
-            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start], value.s);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start - 1], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.i64[body->start] = value.i64;
+            body->slots.i64[body->start - 1] = value.i64;
             break;
         case MVM_ARRAY_I32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.i32[body->start] = (MVMint32)value.i64;
+            body->slots.i32[body->start - 1] = (MVMint32)value.i64;
             break;
         case MVM_ARRAY_I16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.i16[body->start] = (MVMint16)value.i64;
+            body->slots.i16[body->start - 1] = (MVMint16)value.i64;
             break;
         case MVM_ARRAY_I8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.i8[body->start] = (MVMint8)value.i64;
+            body->slots.i8[body->start - 1] = (MVMint8)value.i64;
             break;
         case MVM_ARRAY_N64:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected num register");
-            body->slots.n64[body->start] = value.n64;
+            body->slots.n64[body->start - 1] = value.n64;
             break;
         case MVM_ARRAY_N32:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected num register");
-            body->slots.n32[body->start] = (MVMnum32)value.n64;
+            body->slots.n32[body->start - 1] = (MVMnum32)value.n64;
             break;
         case MVM_ARRAY_U64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.u64[body->start] = (MVMuint64)value.i64;
+            body->slots.u64[body->start - 1] = (MVMuint64)value.i64;
             break;
         case MVM_ARRAY_U32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.u32[body->start] = (MVMuint32)value.i64;
+            body->slots.u32[body->start - 1] = (MVMuint32)value.i64;
             break;
         case MVM_ARRAY_U16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.u16[body->start] = (MVMuint16)value.i64;
+            body->slots.u16[body->start - 1] = (MVMuint16)value.i64;
             break;
         case MVM_ARRAY_U8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: unshift expected int register");
-            body->slots.u8[body->start] = (MVMuint8)value.i64;
+            body->slots.u8[body->start - 1] = (MVMuint8)value.i64;
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
     }
+    body->start--;
     body->elems++;
     exit_single_user(tc, body);
 }
