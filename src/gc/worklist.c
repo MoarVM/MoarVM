@@ -21,7 +21,7 @@ void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVM
 
 /* Pre-sizes the worklist in expectation a certain number of items is about to be
  * added. */
-void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items) {
+void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMuint64 items) {
     if (worklist->items + items >= worklist->alloc) {
         worklist->alloc = worklist->items + items;
         worklist->list = MVM_realloc(worklist->list, worklist->alloc * sizeof(MVMCollectable **));

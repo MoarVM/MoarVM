@@ -62,7 +62,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
     if (what_to_do == MVMGCWhatToDo_InTray) {
         /* We just need to process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from in tray \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
     }
     else if (what_to_do == MVMGCWhatToDo_Finalizing) {
@@ -70,7 +70,7 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         MVMuint32 i;
         for (i = 0; i < tc->num_finalizing; i++)
             MVM_gc_worklist_add(tc, worklist, &(tc->finalizing[i]));
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from finalizing \n", worklist->items);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from finalizing \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
     }
     else {
@@ -110,21 +110,21 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         * this, since they are instance-wide. */
         if (what_to_do != MVMGCWhatToDo_NoInstance) {
             MVM_gc_root_add_permanents_to_worklist(tc, worklist, NULL);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from instance permanents\n", worklist->items);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from instance permanents\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
             MVM_gc_root_add_instance_roots_to_worklist(tc, worklist, NULL);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from instance roots\n", worklist->items);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from instance roots\n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
 
         /* Add per-thread state to worklist and process it. */
         MVM_gc_root_add_tc_roots_to_worklist(tc, worklist, NULL);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from TC objects\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist, NULL);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from thread temps\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
         /* Add things that are roots for the first generation because they are
@@ -134,13 +134,13 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         * the gen2 rooting keeps them alive forever). */
         if (gen == MVMGCGenerations_Nursery) {
             MVM_gc_root_add_gen2s_to_worklist(tc, worklist);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from gen2 \n", worklist->items);
+            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from gen2 \n", worklist->items);
             process_worklist(tc, worklist, &wtp, gen);
         }
 
         /* Process anything in the in-tray. */
         add_in_tray_to_worklist(tc, worklist);
-        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from in tray \n", worklist->items);
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %"PRIu64" items from in tray \n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
         /* At this point, we have probably done most of the work we will
@@ -165,7 +165,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMGen2Allocator  *gen2;
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
-    MVMuint32          gen2count;
+    MVMuint64          gen2count;
 
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
@@ -334,7 +334,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
          * to nursery objects. If so, make sure it's in the gen2 roots. */
         if (to_gen2) {
             MVMCollectable **j;
-            MVMuint32 max = worklist->items, k;
+            MVMuint64 max = worklist->items, k;
 
             for (k = gen2count; k < max; k++) {
                 j = worklist->list[k];

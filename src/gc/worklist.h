@@ -19,10 +19,10 @@ struct MVMGCWorklist {
     MVMCollectable ***list;
 
     /* The number of items on the worklist. */
-    MVMuint32 items;
+    MVMuint64 items;
 
     /* The number of items the work list is allocated to hold. */
-    MVMuint32 alloc;
+    MVMuint64 alloc;
 
     /* Whether we should include gen2 entries. */
     MVMuint8 include_gen2;
@@ -110,7 +110,7 @@ do { \
 /* Various functions for worklist manipulation. */
 MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_gen2);
 MVM_PUBLIC void MVM_gc_worklist_add_slow(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMCollectable **item);
-void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMint32 items);
+void MVM_gc_worklist_presize_for(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMuint64 items);
 void MVM_gc_worklist_destroy(MVMThreadContext *tc, MVMGCWorklist *worklist);
 
 /* The number of pointers we assume the list may need to hold initially;
