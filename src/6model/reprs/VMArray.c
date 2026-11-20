@@ -933,6 +933,17 @@ static MVMuint16 slot_type_to_kind(MVMuint8 slot_type) {
     }
 }
 
+/* What a register kind from slot_type_to_kind holds, for messages. */
+static const char * kind_to_elements_name(MVMuint16 kind) {
+    switch (kind) {
+        case MVM_reg_obj:    return "objects";
+        case MVM_reg_str:    return "strings";
+        case MVM_reg_int64:  return "integers";
+        case MVM_reg_uint64: return "unsigned integers";
+        default:             return "numbers";
+    }
+}
+
 static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest, MVMint64 s_offset, MVMint64 d_offset, MVMint64 elems) {
     MVMArrayBody     *s_body      = (MVMArrayBody *)OBJECT_BODY(src);
     MVMArrayBody     *d_body      = (MVMArrayBody *)OBJECT_BODY(dest);
@@ -1056,6 +1067,31 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         if (offset < 0)
             MVM_exception_throw_adhoc(tc,
                 "MVMArray: Illegal splice offset");
+    }
+
+    /* Refuse a source copy_elements cannot copy from, before anything is
+     * changed. An empty source of any kind copies nothing and is fine. */
+    if (elems1 > 0) {
+        MVMArrayREPRData *s_repr_data;
+        MVMuint16 s_kind, d_kind;
+        if (REPR(from)->ID != MVM_REPR_ID_VMArray)
+            MVM_exception_throw_adhoc(tc,
+                "MVMArray: Can only splice from a VMArray, got a %s", REPR(from)->name);
+        s_repr_data = (MVMArrayREPRData *)STABLE(from)->REPR_data;
+        if (s_repr_data->elem_size == 0 || repr_data->elem_size == 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
+        /* The elements are copied as registers of these kinds, without
+         * conversion: only allow the pairs where that is still a value of
+         * the target's kind (a string is an object, int and uint convert). */
+        s_kind = slot_type_to_kind(s_repr_data->slot_type);
+        d_kind = slot_type_to_kind(repr_data->slot_type);
+        if (s_kind != d_kind
+                && !(s_kind == MVM_reg_str && d_kind == MVM_reg_obj)
+                && !((s_kind == MVM_reg_int64 || s_kind == MVM_reg_uint64)
+                    && (d_kind == MVM_reg_int64 || d_kind == MVM_reg_uint64)))
+            MVM_exception_throw_adhoc(tc,
+                "MVMArray: Cannot splice from an array of %s into an array of %s",
+                kind_to_elements_name(s_kind), kind_to_elements_name(d_kind));
     }
 
     enter_single_user(tc, body);
