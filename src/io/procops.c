@@ -272,6 +272,7 @@ typedef struct {
     int                work_idx;
     MVMObject         *handle;
     MVMObject         *callbacks;
+    MVMObject         *buf_type;
     char              *prog;
     char              *cwd;
     char             **env;
@@ -678,9 +679,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
 
             /* Push buffer of data. */
             {
-                MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
-                                            tc->instance->str_consts.buf_type);
-                MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
+                MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, si->buf_type);
                 res_buf->body.slots.i8 = (MVMint8 *)buf->base;
                 res_buf->body.start    = 0;
                 res_buf->body.ssize    = buf->len;
@@ -772,6 +771,15 @@ static MVMint64 get_pipe_fd(MVMThreadContext *tc, uv_pipe_t *pipe) {
     else
         return 0;
 }
+/* Whether the spawn config asks for output to be read into buffers (these
+ * are the keys spawn_setup creates pipes to read from for). */
+static MVMint64 reads_output(MVMThreadContext *tc, MVMObject *callbacks) {
+    return MVM_repr_exists_key(tc, callbacks, tc->instance->str_consts.merge_bytes)
+        || MVM_repr_exists_key(tc, callbacks, tc->instance->str_consts.stdout_bytes)
+        || MVM_repr_exists_key(tc, callbacks, tc->instance->str_consts.stderr_bytes)
+        || MVM_repr_exists_key(tc, callbacks, tc->instance->str_consts.pty);
+}
+
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     MVMint64 spawn_result = 0;
     char *error_str = NULL;
@@ -799,6 +807,14 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "procasync.spawn_setup");
 
     int pty_mode = MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty);
+
+    /* The buffer type was checked and kept when the process was spawned, if
+     * output was to be read then; don't read output without one. */
+    if (!si->buf_type && reads_output(tc, si->callbacks)) {
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "spawnprocasync buf_type was not given when the process was spawned");
+        goto spawn_setup_error;
+    }
 
     /* Create input/output handles as needed. */
     if (pty_mode) {
@@ -1214,6 +1230,7 @@ static void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *workl
     SpawnInfo *si = (SpawnInfo *)data;
     MVM_gc_worklist_add(tc, worklist, &si->handle);
     MVM_gc_worklist_add(tc, worklist, &si->callbacks);
+    MVM_gc_worklist_add(tc, worklist, &si->buf_type);
 }
 
 /* Frees info for a spawn task. */
@@ -1268,11 +1285,26 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMStri
     MVMuint64      size, arg_size, i;
     MVMIter       *iter;
     MVMRegister    reg;
+    MVMObject     *buf_type = NULL;
 
     /* Validate queue REPR. */
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
         MVM_exception_throw_adhoc(tc,
             "spawnprocasync target queue must have ConcBlockingQueue REPR");
+
+    /* Validate the type that output is read into, if any is read. It is kept
+     * in the spawn info: the config hash may change after this. */
+    if (reads_output(tc, callbacks)) {
+        buf_type = MVM_repr_at_key_o(tc, callbacks, tc->instance->str_consts.buf_type);
+        if (REPR(buf_type)->ID == MVM_REPR_ID_VMArray) {
+            MVMint32 slot_type = ((MVMArrayREPRData *)STABLE(buf_type)->REPR_data)->slot_type;
+            if (slot_type != MVM_ARRAY_U8 && slot_type != MVM_ARRAY_I8)
+                MVM_exception_throw_adhoc(tc, "spawnprocasync buf_type must be an array of uint8 or int8");
+        }
+        else {
+            MVM_exception_throw_adhoc(tc, "spawnprocasync buf_type must be an array");
+        }
+    }
 
     /* Encode program name and arguments. */
     arg_size = MVM_repr_elems(tc, argv);
@@ -1292,7 +1324,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMStri
     /* Encode CWD. */
     _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
 
-    MVMROOT3(tc, queue, env, callbacks) {
+    MVMROOT4(tc, queue, env, callbacks, buf_type) {
         MVMIOAsyncProcessData *data;
 
         /* Encode environment. */
@@ -1321,6 +1353,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMStri
         si->state       = STATE_UNSTARTED;
         MVM_ASSIGN_REF(tc, &(task->common.header), si->handle, handle);
         MVM_ASSIGN_REF(tc, &(task->common.header), si->callbacks, callbacks);
+        MVM_ASSIGN_REF(tc, &(task->common.header), si->buf_type, buf_type);
         task->body.data = si;
         MVM_ASSIGN_REF(tc, &(handle->common.header), data->async_task, task);
     }
