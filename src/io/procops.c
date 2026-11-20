@@ -570,6 +570,34 @@ static void spawn_async_close(uv_handle_t *handle) {
     MVM_free(handle);
 }
 
+/* Closes the descriptor a process's stdin was bound to. It is usually the
+ * read end of another process's stdout or stderr pipe, and so is still owned
+ * by that process's uv_pipe_t on this loop. Closing it with close() behind
+ * libuv's back leaves the handle holding a dead (and soon reused) descriptor:
+ * a later read on it makes libuv abort when epoll_ctl fails, or reads from an
+ * unrelated descriptor. So when a handle owns the descriptor, close it through
+ * libuv, which also stops any read watcher. */
+typedef struct {
+    int          fd;
+    uv_handle_t *owner;
+} FdOwnerSearch;
+static void find_fd_owner(uv_handle_t *handle, void *arg) {
+    FdOwnerSearch *search = (FdOwnerSearch *)arg;
+    uv_os_fd_t fd;
+    if (!search->owner && !uv_is_closing(handle) && uv_fileno(handle, &fd) == 0
+            && (int)(MVMint64)fd == search->fd)
+        search->owner = handle;
+}
+static void close_bound_stdin(uv_loop_t *loop, SpawnInfo *si) {
+    FdOwnerSearch search = { si->stdin_to_close, NULL };
+    uv_walk(loop, find_fd_owner, &search);
+    if (search.owner)
+        uv_close(search.owner, NULL);
+    else
+        close(si->stdin_to_close);
+    si->stdin_to_close = 0;
+}
+
 static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int term_signal) {
     /* Check we've got a callback to fire. */
     SpawnInfo        *si  = (SpawnInfo *)req->data;
@@ -607,10 +635,8 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     uv_mutex_unlock(mutex);
 
     /* Close any stdin we were bound to. */
-    if (si->stdin_to_close) {
-        close(si->stdin_to_close);
-        si->stdin_to_close = 0;
-    }
+    if (si->stdin_to_close)
+        close_bound_stdin(req->loop, si);
 
     /* Close handle. */
     uv_close((uv_handle_t *)req, spawn_async_close);
@@ -1079,10 +1105,8 @@ spawn_setup_error:
                 MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
             }
 
-            if (si->stdin_to_close) {
-                close(si->stdin_to_close);
-                si->stdin_to_close = 0;
-            }
+            if (si->stdin_to_close)
+                close_bound_stdin(loop, si);
         }
 
         MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
