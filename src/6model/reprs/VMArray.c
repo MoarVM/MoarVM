@@ -445,6 +445,13 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     }
     else {
         ssize = (n + 0x1000) & ~0xfffUL;
+        /* a rounded size below n cannot hold the array (e.g. the addition
+         * wrapped, for n within 4096 of 2**64): refuse it, as a size over
+         * the limit below is */
+        if (ssize < n)
+            MVM_exception_throw_adhoc(tc,
+                "Unable to allocate an array of %"PRIu64" elements",
+                n);
     }
     {
         /* Our budget is 2^(
