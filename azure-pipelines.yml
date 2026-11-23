@@ -57,12 +57,12 @@ stages:
          # first. They usually take the longest to run, so this way we get
          # better pipelining among all the jobs.
          A_Win_MVM:
-           IMAGE_NAME: 'windows-2022'
+           IMAGE_NAME: 'windows-2025'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          A_Win_MVM_reloc:
-           IMAGE_NAME: 'windows-2022'
+           IMAGE_NAME: 'windows-2025'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
@@ -148,7 +148,7 @@ stages:
            MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
 #         MVM_gcc_mingw:
-#           IMAGE_NAME: 'windows-2022'
+#           IMAGE_NAME: 'windows-2025'
 #           RAKUDO_OPTIONS: ''
 #           NQP_OPTIONS: '--backends=moar'
 #           MOAR_OPTIONS: '--os=mingw32'
