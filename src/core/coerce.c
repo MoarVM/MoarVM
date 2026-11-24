@@ -1,8 +1,6 @@
 #include "moar.h"
 #include "zmij-c.h"
 
-#include "ffc.h"
-
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
 #define snprintf _snprintf
@@ -274,64 +272,117 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-    MVMuint16 storage_type = str->body.storage_type;
-    if (storage_type == MVM_STRING_GRAPHEME_ASCII || storage_type == MVM_STRING_GRAPHEME_8 || storage_type == MVM_STRING_IN_SITU_8) {
-        ffc_outcome outcome;
-        result = ffc_parse_i64_simple(strgraphs, storage_type == MVM_STRING_IN_SITU_8 ? (char *)str->body.storage.in_situ_8 : str->body.storage.any_ptr, 10, &outcome);
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        const MVMGraphemeASCII *s = str->body.storage.blob_ascii;
+        MVMStringIndex i = 0;
+        MVMGraphemeASCII c;
+        do {
+            c = *s++;
+            ++i;
+            /* The original C code was processing a NUL terminated string, hence
+             * it could always be sure that it could read a value into c for
+             * which isspace(c) was false, and so for a string entirely
+             * whitespace this loop would terminate with c == 0 (without reading
+             * beyond the end) and the code below would behave correctly too.
+             *
+             * Instead we can use the length test to terminate the loop
+             * unconditionally just after we read the last character. This would
+             * be for strings which are entirely whitespace - eg " ", "  " etc.
+             * They all return 0, and we don't need to optimise their handling,
+             * so we simply drop through into the rest of the code with c == ' '
+             * for them. */
+            /* isspace(...) is any of "\t\n\v\f\r ", ie [9 .. 13, 32] */
+        } while (i != strgraphs && (c == ' ' || (c >= '\t' && c <= '\r')));
 
-        /* If the parse succeeded and used all the chars we take the result, otherwise we'll just fall into
-         * the slow path that does more error checking/reporting.
-         */
-        if (outcome == FFC_OUTCOME_OK)
-            return result;
-    }
-
-    MVMCodepointIter ci;
-    MVM_string_ci_init(tc, &ci, str, 0, 0);
-    MVMCodepoint ord;
-
-    do {
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    } while ((ord == ' ' || (ord >= '\t' && ord <= '\r')) && MVM_string_ci_has_more(tc, &ci));
-
-    if (ord == '-') {
-        negative = 1;
-        if (!MVM_string_ci_has_more(tc, &ci))
-            return 0;
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    }
-    else if (ord == '+') {
-        if (!MVM_string_ci_has_more(tc, &ci))
-            return 0;
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    }
-
-    cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
-    cutlim = cutoff % (unsigned long long)10;
-    cutoff /= (unsigned long long)10;
-
-    while (1) {
-        if (ord >= '0' && ord <= '9')
-            ord -= '0';
-        else
-            break;
-
-        if (any < 0 || result > cutoff || (result == cutoff && ord > cutlim))
-            any = -1;
-        else {
-            any = 1;
-            result *= 10;
-            result += ord;
+        /* `i` counts how many octets we have read. Hence `i == strgraphs` at
+         * the point where `c` holds the final ASCII character of the string,
+         * and there is no more to read. */
+        if (c == '-') {
+            negative = 1;
+            if (i++ == strgraphs)
+                return 0;
+            c = *s++;
+        } else if (c == '+') {
+            if (i++ == strgraphs)
+                return 0;
+            c = *s++;
         }
-        if (!MVM_string_ci_has_more(tc, &ci))
-            break;
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    };
 
-    if (any < 0)
-        result = negative ? LLONG_MIN : LLONG_MAX;
-    else if (negative)
-        result = -result;
+        cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+        cutlim = cutoff % (unsigned long long)10;
+        cutoff /= (unsigned long long)10;
+
+        while (1) {
+            if (c >= '0' && c <= '9')
+                c -= '0';
+            else
+                break;
+
+            if (any < 0 || result > cutoff || (result == cutoff && c > cutlim))
+                any = -1;
+            else {
+                any = 1;
+                result *= 10;
+                result += c;
+            }
+            if (i++ == strgraphs)
+                break;
+            c = *s++;
+        }
+
+        if (any < 0)
+            result = negative ? LLONG_MIN : LLONG_MAX;
+        else if (negative)
+            result = -result;
+    }
+    else {
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str, 0, 0);
+        MVMCodepoint ord;
+
+        do {
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        } while ((ord == ' ' || (ord >= '\t' && ord <= '\r')) && MVM_string_ci_has_more(tc, &ci));
+
+        if (ord == '-') {
+            negative = 1;
+            if (!MVM_string_ci_has_more(tc, &ci))
+                return 0;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+        else if (ord == '+') {
+            if (!MVM_string_ci_has_more(tc, &ci))
+                return 0;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+
+        cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+        cutlim = cutoff % (unsigned long long)10;
+        cutoff /= (unsigned long long)10;
+
+        while (1) {
+            if (ord >= '0' && ord <= '9')
+                ord -= '0';
+            else
+                break;
+
+            if (any < 0 || result > cutoff || (result == cutoff && ord > cutlim))
+                any = -1;
+            else {
+                any = 1;
+                result *= 10;
+                result += ord;
+            }
+            if (!MVM_string_ci_has_more(tc, &ci))
+                break;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        };
+
+        if (any < 0)
+            result = negative ? LLONG_MIN : LLONG_MAX;
+        else if (negative)
+            result = -result;
+    }
 
     return result;
 }
@@ -379,64 +430,117 @@ MVMuint64 MVM_coerce_s_u(MVMThreadContext *tc, MVMString *str) {
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-    MVMuint16 storage_type = str->body.storage_type;
-    if (storage_type == MVM_STRING_GRAPHEME_ASCII || storage_type == MVM_STRING_GRAPHEME_8 || storage_type == MVM_STRING_IN_SITU_8) {
-        ffc_outcome outcome;
-        result = ffc_parse_u64_simple(strgraphs, storage_type == MVM_STRING_IN_SITU_8 ? (char *)str->body.storage.in_situ_8 : str->body.storage.any_ptr, 10, &outcome);
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        const MVMGraphemeASCII *s = str->body.storage.blob_ascii;
+        MVMStringIndex i = 0;
+        MVMGraphemeASCII c;
+        do {
+            c = *s++;
+            ++i;
+            /* The original C code was processing a NUL terminated string, hence
+             * it could always be sure that it could read a value into c for
+             * which isspace(c) was false, and so for a string entirely
+             * whitespace this loop would terminate with c == 0 (without reading
+             * beyond the end) and the code below would behave correctly too.
+             *
+             * Instead we can use the length test to terminate the loop
+             * unconditionally just after we read the last character. This would
+             * be for strings which are entirely whitespace - eg " ", "  " etc.
+             * They all return 0, and we don't need to optimise their handling,
+             * so we simply drop through into the rest of the code with c == ' '
+             * for them. */
+            /* isspace(...) is any of "\t\n\v\f\r ", ie [9 .. 13, 32] */
+        } while (i != strgraphs && (c == ' ' || (c >= '\t' && c <= '\r')));
 
-        /* If the parse succeeded and used all the chars we take the result, otherwise we'll just fall into
-         * the slow path that does more error checking/reporting.
-         */
-        if (outcome == FFC_OUTCOME_OK)
-            return result;
-    }
-
-    MVMCodepointIter ci;
-    MVM_string_ci_init(tc, &ci, str, 0, 0);
-    MVMCodepoint ord;
-
-    do {
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    } while ((ord == ' ' || (ord >= '\t' && ord <= '\r')) && MVM_string_ci_has_more(tc, &ci));
-
-    if (ord == '-') {
-        negative = 1;
-        if (!MVM_string_ci_has_more(tc, &ci))
-            return 0;
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    }
-    else if (ord == '+') {
-        if (!MVM_string_ci_has_more(tc, &ci))
-            return 0;
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    }
-
-    cutoff = (unsigned long long)LLONG_MAX;
-    cutlim = cutoff % (unsigned long long)10;
-    cutoff /= (unsigned long long)10;
-
-    while (1) {
-        if (ord >= '0' && ord <= '9')
-            ord -= '0';
-        else
-            break;
-
-        if (any < 0 || result > cutoff || (result == cutoff && ord > cutlim))
-            any = -1;
-        else {
-            any = 1;
-            result *= 10;
-            result += ord;
+        /* `i` counts how many octets we have read. Hence `i == strgraphs` at
+         * the point where `c` holds the final ASCII character of the string,
+         * and there is no more to read. */
+        if (c == '-') {
+            negative = 1;
+            if (i++ == strgraphs)
+                return 0;
+            c = *s++;
+        } else if (c == '+') {
+            if (i++ == strgraphs)
+                return 0;
+            c = *s++;
         }
-        if (!MVM_string_ci_has_more(tc, &ci))
-            break;
-        ord = MVM_string_ci_get_codepoint(tc, &ci);
-    };
 
-    if (any < 0)
-        result = negative ? LLONG_MIN : LLONG_MAX;
-    else if (negative)
-        result = -result;
+        cutoff = (unsigned long long)LLONG_MAX;
+        cutlim = cutoff % (unsigned long long)10;
+        cutoff /= (unsigned long long)10;
+
+        while (1) {
+            if (c >= '0' && c <= '9')
+                c -= '0';
+            else
+                break;
+
+            if (any < 0 || result > cutoff || (result == cutoff && c > cutlim))
+                any = -1;
+            else {
+                any = 1;
+                result *= 10;
+                result += c;
+            }
+            if (i++ == strgraphs)
+                break;
+            c = *s++;
+        }
+
+        if (any < 0)
+            result = negative ? LLONG_MIN : LLONG_MAX;
+        else if (negative)
+            result = -result;
+    }
+    else {
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str, 0, 0);
+        MVMCodepoint ord;
+
+        do {
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        } while ((ord == ' ' || (ord >= '\t' && ord <= '\r')) && MVM_string_ci_has_more(tc, &ci));
+
+        if (ord == '-') {
+            negative = 1;
+            if (!MVM_string_ci_has_more(tc, &ci))
+                return 0;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+        else if (ord == '+') {
+            if (!MVM_string_ci_has_more(tc, &ci))
+                return 0;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+
+        cutoff = (unsigned long long)LLONG_MAX;
+        cutlim = cutoff % (unsigned long long)10;
+        cutoff /= (unsigned long long)10;
+
+        while (1) {
+            if (ord >= '0' && ord <= '9')
+                ord -= '0';
+            else
+                break;
+
+            if (any < 0 || result > cutoff || (result == cutoff && ord > cutlim))
+                any = -1;
+            else {
+                any = 1;
+                result *= 10;
+                result += ord;
+            }
+            if (!MVM_string_ci_has_more(tc, &ci))
+                break;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        };
+
+        if (any < 0)
+            result = negative ? LLONG_MIN : LLONG_MAX;
+        else if (negative)
+            result = -result;
+    }
 
     if (negative) {
         MVM_exception_throw_adhoc(tc, "Cannot coerce negative number from string to native unsigned integer");
