@@ -32,3 +32,4 @@ Unofficial summary of the intended application of the Artistic License 2.0:
 - mimalloc   MIT
 - rapidhash  MIT
 - Żmij       MIT
+- ffc.h      Apache-2.0,BSL-1.0,MIT
