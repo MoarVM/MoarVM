@@ -959,10 +959,12 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
                 && s_repr_data->elem_size == d_repr_data->elem_size
                 && (d_repr_data->slot_type != MVM_ARRAY_OBJ || !d_needs_barrier)
                 && d_repr_data->slot_type  != MVM_ARRAY_STR) {
-            /* Optimized for copying from a VMArray with same slot type */
+            /* Optimized for copying from a VMArray with same slot type.
+             * src may be dest (a splice of an array into itself), so the
+             * ranges may overlap. */
             MVMint64 s_start = s_body->start;
             MVMint64 d_start = d_body->start;
-            memcpy( d_body->slots.u8 + (d_start + d_offset) * d_repr_data->elem_size,
+            memmove(d_body->slots.u8 + (d_start + d_offset) * d_repr_data->elem_size,
                     s_body->slots.u8  + (s_start + s_offset) * s_repr_data->elem_size,
                     d_repr_data->elem_size * elems
             );
@@ -970,11 +972,16 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
         else {
             MVMuint16 target_kind = slot_type_to_kind(d_repr_data->slot_type);
             MVMuint16 source_kind = slot_type_to_kind(s_repr_data->slot_type);
+            /* When src is dest and the target range lies above the source
+             * range, copy from the last element down, so that no element is
+             * overwritten before it has been read (as memmove does above). */
+            MVMuint8  backwards   = src == dest && d_offset > s_offset;
             for (i = 0; i < elems; i++) {
+                MVMint64    j = backwards ? elems - 1 - i : i;
                 MVMRegister to_copy;
-                REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + i, &to_copy, source_kind);
+                REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + j, &to_copy, source_kind);
                 /* actually should coerce between source_kind and target_kind here */
-                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, target_kind);
+                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + j, to_copy, target_kind);
             }
         }
     }
@@ -1100,8 +1107,9 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
      * calls and reallocs by adjusting SELF's start, elems0, and
      * count to better match the incoming splice.  In particular,
      * we're seeking to adjust C<count> to as close to C<elems1>
-     * as we can. */
-    if (offset == 0) {
+     * as we can.  Not when splicing SELF into itself: moving start
+     * would move the source too. */
+    if (offset == 0 && from != root) {
         MVMint64 n = elems1 - count;
         start = body->start;
         if (n > start)
