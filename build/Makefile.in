@@ -42,7 +42,6 @@ CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @mimalloc_include@ \
             @zmij_include@ \
-            @ffc_include@ \
             @ccincsystem@3rdparty/dynasm \
             @ccincsystem@3rdparty/cmp \
             @ccincsystem@3rdparty \

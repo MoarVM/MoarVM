@@ -1,8 +1,5 @@
 #include "moar.h"
 
-#define FFC_IMPL
-#include "ffc.h"
-
 /* We put a ' ' into the current code point buffer when we reach the end of the string,
  *  as it's something that can be harmlessly added to the end of a number */
 
@@ -290,23 +287,6 @@ static double parse_real(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoin
 }
 
 MVMnum64 MVM_coerce_s_n(MVMThreadContext *tc, MVMString *s) {
-    MVMuint16 storage_type = s->body.storage_type;
-    /* Fast path when we don't have to use a MVMCodepointIter */
-    if (storage_type == MVM_STRING_GRAPHEME_ASCII || storage_type == MVM_STRING_GRAPHEME_8 || MVM_STRING_IN_SITU_8) {
-        char *blob = storage_type == MVM_STRING_IN_SITU_8 ? (char *)s->body.storage.in_situ_8 : (char *)s->body.storage.any_ptr;
-        ffc_parse_options po = ffc_parse_options_default();
-        po.format |= FFC_FORMAT_FLAG_SKIP_WHITE_SPACE;
-        po.format |= FFC_FORMAT_FLAG_ALLOW_LEADING_PLUS;
-        ffc_value value;
-        ffc_result result = ffc_from_chars(blob, &blob[s->body.num_graphs], po, &value, FFC_VALUE_KIND_DOUBLE);
-
-        /* If the parse succeeded and used all the chars we take the result, otherwise we'll just fall into
-         * the slow path that does more error checking/reporting.
-         */
-        if (result.outcome == FFC_OUTCOME_OK && (result.ptr - blob) == s->body.num_graphs)
-            return value.d;
-    }
-
     MVMCodepointIter ci;
     MVMCodepoint cp;
     MVMnum64  n = 123;
