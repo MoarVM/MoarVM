@@ -626,9 +626,11 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCArray)
                             MVM_exception_throw_adhoc(tc,
                                 "Can only store CArray attribute in CArray slot in CStruct");
-                        if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
-                            cobj = ((MVMCArray *)value)->body.storage
-                                 = (char *)body->cstruct + repr_data->struct_offsets[slot];
+                        if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED) {
+                            ((MVMCArray *)value)->body.storage
+                                = (char *)body->cstruct + repr_data->struct_offsets[slot];
+                            break;
+                        }
                         else
                             cobj = ((MVMCArray *)value)->body.storage;
                     }
