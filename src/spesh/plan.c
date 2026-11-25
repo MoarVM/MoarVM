@@ -98,7 +98,8 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
         /* It is. We'll try and produce some specializations, looping until
          * no tuples that remain give us anything significant. */
         MVMuint32 required_hits = (PERCENT_RELEVANT * (by_cs->hits + by_cs->osr_hits)) / 100;
-        MVMuint8 *tuples_used = MVM_calloc(by_cs->num_by_type, 1);
+        MVMuint8 *tuples_used = alloca(by_cs->num_by_type);
+        memset(tuples_used, 0, by_cs->num_by_type);
         MVMuint32 num_obj_args = 0, i;
         for (i = 0; i < by_cs->cs->flag_count; i++)
             if (by_cs->cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
@@ -220,9 +221,6 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                 break;
             }
         }
-
-        /* Clean up allocated memory. */
-        MVM_free(tuples_used);
     }
 
     /* If we get here, and found no specializations to produce, we can add
