@@ -25,6 +25,9 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
             /* Hasn't got one; allocate it a place in gen2 and make an entry
              * in the persistent object ID hash. */
             id = (uintptr_t)MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
+            /* The slot is in our gen2, so record us as its owner; promotion
+             * into it keeps that owner. */
+            ((MVMCollectable *)id)->owner = tc->thread_id;
             MVM_ptr_hash_insert(tc, &tc->instance->object_ids, obj, id);
             obj->header.flags1 |= MVM_CF_HAS_OBJECT_ID;
         }
