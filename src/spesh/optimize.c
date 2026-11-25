@@ -506,6 +506,49 @@ static void optimize_not_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
     }
 }
 
+#define powerof2(x)     ((((x) - 1) & (x)) == 0)
+static void optimize_div_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+    MVMSpeshFacts *rhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+
+    // Division by a power-of-two can instead be implemented as a bit shift,
+    // which is a cheaper operation.
+    if ((rhs_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && rhs_facts->value.i > 0 && powerof2(rhs_facts->value.i))
+    {
+        MVMSpeshIns *nins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        MVMuint64 orig_val = rhs_facts->value.i;
+
+        MVMSpeshOperand temp;
+
+        MVMuint8 shift_dist = 0;
+        MVMuint64 value = rhs_facts->value.i;
+        while (value != 1) {
+            shift_dist += 1;
+            value = value >> 1;
+        }
+
+        temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+        MVMSpeshFacts *temp_facts = MVM_spesh_get_facts(tc, g, temp);
+
+        nins->info                   = MVM_op_get_op(MVM_OP_const_i64_16);
+        nins->operands               = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+        temp_facts->flags           |= MVM_SPESH_FACT_KNOWN_VALUE;
+        temp_facts->value.i          = shift_dist;
+        nins->operands[1].lit_i16    = shift_dist;
+        nins->operands[0]            = temp;
+        temp_facts->writer           = nins;
+        MVM_spesh_use_facts(tc, g, temp_facts);
+        MVM_spesh_usages_delete(tc, g, rhs_facts, ins);
+
+        MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, nins);
+
+        ins->operands[2] = temp;
+        ins->info = MVM_op_get_op(MVM_OP_brshift_i);
+
+        MVM_spesh_usages_add_by_reg(tc, g, temp, nins);
+        MVM_spesh_graph_add_comment(tc, g, nins, "division into shift %ld -> %d", orig_val, shift_dist);
+    }
+}
+
 static void optimize_bitwise_int_math(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshFacts *lhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     MVMSpeshFacts *rhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
@@ -2108,6 +2151,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_bor_i:
         case MVM_OP_bxor_i:
             optimize_bitwise_int_math(tc, g, ins, bb);
+            break;
+        case MVM_OP_div_i:
+            optimize_div_i(tc, g, ins, bb);
             break;
         case MVM_OP_coerce_ui:
         case MVM_OP_coerce_iu:
