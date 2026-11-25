@@ -62,6 +62,8 @@ src/gen/
 *.su
 # Callgrind files
 callgrind.out.*
+# SARIF formatted analysis / scan results
+*.sarif
 
 moar
 *.vsp
