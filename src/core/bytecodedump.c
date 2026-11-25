@@ -402,6 +402,11 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
     *ol = l;
 }
 
+#define INSTRUMENT_PROFILE 1
+#define INSTRUMENT_CTW 2
+#define INSTRUMENT_BB_EDGE 3
+#define INSTRUMENT_LINE_COVERAGE 4
+#define INSTRUMENT_BREAKPOINTS 5
 
 char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
@@ -410,7 +415,38 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     char *o = MVM_malloc(s * sizeof(char));
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
 
-    a("\nMoarVM dump of binary compilation unit:\n\n");
+    MVMuint8 should_instrument = 0;
+
+    const char *dump_instrument_mode = getenv("MVM_DUMP_INSTRUMENTATION");
+    char *instrumentation_text = "";
+    if (dump_instrument_mode) {
+        if (strcmp("profile", dump_instrument_mode) == 0) {
+            should_instrument = INSTRUMENT_PROFILE;
+            instrumentation_text = " (instrumented for profiling)";
+        }
+        else if (strcmp("crossthreadwrite", dump_instrument_mode) == 0) {
+            should_instrument = INSTRUMENT_CTW;
+            instrumentation_text = " (instrumented for cross-thread-write log)";
+        }
+        else if (strcmp("bbedge", dump_instrument_mode) == 0) {
+            should_instrument = INSTRUMENT_BB_EDGE;
+            instrumentation_text = " (instrumented for BB edge coverage)";
+        }
+        else if (strcmp("linecoverage", dump_instrument_mode) == 0) {
+            should_instrument = INSTRUMENT_LINE_COVERAGE;
+            instrumentation_text = " (instrumented for line coverage)";
+        }
+        else if (strcmp("debugger", dump_instrument_mode) == 0) {
+            should_instrument = INSTRUMENT_BREAKPOINTS;
+            instrumentation_text = " (instrumented for debugger breakpoints)";
+        }
+        else {
+            fprintf(stderr, "Unknown mode in MVM_DUMP_INSTRUMENTATION: %s\n"
+                "Known modes: profile, crossthreadwrite, bbedge, linecoverage, debugger\n", dump_instrument_mode);
+        }
+    }
+
+    a("\nMoarVM dump of binary compilation unit%s:\n\n", instrumentation_text);
 
     for (k = 0; k < cu->body.num_scs; k++) {
         char *tmpstr = MVM_string_utf8_encode_C_string(
@@ -468,6 +504,21 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         if (!frame->body.fully_deserialized) {
             MVM_bytecode_finish_frame(tc, cu, frame, 1);
+        }
+
+        if (should_instrument) {
+            MVM_validate_static_frame(tc, frame);
+
+            if (should_instrument == INSTRUMENT_PROFILE)
+                MVM_profile_instrument(tc, frame);
+            else if (should_instrument == INSTRUMENT_CTW)
+                MVM_cross_thread_write_instrument(tc, frame);
+            else if (should_instrument == INSTRUMENT_BB_EDGE)
+                MVM_edge_coverage_instrument(tc, frame);
+            else if (should_instrument == INSTRUMENT_LINE_COVERAGE)
+                MVM_line_coverage_instrument(tc, frame);
+            else if (should_instrument == INSTRUMENT_BREAKPOINTS)
+                MVM_cross_thread_write_instrument(tc, frame);
         }
 
         MVMuint32 num_lexicals = frame->body.num_lexicals;

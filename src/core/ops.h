@@ -974,6 +974,12 @@
 #define MVM_OP_ctw_check 970
 #define MVM_OP_coverage_log 971
 #define MVM_OP_breakpoint 972
+#define MVM_OP_bb_entered 973
+#define MVM_OP_bb_sp_markedge 974
+#define MVM_OP_bb_sp_setlastbb 975
+#define MVM_OP_cmplog_i 976
+#define MVM_OP_cmplog_atkey 977
+#define MVM_OP_cmplog_findcclass 978
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
