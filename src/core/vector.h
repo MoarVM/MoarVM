@@ -41,8 +41,8 @@
 #define MVM_VECTOR_ENSURE_SIZE(x, size) do {\
         size_t _s = (size); \
         if (_s >= (x ## _alloc)) {    \
-            size_t newsize = (x ## _alloc) * 2 + 2; \
-            while (_s >= newsize) newsize *= 2; \
+            size_t newsize = (x ## _alloc) ? (((x ## _alloc) * 3 + 1) / 2) : 8; \
+            while (_s >= newsize) newsize = (newsize * 3 + 1) / 2; \
             MVM_VECTOR_GROW(x, newsize); \
         } \
     } while (0)
