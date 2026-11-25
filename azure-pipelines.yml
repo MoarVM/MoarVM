@@ -84,6 +84,11 @@ stages:
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-c11-atomics'
+         Mac_14_MVM:
+           IMAGE_NAME: 'macOS-14'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: ''
 
          Lin_MVM:
            IMAGE_NAME: 'ubuntu-24.04'
