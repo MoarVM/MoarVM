@@ -455,8 +455,7 @@ else {
 }
 
 # zmij
-$config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/zmij/'
-                         . ' ' . $defaults{ccinc} . '3rdparty/zmij/';
+$config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/zmij/';
 $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/zmij\"\n"
                    . "\t\$(CP) 3rdparty/zmij/zmij-c.h \"\$(DESTDIR)\$(PREFIX)/include/zmij\"\n";
 push @hllincludes, 'zmij';
