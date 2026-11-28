@@ -278,7 +278,15 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     if (stc) {
                         if (!sl->body.was_compunit_bumped) {
                             if (MVM_incr(&(stc->spesh_log_quota)) == 0) {
-                                stc->spesh_log = MVM_spesh_log_create(tc, sl->body.thread);
+                                MVMSpeshLog *new_log = MVM_spesh_log_create(tc, sl->body.thread);
+                                /* The log is published to another thread, which
+                                 * reads its fields without synchronization. Make
+                                 * sure the initialized log is visible before the
+                                 * pointer to it is, or weakly ordered CPUs may
+                                 * let the other thread see a NULL entries pointer
+                                 * or a zero limit. */
+                                MVM_barrier();
+                                stc->spesh_log = new_log;
                                 MVM_telemetry_timestamp(stc, "logging restored after quota had run out");
                             }
                         }
